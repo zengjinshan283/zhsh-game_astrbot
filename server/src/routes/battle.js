@@ -63,13 +63,15 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
 
     let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0;
     if (user.pet_id > 0) {
-      const up = await db.getOne('SELECT up.id, up.level, up.satiety, p.atk, p.name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
+      const up = await db.getOne('SELECT up.id, up.level, up.satiety, up.nickname, p.atk, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
       if (up) {
         petUpId = up.id;
         petSatiety = up.satiety;
+        petName = up.nickname || up.species_name || '';
         if (up.satiety > 0) {
           petAtk = Math.round(up.atk * (1 + up.level * 0.15));
-          petName = up.name || '';
+        } else {
+          petAtk = 0; // will show warning below
         }
       }
     }
@@ -84,7 +86,6 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       round: 1, result: null, finished: false,
       from_sail: true, sail_remaining_sec: Number(user.sail_remaining_sec || 0),
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
-      from_sail: true, sail_remaining_sec: 0,
       log: [{ type: 'info', text: '🏴‍☠️ 海盗船逼近！战斗开始！' }],
     };
     if (petAtk > 0) battle.log.push({ type: 'info', text: `🐾 ${petName} 在一旁准备战斗！` });
@@ -113,13 +114,15 @@ router.post('/start', authMiddleware, async (req, res, next) => {
 
     let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0;
     if (user.pet_id > 0) {
-      const up = await db.getOne('SELECT up.id, up.level, up.satiety, p.atk, p.name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
+      const up = await db.getOne('SELECT up.id, up.level, up.satiety, up.nickname, p.atk, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
       if (up) {
         petUpId = up.id;
         petSatiety = up.satiety;
+        petName = up.nickname || up.species_name || '';
         if (up.satiety > 0) {
           petAtk = Math.round(up.atk * (1 + up.level * 0.15));
-          petName = up.name || '';
+        } else {
+          petAtk = 0; // will show warning below
         }
       }
     }
@@ -170,8 +173,6 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       if (battle.monster_hp <= 0) {
         await handleMonsterKill(user, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
-        await resumeSailingIfNeeded(req.user.id, battle);
-        await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
         return res.json(buildBattleResponse(battle, user));
       }
@@ -180,7 +181,6 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       await monsterRetaliate(user, battle);
       if (user.hp <= 0) {
         await handlePlayerDeath(user, battle);
-        await resumeSailingIfNeeded(req.user.id, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
         return res.json(buildBattleResponse(battle, user));
@@ -191,7 +191,6 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         battle.log.push({ type: 'info', text: '你成功逃离了战斗！' });
         battle.result = 'flee';
         battle.finished = true;
-        await resumeSailingIfNeeded(req.user.id, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
         return res.json(buildBattleResponse(battle, user));
@@ -224,7 +223,6 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         battle.finished = true;
         battle.exp_gained = 0;
         battle.money_gained = 0;
-        await resumeSailingIfNeeded(req.user.id, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
         return res.json(buildBattleResponse(battle, user));
@@ -273,7 +271,6 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         await monsterRetaliate(user, battle);
         if (user.hp <= 0) {
           await handlePlayerDeath(user, battle);
-          await resumeSailingIfNeeded(req.user.id, battle);
           battleSessions.delete(req.user.id);
           return res.json(buildBattleResponse(battle, user));
         }
@@ -341,8 +338,16 @@ async function handleMonsterKill(user, battle) {
   battle.log.push({ type: 'info', text: `${battle.monster_name}被击败了！` });
   battle.log.push({ type: 'info', text: `获得经验 +${expGain}，铜币 +${moneyGain}` });
 
+  // Pet satiety deduction on kill round
+  if (battle.pet_up_id && battle.pet_satiety > 0) {
+    const newSat = Math.max(0, battle.pet_satiety - 2);
+    battle.pet_satiety = newSat;
+    await db.query('UPDATE user_pet SET satiety = ? WHERE id = ?', [newSat, battle.pet_up_id]);
+  }
+
   // Pet gains 50% of monster exp
-  if (battle.pet_up_id && battle.pet_atk > 0) {
+  if (battle.pet_up_id) {
+    // Pet gains exp if equipped (even if satiety ran out mid-fight)
     const petExpGain = Math.floor(battle.monster_exp * 0.5);
     const up = await db.getOne('SELECT level, exp FROM user_pet WHERE id = ?', [battle.pet_up_id]);
     if (up) {
@@ -463,7 +468,7 @@ function buildBattleResponse(battle, user) {
     exp_gained: battle.exp_gained || 0,
     money_gained: battle.money_gained || 0,
     teleport: battle.teleported || false,
-    log: battle.finished ? battle.log : battle.log.slice(-10),
+    log: battle.finished ? battle.log : battle.log.slice(-30),
   };
   if (user) {
     resp.player_hp = user.hp;

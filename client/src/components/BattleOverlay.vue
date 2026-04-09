@@ -148,7 +148,7 @@ const playerHpPct = computed(() => {
 });
 const displayLogs = computed(() => {
   if (!battle.value?.log) return [];
-  return battle.value.log.slice(-8);
+  return battle.value.log.slice(-20);
 });
 const currentCaptureRate = computed(() => {
   if (!battle.value?.captureable || !battle.value.monster_hp_max) return 0;
