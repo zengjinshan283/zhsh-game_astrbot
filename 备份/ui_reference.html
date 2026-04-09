@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>酒馆威尼斯 · 紧凑版</title>
+    <style>
+        /* 暗色 · 无滚动 · 移动紧凑布局 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #080c08;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+            padding: 6px;
+            margin: 0;
+            background-image: radial-gradient(circle at 20% 20%, #1c2a1a 0%, #050805 100%);
+            /* 固定高度，防止溢出 */
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 主容器 —— 完全利用视口高度，flex列 */
+        .game-container {
+            max-width: 420px;
+            width: 100%;
+            height: 100%;
+            max-height: 780px;  /* 适应大部分手机 */
+            background: rgba(10, 16, 12, 0.94);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 24px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.8), inset 0 0 0 1px #5e4e36;
+            border: 1px solid #7a6848;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .game-panel {
+            padding: 10px 12px 8px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            gap: 8px;
+            min-height: 0;  /* 允许flex收缩 */
+        }
+
+        /* ----- 顶部栏 (极致紧凑) ----- */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #141e18e0;
+            padding: 6px 12px;
+            border-radius: 40px;
+            backdrop-filter: blur(8px);
+            border: 1px solid #8b784e;
+            box-shadow: inset 0 1px 3px #00000055, 0 3px 6px #0000004d;
+            flex-shrink: 0;
+        }
+
+        .player-area {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .avatar {
+            background: #2a3525;
+            width: 32px;
+            height: 32px;
+            border-radius: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 1.5px solid #c9aa7b;
+            box-shadow: 0 2px 4px black;
+            flex-shrink: 0;
+        }
+
+        .player-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .player-name-line {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .player-name {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #f3e1b3;
+            text-shadow: 1.5px 1.5px 0 #3d2c12;
+        }
+
+        .player-id {
+            background: #1e2a1c;
+            padding: 1px 6px;
+            border-radius: 20px;
+            font-family: monospace;
+            font-size: 0.6rem;
+            color: #ddc294;
+            border: 1px solid #7f6e4f;
+        }
+
+        .player-lv {
+            background: #b89b4c;
+            color: #141e0a;
+            padding: 1px 8px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.65rem;
+            box-shadow: inset 0 -1px 0 #ffe18a, 0 1px 3px black;
+        }
+
+        .stats-compact {
+            display: flex;
+            gap: 8px;
+        }
+
+        .stat-badge {
+            font-size: 0.65rem;
+            background: #00000055;
+            padding: 2px 6px;
+            border-radius: 20px;
+            color: #f2dba5;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .exit-btn {
+            background: #3f281e;
+            border: none;
+            color: #fad6a0;
+            padding: 5px 12px;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            cursor: pointer;
+            box-shadow: 0 2px 0 #1e120a;
+            border: 1px solid #a77b4e;
+            transition: all 0.05s;
+            backdrop-filter: blur(5px);
+            flex-shrink: 0;
+        }
+
+        .exit-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #1e120a;
+        }
+
+        /* ----- 左右双栏 (flex行，紧凑)  flex:1 占满剩余高度 ----- */
+        .main-layout {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;  /* 防止溢出 */
+        }
+
+        /* 左栏：酒馆核心 (宽度55%) */
+        .tavern-area {
+            flex: 5.5;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 0;
+            overflow-y: auto;  /* 内部极微滚动？但不希望有，但可防止绝对溢出。但内容少，不会出现 */
+            max-height: 100%;
+        }
+
+        /* 隐藏滚动条但保留功能（如果不溢出就不会出现） */
+        .tavern-area::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tavern-header {
+            display: flex;
+            align-items: baseline;
+        }
+
+        .tavern-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #ecd59e;
+            text-shadow: 2px 2px 0 #2f3e1c;
+            border-left: 5px solid #c9a758;
+            padding-left: 10px;
+            line-height: 1.2;
+        }
+
+        .tavern-desc {
+            background: #0f1812cc;
+            padding: 6px 10px;
+            border-radius: 16px;
+            color: #ddd0b6;
+            font-size: 0.7rem;
+            line-height: 1.3;
+            border: 1px solid #7f6e4a;
+            backdrop-filter: blur(4px);
+            box-shadow: inset 0 1px 4px #00000066;
+            font-style: italic;
+            flex-shrink: 0;
+        }
+
+        /* NPC列表 — 超紧凑卡片 */
+        .npcs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+
+        .npc-card {
+            background: #162016d9;
+            backdrop-filter: blur(6px);
+            border-radius: 18px;
+            padding: 5px 10px 5px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid #8b764e;
+            box-shadow: 0 3px 4px #00000033;
+            transition: 0.1s;
+            min-height: 42px;
+        }
+
+        .npc-info {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .npc-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #ffeecd;
+            text-shadow: 1px 1px 0 #3b301c;
+        }
+
+        .npc-badge {
+            background: #2f3a26;
+            padding: 2px 6px;
+            border-radius: 16px;
+            font-size: 0.55rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #e2c089;
+            border: 1px solid #a5844c;
+        }
+
+        .badge-danger {
+            background: #73281c;
+            color: #ffcfb0;
+            border-color: #b85a3a;
+        }
+
+        .badge-friendly {
+            background: #2e5a3b;
+            color: #e2f0b3;
+        }
+
+        .npc-hp {
+            background: #1f1f14;
+            padding: 2px 6px;
+            border-radius: 20px;
+            font-family: monospace;
+            font-size: 0.65rem;
+            color: #eeb782;
+            border: 1px solid #ac8b56;
+        }
+
+        .action-btn {
+            background: #5f4a31;
+            border: none;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            color: #f2e2c0;
+            box-shadow: 0 2px 0 #2f2418;
+            transition: 0.05s;
+            border: 1px solid #bb9f6b;
+            backdrop-filter: blur(5px);
+            min-width: 58px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .action-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 0 #2f2418;
+        }
+
+        .talk-btn {
+            background: #3f6a4a;
+            box-shadow: 0 2px 0 #1f3822;
+            border-color: #84a86b;
+        }
+
+        .dialogue-hint {
+            background: #0f1810e0;
+            border-radius: 14px;
+            padding: 4px 8px;
+            margin: 2px 0;
+            font-size: 0.6rem;
+            color: #cfc19e;
+            border-left: 3px solid #b39250;
+            backdrop-filter: blur(4px);
+            flex-shrink: 0;
+        }
+
+        /* 额外内容精简 (传闻板改为超小横条) */
+        .extra-content {
+            margin-top: 2px;
+        }
+
+        .rumor-board {
+            background: #121c12d9;
+            border-radius: 16px;
+            padding: 6px 10px;
+            border: 1px solid #7f6a41;
+            backdrop-filter: blur(6px);
+            font-size: 0.6rem;
+        }
+
+        .rumor-title {
+            color: #ddc288;
+            font-weight: bold;
+            font-size: 0.65rem;
+            margin-bottom: 2px;
+        }
+
+        .rumor-item {
+            color: #cdbc97;
+            font-size: 0.6rem;
+            padding: 2px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 右栏 (宽度45%) */
+        .right-panel {
+            flex: 4.5;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .info-card {
+            background: #0e1811e6;
+            backdrop-filter: blur(8px);
+            border-radius: 18px;
+            padding: 10px 10px;
+            border: 1px solid #9e895c;
+            box-shadow: inset 0 1px 3px #00000055;
+        }
+
+        .online-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .online-count {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #8fc99c;
+            text-shadow: 0 1px 0 #14351a;
+        }
+
+        .nearby-text {
+            color: #bbaa83;
+            font-size: 0.6rem;
+            margin-top: 2px;
+            border-top: 1px dashed #7b6844;
+            padding-top: 6px;
+        }
+
+        .compass-title {
+            font-size: 0.75rem;
+            color: #e7cf99;
+            margin-bottom: 8px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .direction-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .dir-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .loc-btn {
+            background: #1a261ae6;
+            border: 1px solid #b39254;
+            padding: 4px 6px;
+            border-radius: 30px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            color: #eedbaa;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 1px 3px #0000004d;
+            flex: 1 0 52px;
+            transition: 0.05s;
+            text-align: center;
+        }
+
+        .loc-btn:active {
+            background: #3f5532;
+            transform: scale(0.96);
+        }
+
+        /* 底部栏 —— 极紧凑 */
+        .bottom-actions {
+            display: flex;
+            justify-content: space-around;
+            gap: 6px;
+            background: #0c130ce0;
+            padding: 6px 6px;
+            border-radius: 40px;
+            backdrop-filter: blur(12px);
+            border-top: 1px solid #a68750;
+            flex-shrink: 0;
+        }
+
+        .bottom-btn {
+            background: #253b21;
+            border: none;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 6px 0;
+            border-radius: 40px;
+            color: #f5e0b5;
+            cursor: pointer;
+            box-shadow: 0 2px 0 #13200e;
+            flex: 1;
+            text-align: center;
+            border: 1px solid #b29658;
+            transition: 0.05s;
+        }
+
+        .bottom-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #13200e;
+        }
+
+        /* 弹窗 —— 不变 */
+        .modal-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #030503dd;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.15s;
+        }
+
+        .modal-mask.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background: #1f281bd9;
+            backdrop-filter: blur(20px);
+            width: 85%;
+            max-width: 320px;
+            border-radius: 30px;
+            border: 2px solid #bc9a58;
+            box-shadow: 0 20px 30px black;
+            padding: 22px 16px 18px;
+            text-align: center;
+            color: #f2e2c0;
+            transform: scale(0.92);
+            transition: transform 0.15s;
+        }
+
+        .active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-icon { font-size: 2rem; margin-bottom: 4px; }
+        .modal-message {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin: 12px 0 16px;
+            white-space: pre-line;
+        }
+        .modal-close {
+            background: #6f5632;
+            border: none;
+            padding: 6px 20px;
+            border-radius: 60px;
+            font-weight: bold;
+            color: #f7efdb;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: 0 2px 0 #352918;
+        }
+
+        /* 隐藏全局滚动 */
+        body::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="game-panel">
+        <!-- 紧凑头部 -->
+        <div class="top-bar">
+            <div class="player-area">
+                <div class="avatar">⚓</div>
+                <div class="player-details">
+                    <div class="player-name-line">
+                        <span class="player-name">纵横四海</span>
+                        <span class="player-id">975269528</span>
+                        <span class="player-lv">Lv.3</span>
+                    </div>
+                    <div class="stats-compact">
+                        <span class="stat-badge"><span>❤️</span>14/140</span>
+                        <span class="stat-badge"><span>⭐</span>275</span>
+                        <span class="stat-badge"><span>💰</span>118</span>
+                    </div>
+                </div>
+            </div>
+            <button class="exit-btn" id="exitBtn">🚪退出</button>
+        </div>
+
+        <!-- 左右内容区 (无滚动) -->
+        <div class="main-layout">
+            <!-- 左侧酒馆 -->
+            <div class="tavern-area">
+                <div class="tavern-header">
+                    <div class="tavern-title">🍷酒馆威尼斯</div>
+                </div>
+                <div class="tavern-desc">
+                    🌊橡木门作响，朗姆酒香。水手低语藏宝图…
+                </div>
+                <!-- NPC列表，保留全部交互，更紧凑 -->
+                <div class="npcs-list">
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">🐕野狗</span>
+                            <span class="npc-hp">HP30</span>
+                            <span class="npc-badge">较弱</span>
+                        </div>
+                        <button class="action-btn fight-btn" data-enemy="野狗" data-hp="30">⚔️战</button>
+                    </div>
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">🍺马可</span>
+                            <span class="npc-hp" style="background:#3a4f2e;">✨友善</span>
+                            <span class="npc-badge badge-friendly">任务</span>
+                        </div>
+                        <button class="action-btn talk-btn" id="talkMarcBtn">💬交谈</button>
+                    </div>
+                    <div class="dialogue-hint">📜马可：“港口海盗…帮我解决。”</div>
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">🗡️流氓</span>
+                            <span class="npc-hp">HP50</span>
+                            <span class="npc-badge">普通</span>
+                        </div>
+                        <button class="action-btn fight-btn" data-enemy="流氓" data-hp="50">⚔️战</button>
+                    </div>
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">🏴‍☠️海盗</span>
+                            <span class="npc-hp">HP80</span>
+                            <span class="npc-badge">普通</span>
+                        </div>
+                        <button class="action-btn fight-btn" data-enemy="海盗" data-hp="80">⚔️战</button>
+                    </div>
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">🐺森林狼</span>
+                            <span class="npc-hp">HP60</span>
+                            <span class="npc-badge">普通</span>
+                        </div>
+                        <button class="action-btn fight-btn" data-enemy="森林狼" data-hp="60">⚔️战</button>
+                    </div>
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">⚓船长</span>
+                            <span class="npc-hp">HP150</span>
+                            <span class="npc-badge badge-danger">危险</span>
+                        </div>
+                        <button class="action-btn fight-btn" data-enemy="海盗船长" data-hp="150">⚔️战</button>
+                    </div>
+                    <!-- 老水手 -->
+                    <div class="npc-card">
+                        <div class="npc-info">
+                            <span class="npc-name">🧜弗林特</span>
+                            <span class="npc-hp">友善</span>
+                            <span class="npc-badge badge-friendly">传闻</span>
+                        </div>
+                        <button class="action-btn talk-btn" data-talk="老水手">💬打听</button>
+                    </div>
+                </div>
+                <!-- 超紧凑流言 -->
+                <div class="extra-content">
+                    <div class="rumor-board">
+                        <div class="rumor-title">📰流言</div>
+                        <div class="rumor-item">东码头·发光水母换金</div>
+                        <div class="rumor-item">船长钥匙·皇家港口</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧面板 -->
+            <div class="right-panel">
+                <div class="info-card">
+                    <div class="online-row">
+                        <span style="color:#d4bf91;font-size:0.7rem;">🌙热度</span>
+                        <span class="online-count">0人</span>
+                    </div>
+                    <div class="nearby-text">🌫️附近无冒险者</div>
+                    <div style="margin-top:6px;font-size:0.6rem;color:#b7a87b;">📦悬赏:船长150金</div>
+                </div>
+                <div class="info-card">
+                    <div class="compass-title">🧭罗盘·街区</div>
+                    <div class="direction-grid">
+                        <div class="dir-row">
+                            <button class="loc-btn" data-location="北">⬆️北·码头</button>
+                        </div>
+                        <div class="dir-row">
+                            <button class="loc-btn" data-location="福利院">🏡福利院</button>
+                            <button class="loc-btn" data-location="西">⬅️西</button>
+                            <button class="loc-btn" data-location="东">➡️东</button>
+                        </div>
+                        <div class="dir-row">
+                            <button class="loc-btn" data-location="赌场">🎲赌场</button>
+                            <button class="loc-btn" data-location="珠宝店">💎珠宝</button>
+                            <button class="loc-btn" data-location="南">⬇️南</button>
+                        </div>
+                        <div class="dir-row">
+                            <button class="loc-btn" data-location="广场">⛲广场</button>
+                            <button class="loc-btn" data-location="灯塔">🗼灯塔</button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 运势小卡 -->
+                <div class="info-card" style="padding:8px;text-align:center;">
+                    <span style="color:#dac292;font-size:0.7rem;">⚡今日·小吉</span>
+                    <div style="font-size:0.55rem;">战后额外朗姆酒</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部操作 -->
+        <div class="bottom-actions">
+            <button class="bottom-btn" id="mapBtn">🗺️地图</button>
+            <button class="bottom-btn" id="bagBtn">🎒背包</button>
+            <button class="bottom-btn" id="chatBtn">💬聊天</button>
+            <button class="bottom-btn" id="moreBtn">⚙️更多</button>
+        </div>
+    </div>
+</div>
+
+<!-- 弹窗 -->
+<div id="gameModal" class="modal-mask">
+    <div class="modal-content">
+        <div class="modal-icon">📜</div>
+        <div class="modal-message" id="modalMessage"></div>
+        <button class="modal-close" id="closeModalBtn">关 闭</button>
+    </div>
+</div>
+
+<script>
+    (function(){
+        const modal = document.getElementById('gameModal');
+        const modalMsg = document.getElementById('modalMessage');
+        function showModal(text) { modalMsg.innerText = text; modal.classList.add('active'); }
+        function closeModal() { modal.classList.remove('active'); }
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if(e.target === modal) closeModal(); });
+
+        const container = document.querySelector('.game-container');
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if(!btn) return;
+            
+            if(btn.id === 'exitBtn') {
+                showModal(`⚠️ 退出酒馆\n海风拂面，传奇待续。`);
+                return;
+            }
+            if(btn.id === 'mapBtn') {
+                showModal(`🗺️ 航海图\n· 威尼斯酒馆(你在这里)\n· 迷雾港湾 · 皇家港口`);
+                return;
+            }
+            if(btn.id === 'bagBtn') {
+                showModal(`🎒 背包 24/60\n🍞面包x4 🍷朗姆酒x2\n🗝️钥匙 藏宝图碎片\n💰118金币`);
+                return;
+            }
+            if(btn.id === 'chatBtn') {
+                showModal(`💬 酒馆闲聊\n暂无其他冒险者，壁炉噼啪。`);
+                return;
+            }
+            if(btn.id === 'moreBtn') {
+                showModal(`⚙️ 更多\n🔊音效 · 📖图鉴 · 🎖️成就`);
+                return;
+            }
+            if(btn.id === 'talkMarcBtn' || (btn.classList.contains('talk-btn') && !btn.dataset.enemy)) {
+                if(btn.id === 'talkMarcBtn') {
+                    showModal(`🍷 马可老板：“事情办得如何？海盗船长…报酬丰厚。”`);
+                } else {
+                    const who = btn.getAttribute('data-talk') || '水手';
+                    showModal(`🧜 老水手弗林特：“东边森林发光鹿…宝藏指引。”`);
+                }
+                return;
+            }
+            if(btn.classList.contains('fight-btn')) {
+                const enemy = btn.dataset.enemy || '敌人';
+                const hp = btn.dataset.hp || '?';
+                showModal(`⚔️ 战斗！\n与 ${enemy} 激战！(HP:${hp})\n胜负未分…`);
+                return;
+            }
+            if(btn.classList.contains('loc-btn')) {
+                const loc = btn.dataset.location || '区域';
+                let desc = '';
+                if(loc.includes('北')) desc = '咸湿海风，码头工人忙碌。';
+                else if(loc.includes('福利院')) desc = '孩子们需要药材。';
+                else if(loc.includes('赌场')) desc = '掷骰子声，门卫拦路。';
+                else if(loc.includes('珠宝')) desc = '宝石闪烁，老板警惕。';
+                else desc = '你朝那个方向走去…';
+                showModal(`🧭 前往【${loc}】\n${desc}`);
+                return;
+            }
+        });
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+2026-04-07 03:29:02: [ERROR] 2026-04-06T19:29:02.823Z POST /api/battle/fight: Unknown column 'pet_atk' in 'field list'
+2026-04-07 03:29:46: [ERROR] 2026-04-06T19:29:46.687Z POST /api/battle/fight: Unknown column 'pet_atk' in 'field list'
+2026-04-07 03:30:03: [ERROR] 2026-04-06T19:30:03.229Z POST /api/battle/fight: Unknown column 'pet_atk' in 'field list'
+2026-04-07 03:30:13: [ERROR] 2026-04-06T19:30:13.068Z POST /api/battle/fight: Unknown column 'pet_atk' in 'field list'
+2026-04-07 03:30:51: [ERROR] 2026-04-06T19:30:51.597Z POST /api/battle/fight: Unknown column 'pet_atk' in 'field list'
+2026-04-07 03:36:29: [ERROR] 2026-04-06T19:36:29.549Z POST /api/user/use: Unexpected token '}', "{"inventory_id":}" is not valid JSON
+2026-04-07 04:05:45: [ERROR] 2026-04-06T20:05:45.132Z POST /api/battle/start: Unknown column 'nickname' in 'field list'
+2026-04-07 08:04:34: [ERROR] 2026-04-07T00:04:34.052Z GET /api/map/scene: npcsPlain is not defined
+2026-04-07 08:04:48: [ERROR] 2026-04-07T00:04:48.276Z GET /api/map/scene: npcsPlain is not defined
+2026-04-07 08:04:52: [ERROR] 2026-04-07T00:04:52.718Z GET /api/map/scene: npcsPlain is not defined
+2026-04-07 15:20:22: [ERROR] 2026-04-07T07:20:22.108Z POST /api/battle/start: petUpId is not defined
+2026-04-07 15:20:24: [ERROR] 2026-04-07T07:20:24.880Z POST /api/battle/start: petUpId is not defined
+2026-04-07 15:20:32: [ERROR] 2026-04-07T07:20:32.650Z POST /api/battle/start: petUpId is not defined
+2026-04-07 15:23:59: [ERROR] 2026-04-07T07:23:59.835Z POST /api/battle/start: petUpId is not defined
+2026-04-07 15:24:11: [ERROR] 2026-04-07T07:24:11.211Z POST /api/battle/start: petUpId is not defined
+2026-04-07 20:56:32: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:32:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:32:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:32: 
+2026-04-07 20:56:32: SyntaxError: missing ) after argument list
+2026-04-07 20:56:32:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:32:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:32:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:32:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:32:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:32:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:32:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:33: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:33:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:33:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:33: 
+2026-04-07 20:56:33: SyntaxError: missing ) after argument list
+2026-04-07 20:56:33:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:33:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:33:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:33:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:33:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:33:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:33:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:33: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:33:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:33:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:33: 
+2026-04-07 20:56:33: SyntaxError: missing ) after argument list
+2026-04-07 20:56:33:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:33:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:33:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:33:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:33:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:33:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:33:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:33: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:33:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:33:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:33: 
+2026-04-07 20:56:33: SyntaxError: missing ) after argument list
+2026-04-07 20:56:33:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:33:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:33:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:33:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:33:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:33:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:33:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:34: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:34:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:34:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:34: 
+2026-04-07 20:56:34: SyntaxError: missing ) after argument list
+2026-04-07 20:56:34:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:34:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:34:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:34:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:34:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:34:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:34:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:34: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:34:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:34:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:34: 
+2026-04-07 20:56:34: SyntaxError: missing ) after argument list
+2026-04-07 20:56:34:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:34:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:34:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:34:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:34:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:34:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:34:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:34: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:34:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:34:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:34: 
+2026-04-07 20:56:34: SyntaxError: missing ) after argument list
+2026-04-07 20:56:34:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:34:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:34:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:34:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:34:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:34:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:34:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:35: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:35:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:35:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:35: 
+2026-04-07 20:56:35: SyntaxError: missing ) after argument list
+2026-04-07 20:56:35:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:35:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:35:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:35:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:35:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:35:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:35:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:35:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:35:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:35:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:35: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:35:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:35:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:35: 
+2026-04-07 20:56:35: SyntaxError: missing ) after argument list
+2026-04-07 20:56:35:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:35:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:35:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:35:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:35:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:35:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:35:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:35:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:35:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:35:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:35: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:35:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:35:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:35: 
+2026-04-07 20:56:35: SyntaxError: missing ) after argument list
+2026-04-07 20:56:35:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:35:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:35:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:35:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:35:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:35:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:35:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:35:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:35:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:35:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:36: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:36:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:36:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:36: 
+2026-04-07 20:56:36: SyntaxError: missing ) after argument list
+2026-04-07 20:56:36:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:36:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:36:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:36:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:36:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:36:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:36:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:36:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:36:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:36:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:36: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:36:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:36:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:36: 
+2026-04-07 20:56:36: SyntaxError: missing ) after argument list
+2026-04-07 20:56:36:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:36:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:36:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:36:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:36:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:36:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:36:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:36:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:36:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:36:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:36: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:36:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:36:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:36: 
+2026-04-07 20:56:36: SyntaxError: missing ) after argument list
+2026-04-07 20:56:36:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:36:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:36:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:36:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:36:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:36:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:36:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:36:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:36:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:36:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:37: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:37:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:37:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:37: 
+2026-04-07 20:56:37: SyntaxError: missing ) after argument list
+2026-04-07 20:56:37:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:37:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:37:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:37:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:37:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:37:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:37:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:37:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:37:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:37:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:37: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:37:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:37:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:37: 
+2026-04-07 20:56:37: SyntaxError: missing ) after argument list
+2026-04-07 20:56:37:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:37:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:37:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:37:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:37:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:37:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:37:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:37:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:37:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:37:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 20:56:37: /www/wwwroot/zhsh.xinanc.cn/server/src/routes/sail.js:108
+2026-04-07 20:56:37:     res.json(res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+2026-04-07 20:56:37:                                                                                                                                                                                                                                 ^
+2026-04-07 20:56:37: 
+2026-04-07 20:56:37: SyntaxError: missing ) after argument list
+2026-04-07 20:56:37:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-04-07 20:56:37:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-04-07 20:56:37:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-04-07 20:56:37:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-04-07 20:56:37:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-04-07 20:56:37:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-04-07 20:56:37:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-04-07 20:56:37:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-04-07 20:56:37:     at Hook._require.Module.require (/www/server/nodejs/v24.14.1/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-04-07 20:56:37:     at require (node:internal/modules/helpers:147:16)
+2026-04-07 22:43:10: [ERROR] 2026-04-07T14:43:10.235Z POST /api/quest/accept: Bind parameters must not contain undefined. To pass SQL NULL specify JS null
