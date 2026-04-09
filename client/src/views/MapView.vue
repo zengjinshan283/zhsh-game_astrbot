@@ -563,7 +563,7 @@ async function move(dir) {
 
 function openModal(type, data) { modalType.value = type; modalData.value = data; modal.value = true; document.body.style.overflow = 'hidden' }
 function closeModal() { modal.value = false; modalType.value = ''; modalData.value = null; previewNpc.value = null; document.body.style.overflow = '' }
-function showMsg(icon, text, color) { msgIcon.value = icon; msgText.value = text; msgColor.value = color || '#f7efdb'; openModal('message', null) }
+function showMsg(icon, text, color) { msgIcon.value = icon; msgText.value = text; msgColor.value = color || '#f7efdb'; toastVisible.value = true; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastVisible.value = false }, 2000) }
 
 function openMonster(m) { openModal('monster', m) }
 
@@ -785,6 +785,29 @@ async function acceptQuest(qid) {
       const data = await Api.get('/npc/' + npcId + '/chat')
       if (data.ok) {
           }
+    }
+  } catch (e) { showMsg('❌', e.message, '#73281c') }
+}
+
+// Claim quest reward at NPC
+async function claimQuestAtNpc(qid) {
+  try {
+    const d = await Api.post('/quest/claim', { quest_id: qid })
+    showMsg('🎉', d.msg, '#2e5a3b')
+    const me = await Api.get('/auth/me')
+    userStore.updateUser(me.user)
+    // Refresh NPC quest data
+    const npcId = previewNpc.value?.id || chatNpcId.value
+    if (npcId) {
+      const data = await Api.get('/npc/' + npcId + '/chat')
+      if (data.ok) {
+        previewAvailableQuests.value = (data.available_quests || []).map(q => ({
+          id:q.id, name:q.name, desc:q.description, lv:q.level_req, reward:'经验+'+(q.reward_exp||0)+' 铜+'+(q.reward_money||0), status:0, progress:0, require_value:q.require_value||0
+        }))
+        previewActiveQuests.value = (data.active_quests || []).map(q => ({
+          id:q.id, name:q.name, desc:q.description, status:q.status, progress:q.progress, require_value:q.require_value||0
+        }))
+      }
     }
   } catch (e) { showMsg('❌', e.message, '#73281c') }
 }
