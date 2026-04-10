@@ -472,8 +472,8 @@ const hpPct = computed(() => user.value.hp_max > 0 ? Math.round(user.value.hp / 
 const expPct = computed(() => user.value.exp_max > 0 ? Math.round(user.value.exp / user.value.exp_max * 100) : 0)
 
 const hasMarketNpc = computed(() => {
-  if (!scene.value || !scene.value.npcs) return false
-  return scene.value.npcs.some(n => n.type === 1)
+  if (!scene.value || !scene.value.place) return false
+  return scene.value.place.is_market === 1
 })
 
 const sceneEmoji = computed(() => {
