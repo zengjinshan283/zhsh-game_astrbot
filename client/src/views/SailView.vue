@@ -46,7 +46,7 @@
 <div><span style="font-weight:bold;" :style="{color:currentShipId==s.id?'#2e5a3b':''}">{{ s.name }}</span><span v-if="currentShipId==s.id" style="font-size:11px;color:#2e5a3b;"> [当前]</span></div>
 <span class="text-gold" style="font-size:13px;">{{ s.price>0?formatMoney(s.price)+'铜':'免费' }}</span>
 </div>
-<div class="item-desc">速度:{{ s.speed_desc||'一般' }} · 容量:{{ s.capacity }}</div>
+<div class="item-desc">速度:{{ {1:'缓慢',2:'一般',3:'较快',5:'极快'}[s.speed]||'一般' }} · 容量:{{ s.capacity }}</div>
 <button v-if="currentShipId!=s.id" class="btn btn-success btn-small" @click="buyShip(s.id)" :disabled="money<s.price" style="margin-top:4px;font-size:12px;">购买</button>
 </div>
 </div>
@@ -84,6 +84,8 @@ const reachableCities = ref([]);
 const targetCityId = ref('');
 const money = ref(0);
 const currentShipId = ref(0);
+const cargoUsed = ref(0);
+const cargoMax = ref(0);
 
 const msg = ref('');
 const msgType = ref('');
@@ -120,7 +122,7 @@ async function load(resetTarget = true) {
     // 到港后先提示，再立即拉一次最新状态，避免 arrived 响应缺少完整字段导致UI异常
     if (d?.event === 'pirate_midway') {
       msg.value = d.msg || '🌊 已到达目的地';
-      msgType.value = d.event === 'pirate' ? 'error' : 'success';
+      msgType.value = (d.event && d.event.includes('pirate')) ? 'error' : 'success';
 
       // Pirate mid-way event: auto start pirate battle overlay
       if (d.event === 'pirate_midway') {
@@ -143,7 +145,7 @@ async function load(resetTarget = true) {
 
     if (d?.arrived) {
       msg.value = d.msg || '🌊 已到达目的地';
-      msgType.value = d.event === 'pirate' ? 'error' : 'success';
+      msgType.value = (d.event && d.event.includes('pirate')) ? 'error' : 'success';
       try {
         const latest = await Api.get('/sail/status');
         if (latest && !latest.arrived) d = latest;
@@ -163,6 +165,8 @@ async function load(resetTarget = true) {
     reachableCities.value = Array.isArray(d?.reachableCities) ? d.reachableCities : [];
     money.value = Number(d?.money || 0);
     currentShipId.value = ship.value?.id || 0;
+    cargoUsed.value = Number(d?.cargoUsed || 0);
+    cargoMax.value = Number(d?.cargoMax || 0);
 
     if (resetTarget) {
       const exists = reachableCities.value.some(c => String(c.id) === String(targetCityId.value));

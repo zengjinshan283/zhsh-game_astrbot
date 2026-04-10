@@ -100,7 +100,32 @@ router.get('/status', authMiddleware, async (req, res, next) => {
           const updatedUser = await db.getOne('SELECT * FROM `user` WHERE `id` = ?', [req.user.id]);
           const updatedPlace = await db.getOne('SELECT city_id FROM `place` WHERE `id` = ?', [updatedUser.place_id]);
           const updatedCity = updatedPlace?.city_id ? await db.getOne("SELECT * FROM `map` WHERE `id` = ?", [updatedPlace.city_id]) : null;
-          return res.json({ arrived: true, event, msg, user: updatedUser, ship, allShips, city: updatedCity });
+          // Rebuild dock info for arrived city
+          const arrPlace = await db.getOne('SELECT city_id FROM `place` WHERE `id` = ?', [updatedUser.place_id]);
+          let arrIsDock = false, arrReachable = [];
+          if (arrPlace && arrPlace.city_id) {
+            const arrCity = await db.getOne("SELECT * FROM `map` WHERE `id` = ?", [arrPlace.city_id]);
+            arrIsDock = arrPlace.city_id === (place?.city_id) ? isDock : (await db.getOne("SELECT type FROM `place` WHERE `id` = ? AND `type` = 1", [updatedUser.place_id])) ? true : false;
+            if (arrCity) {
+              const arrSea = arrCity.parent_id;
+              const seen2 = new Set();
+              const ac1 = await db.getAll("SELECT * FROM `map` WHERE `type` = 1 AND `id` != ? AND `parent_id` = ? ORDER BY `id`", [arrCity.id, arrSea]);
+              ac1.forEach(c => { if(!seen2.has(c.id)){seen2.add(c.id);arrReachable.push(c);} });
+              const nbs = await db.getAll("SELECT id FROM `map` WHERE `parent_id` = ?", [arrSea]);
+              for (const ns2 of nbs) {
+                if (ns2.id === arrSea) continue;
+                const nc2 = await db.getAll("SELECT * FROM `map` WHERE `type` = 1 AND `parent_id` = ? ORDER BY `id`", [ns2.id]);
+                nc2.forEach(c => { if(!seen2.has(c.id)){seen2.add(c.id);arrReachable.push(c);} });
+              }
+            }
+          }
+          // Calculate cargo
+          let cargoUsed = 0, cargoMax = ship ? ship.capacity : 0;
+          if (ship) {
+            const cargoRows = await db.getAll("SELECT c.quantity, g.weight FROM `cargo` c JOIN `goods` g ON c.goods_id = g.id WHERE c.user_id = ?", [req.user.id]);
+            cargoRows.forEach(r => cargoUsed += r.quantity * r.weight);
+          }
+          return res.json({ arrived: true, event, msg, user: updatedUser, ship, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax });
         }
 
         isSailing = true;
@@ -111,10 +136,17 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       }
     }
 
+    // Calculate cargo
+    let cargoUsed = 0, cargoMax = ship ? ship.capacity : 0;
+    if (ship) {
+      const cargoRows = await db.getAll("SELECT c.quantity, g.weight FROM `cargo` c JOIN `goods` g ON c.goods_id = g.id WHERE c.user_id = ?", [req.user.id]);
+      cargoRows.forEach(r => cargoUsed += r.quantity * r.weight);
+    }
     res.json({
       isSailing, sailProgress, sailRemain, sailFromCity, sailToCity,
       ship, allShips, city, isDock, reachableCities,
-      money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money
+      money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money,
+      cargoUsed, cargoMax
     });
   } catch(e){next(e);}
 });

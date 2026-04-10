@@ -14,9 +14,34 @@ router.get('/scene', authMiddleware, async (req, res, next) => {
     const user = await db.getOne('SELECT place_id, hp, sail_time FROM `user` WHERE `id` = ?', [req.user.id]);
     if (!user) return res.status(404).json({ error: '角色不存在' });
 
-    // 航海中
+    // 航海中 - 检查是否已到期
     if (user.sail_time > 0) {
-      return res.json({ sailing: true, sail_time: user.sail_time });
+      const fullUser = await db.getOne('SELECT ship_id, sail_time, sail_to, sail_paused, sail_remaining_sec FROM `user` WHERE `id` = ?', [req.user.id]);
+      if (fullUser && fullUser.ship_id > 0) {
+        const ship = await db.getOne("SELECT speed FROM `ship` WHERE `id` = ?", [fullUser.ship_id]);
+        const sailSpeed = ship ? ship.speed : 1;
+        const duration = {1:10,2:6,3:3,5:1}[sailSpeed] || 10;
+        let elapsed;
+        if (fullUser.sail_paused) {
+          elapsed = Math.max(0, duration * 60 - (Number(fullUser.sail_remaining_sec) || 0));
+        } else {
+          elapsed = Math.floor(Date.now()/1000) - fullUser.sail_time;
+        }
+        if (elapsed >= duration * 60) {
+          // Auto-arrive: clear sail state and move to destination
+          let newPlaceId = fullUser.place_id;
+          if (fullUser.sail_to > 0) {
+            const dock = await db.getOne("SELECT id FROM `place` WHERE `city_id` = ? AND `type` = 1 LIMIT 1", [fullUser.sail_to]);
+            if (dock) newPlaceId = dock.id;
+          }
+          await db.query('UPDATE `user` SET place_id=?, sail_time=0, sail_from=0, sail_to=0, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [newPlaceId, req.user.id]);
+          // Fall through to buildScene with new place_id
+        } else {
+          return res.json({ sailing: true, sail_time: fullUser.sail_time });
+        }
+      } else {
+        return res.json({ sailing: true, sail_time: user.sail_time });
+      }
     }
 
     const placeId = user.place_id || config.game.startPlaceId;
