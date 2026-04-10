@@ -105,7 +105,7 @@ router.get('/citymap/:cityId?', authMiddleware, async (req, res, next) => {
     const cityId = parseInt(req.params.cityId) || (await db.getOne("SELECT city_id FROM `place` WHERE `id` = ?", [user.place_id]))?.city_id || 0;
     const city = await db.getOne("SELECT * FROM `map` WHERE `id` = ?", [cityId]);
     if (!city) return res.status(400).json({ error: '城市不存在' });
-    const places = await db.getAll("SELECT * FROM `place` WHERE `city_id` = ? AND `type` != 0 ORDER BY `id`", [cityId]);
+    const places = await db.getAll("SELECT * FROM `place` WHERE `city_id` = ? ORDER BY `id`", [cityId]);
     res.json({ city, places, currentPlaceId: user.place_id });
   } catch(e){next(e);}
 });

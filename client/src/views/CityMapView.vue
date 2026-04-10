@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Api } from '../composables/useApi';
 
@@ -32,6 +32,9 @@ const router = useRouter();
 const city = ref(null);
 const places = ref([]);
 const currentPlaceId = ref(0);
+
+const buildings = computed(() => (places.value || []).filter(p => p.type !== 0));
+const wildAreas = computed(() => (places.value || []).filter(p => p.type === 0));
 
 function placeIcon(t) {
   if (t === 1) return '⚓';
