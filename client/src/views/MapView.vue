@@ -118,6 +118,11 @@
     <div class="no-exit-msg" v-if="moveError">⚠️ {{ moveError }}</div>
   </div>
 
+  <!-- Toast notification (outside Teleport, fixed position) -->
+  <div class="map-toast" :class="{active:toastVisible}">
+    <span style="font-size:20px;margin-right:6px;">{{ msgIcon }}</span>
+    <span :style="{color:msgColor,fontSize:'13px'}">{{ msgText }}</span>
+  </div>
   <!-- 弹窗容器 -->
   <Teleport to="body">
   <div class="modal-overlay" :class="{active: modal}" @click.self="closeModal" v-if="modal">
@@ -455,6 +460,8 @@ const chatBubblesRef = ref(null)
 
 // Message
 const msgText = ref('')
+const toastVisible = ref(false)
+let toastTimer = null
 const msgIcon = ref('')
 const msgColor = ref('')
 

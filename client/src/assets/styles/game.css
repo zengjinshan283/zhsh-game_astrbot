@@ -1209,3 +1209,10 @@ table td {
 
 .map-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(20,30,24,0.95);border:1px solid #5f4a31;border-radius:12px;padding:10px 18px;display:flex;align-items:center;z-index:10002;opacity:0;pointer-events:none;transition:all 0.3s ease;box-shadow:0 4px 15px rgba(0,0,0,0.5);backdrop-filter:blur(8px);}
 .map-toast.active{opacity:1;transform:translateX(-50%) translateY(0);}
+
+.page{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;box-sizing:border-box;}
+.page::-webkit-scrollbar{display:none;}
+.modal-overlay-2{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:10002;display:flex;align-items:center;justify-content:center;}
+
+.modal-card .modal-body{max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.modal-card .modal-body::-webkit-scrollbar{display:none;}

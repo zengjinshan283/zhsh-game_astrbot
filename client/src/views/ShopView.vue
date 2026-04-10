@@ -77,6 +77,6 @@ function formatMoney(n){if(!n)return'0';if(n>=100000000)return(n/100000000).toFi
 async function loadShop(){try{const d=await Api.get(`/npc/${npcId}/shop`);items.value=d.items||[];}catch(e){error.value=e.message;}}
 async function loadInv(){try{const d=await Api.get('/user/inventory');invItems.value=(d.items||[]).filter(i=>!i.equipped);}catch(e){error.value=e.message;}}
 async function buy(item){error.value='';success.value='';const qty=qtyMap[item.id]||1;try{const d=await Api.post('/npc/buy',{npc_id:npcId,item_id:item.id,quantity:qty});success.value=`购买 ${d.item_name}×${d.quantity}`;const me=await Api.get('/auth/me');userStore.updateUser(me.user);}catch(e){error.value=e.message;}}
-async function sell(item){error.value='';success.value='';const qty=Math.min(sellQtyMap[item.inv_id]||1,item.quantity);success.value='';try{const price=item.price_sell||Math.floor((item.price_buy||0)*0.5);success.value=`出售 ${item.name}×${qty}，获得 ${price*qty} 铜币`;const me=await Api.get('/auth/me');userStore.updateUser(me.user);await loadInv();}catch(e){error.value=e.message;}}
+async function sell(item){error.value="";success.value="";const qty=Math.min(sellQtyMap[item.inv_id]||1,item.quantity);try{const d=await Api.post("/npc/sell",{inventory_id:item.inv_id,quantity:qty});success.value="出售 "+d.item_name+"x"+d.quantity+"，获得 "+d.earn+" 铜币";const me=await Api.get("/auth/me");userStore.updateUser(me.user);await loadInv();}catch(e){error.value=e.message;}}
 onMounted(loadShop);
 </script>

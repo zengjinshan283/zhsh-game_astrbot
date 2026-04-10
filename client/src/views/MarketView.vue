@@ -29,7 +29,7 @@
 <div v-if="ship" style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
 <div style="display:inline-flex;align-items:center;border:1px solid #ddd;border-radius:4px;overflow:hidden;">
 <button style="width:26px;height:26px;border:none;background:#f5f5f5;cursor:pointer;font-size:14px;" @click="setQty(g.id,-1)">−</button>
-<input type="number" v-model.number="qtyMap[g.id]" min="1" max="99" style="width:36px;height:26px;border:none;border-left:1px solid #ddd;border-right:1px solid #ddd;text-align:center;font-size:12px;outline:none;">
+<input type="number" v-model.number="qtyMap[g.id]" min="1" :max="g.hold||99" style="width:36px;height:26px;border:none;border-left:1px solid #ddd;border-right:1px solid #ddd;text-align:center;font-size:12px;outline:none;">
 <button style="width:26px;height:26px;border:none;background:#f5f5f5;cursor:pointer;font-size:14px;" @click="setQty(g.id,1)">+</button>
 </div>
 <button class="btn btn-success" @click="buyGoods(g)" style="padding:5px 10px;font-size:11px;">🛒买</button>
