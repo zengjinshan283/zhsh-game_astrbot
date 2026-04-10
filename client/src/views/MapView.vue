@@ -70,7 +70,7 @@
               <div class="npc-name-text" :style="{color: npcColor(n.type)}">{{ n.name }}</div>
               <div class="npc-desc-text" v-if="n.dialog">{{ truncate(n.dialog, 20) }}…</div>
             </div>
-            <span class="npc-action" @click.stop="handleNpcAction(n)">{{ getNpcActionLabel(n.type) }}</span>
+            <span class="npc-action" @click.stop="openPreview(n)">{{ getNpcActionLabel(n.type) }}</span>
           </div>
         </div>
       </div>
@@ -785,15 +785,23 @@ function chatNextTopic() {
 async function acceptQuest(qid) {
   try {
     await Api.post('/quest/accept', { quest_id: qid })
-    showMsg('✅', '任务接取成功！', '#2e5a3b')
-    // Refresh quest data without resetting tab
-    const npcId = chatNpcId.value
+    showMsg('\u2705', '\u4efb\u52a1\u63a5\u53d6\u6210\u529f\uff01', '#2e5a3b')
+    const npcId = previewNpc.value?.id || chatNpcId.value
     if (npcId) {
       const data = await Api.get('/npc/' + npcId + '/chat')
       if (data.ok) {
-          }
+        previewAvailableQuests.value = (data.available_quests||[]).map(q => ({
+          id:q.id, name:q.name, desc:q.description, lv:q.level_req,
+          reward:'\u7ecf\u9a8c+'+(q.reward_exp||0)+' \u94dc+'+(q.reward_money||0),
+          status:0, progress:0, require_value:q.require_value||0
+        }))
+        previewActiveQuests.value = (data.active_quests||[]).map(q => ({
+          id:q.id, name:q.name, desc:q.description,
+          status:q.status, progress:q.progress, require_value:q.require_value||0
+        }))
+      }
     }
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('\u274c', e.message, '#73281c') }
 }
 
 // Claim quest reward at NPC

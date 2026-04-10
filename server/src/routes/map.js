@@ -148,7 +148,7 @@ async function buildScene(placeId, userId) {
 
   // 同场景在线玩家
   const onlineUsers = await db.getAll(
-    'SELECT id, username, sex, level FROM `user` WHERE `place_id` = ? AND `lastdate` > ? AND `id` != ?',
+    'SELECT id, username, sex, level FROM `user` WHERE `place_id` = ? AND `lastdate` > ? AND `id` != ? AND (sail_time = 0 OR sail_time IS NULL)',
     [placeId, Math.floor(Date.now() / 1000) - config.game.onlineTimeout, userId]
   );
 

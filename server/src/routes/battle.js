@@ -33,17 +33,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
     }
     if (!user.sail_time) return res.status(400).json({ error: '当前不在航行中' });
 
-    // ensure sailing is paused and remaining time is recorded
-    if (!user.sail_paused) {
-      // if not pre-paused by sail/status, compute remaining now
-      const speedShip = await db.getOne("SELECT speed FROM `ship` WHERE `id`=?", [user.ship_id || 0]);
-      const duration = getSailMinutes((speedShip && speedShip.speed) ? speedShip.speed : 1) * 60;
-      const elapsed = Math.floor(Date.now()/1000) - user.sail_time;
-      const remain = Math.max(1, duration - elapsed);
-      await db.query('UPDATE `user` SET sail_paused=1, sail_remaining_sec=? WHERE `id`=?', [remain, req.user.id]);
-      user.sail_remaining_sec = remain;
-      user.sail_paused = 1;
-    }
+
 
     // Use a fixed pirate template monster (virtual)
     const pirate = {
