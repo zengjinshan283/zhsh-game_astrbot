@@ -141,33 +141,34 @@ async function buildScene(placeId, userId) {
        GROUP BY q.npc_id`,
       [userId, userId, userId]
     );
-    // Query 4: batch NPC dialogs
-    const dialogs = await db.getAll(
-      `SELECT nd.npc_id, nd.trigger_type, nd.content
-       FROM npc_dialog nd
-       INNER JOIN (
-         SELECT npc_id,
-           CASE
-             WHEN (SELECT COUNT(*) FROM user_quest uq2 JOIN quest q2 ON uq2.quest_id=q2.id WHERE uq2.user_id=? AND q2.npc_id=nd.npc_id AND uq2.status=1) > 0 THEN 'quest_ready'
-             WHEN (SELECT COUNT(*) FROM user_quest uq2 JOIN quest q2 ON uq2.quest_id=q2.id WHERE uq2.user_id=? AND q2.npc_id=nd.npc_id AND uq2.status=0) > 0 THEN 'quest_active'
-             WHEN (SELECT COUNT(*) FROM quest q2 WHERE q2.npc_id=nd.npc_id AND q2.level_req<=(SELECT level FROM user WHERE id=?) AND q2.id NOT IN (SELECT quest_id FROM user_quest WHERE user_id=?) AND (q2.pre_quest_id=0 OR q2.pre_quest_id IN (SELECT quest_id FROM user_quest WHERE user_id=? AND status>=1))) > 0 THEN 'quest_available'
-             ELSE 'idle'
-           END as tt
-         FROM npc n WHERE n.id IN (${npcIdList})
-       ) t ON nd.npc_id=t.npc_id AND nd.trigger_type=t.tt
-       WHERE nd.npc_id IN (${npcIdList})
-       GROUP BY nd.npc_id`,
-      [userId, userId, userId, userId, userId]
-    );
-    // Build lookup maps
+    // Build lookup maps from queries 1-3
     const uqMap = {}; // npcId -> {0:cnt, 1:cnt, 2:cnt}
     uqStats.forEach(r => { if (!uqMap[r.npc_id]) uqMap[r.npc_id] = {}; uqMap[r.npc_id][r.status] = r.cnt; });
     const totalMap = {};
     totalQs.forEach(r => { totalMap[r.npc_id] = r.cnt; });
     const availMap = {};
     availQs.forEach(r => { availMap[r.npc_id] = r.cnt; });
+
+    // Query 4: load all relevant dialogs, then match in JS (avoids MySQL derived-table correlation limit)
+    const allDialogs = await db.getAll(
+      'SELECT npc_id, trigger_type, content FROM npc_dialog WHERE npc_id IN (' + npcIdList + ') ORDER BY sort_order'
+    );
     const dialogMap = {};
-    dialogs.forEach(r => { dialogMap[r.npc_id] = r.content; });
+    for (const npc of npcsPlain) {
+      const uq = uqMap[npc.id] || {};
+      const hasReady = uq[1] || 0;
+      const hasActive = uq[0] || 0;
+      const availQ = availMap[npc.id] || 0;
+      const doneQ = uq[2] || 0;
+      const totalQ = totalMap[npc.id] || 0;
+      let trigger = 'idle';
+      if (hasReady > 0) trigger = 'quest_ready';
+      else if (hasActive > 0) trigger = 'quest_active';
+      else if (availQ > 0) trigger = 'quest_available';
+      else if (doneQ > 0 && totalQ > 0 && doneQ >= totalQ) trigger = 'all_done';
+      const d = allDialogs.find(x => x.npc_id === npc.id && (x.trigger_type === trigger || x.trigger_type === 'all'));
+      if (d) dialogMap[npc.id] = d.content;
+    }
     // Assign to NPCs
     for (const npc of npcsPlain) {
       const uq = uqMap[npc.id] || {};
