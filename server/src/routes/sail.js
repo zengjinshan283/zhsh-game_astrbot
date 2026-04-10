@@ -54,9 +54,19 @@ router.get('/status', authMiddleware, async (req, res, next) => {
         // 航行途中随机遇怪：A+中（20%）
         // 条件：航程超过20%，每30秒最多判定一次
         const progressRatio = duration > 0 ? (elapsed / duration) : 1;
-        const canCheck = (!user.sail_event_checked_at || (nowTs - Number(user.sail_event_checked_at)) >= 30);
-        if (elapsed < duration && progressRatio >= 0.2 && canCheck) {
-          await db.query('UPDATE `user` SET sail_event_checked_at=? WHERE `id`=?', [nowTs, req.user.id]);
+        const canCheckTs = Number(user.sail_event_checked_at) || 0;
+        if (elapsed < duration && progressRatio >= 0.2 && (nowTs - canCheckTs) >= 30) {
+          // Atomic: only one request wins the race
+          const [upd] = await db.query('UPDATE `user` SET sail_event_checked_at=? WHERE `id`=? AND (sail_event_checked_at IS NULL OR sail_event_checked_at<?)', [nowTs, req.user.id, nowTs]);
+          if (!upd || upd.affectedRows === 0) {
+            // Another request already handled this check, skip
+            isSailing = true;
+            sailProgress = Math.max(1, Math.min(99, Math.round(progressRatio*100)));
+            sailRemain = Math.ceil((duration - elapsed) / 60);
+            if (user.sail_from > 0) { const fc = await db.getOne("SELECT name FROM `map` WHERE `id` = ?", [user.sail_from]); sailFromCity = fc ? fc.name : '???'; }
+            if (user.sail_to > 0) { const tc = await db.getOne("SELECT name FROM `map` WHERE `id` = ?", [user.sail_to]); sailToCity = tc ? tc.name : '???'; }
+            return res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+          }
           const roll = Math.floor(Math.random()*100)+1;
           if (roll <= 20) {
             const remain = Math.max(1, duration - elapsed);

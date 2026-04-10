@@ -113,37 +113,72 @@ async function buildScene(placeId, userId) {
 
   // NPC 列表（含动态对话）
   const npcs = await db.getAll('SELECT * FROM `npc` WHERE `place_id` = ? ORDER BY `id`', [placeId]);
-  // Convert RowDataPacket to plain objects so dynamic fields stick
   const npcsPlain = npcs.map(n => Object.assign({}, n));
-  for (const npc of npcsPlain) {
-    const hasReady = await db.getVar(
-      "SELECT COUNT(*) FROM user_quest uq JOIN quest q ON uq.quest_id=q.id WHERE uq.user_id=? AND q.npc_id=? AND uq.status=1",
-      [userId, npc.id]
-    ) || 0;
-    const hasActive = await db.getVar(
-      "SELECT COUNT(*) FROM user_quest uq JOIN quest q ON uq.quest_id=q.id WHERE uq.user_id=? AND q.npc_id=? AND uq.status=0",
-      [userId, npc.id]
-    ) || 0;
-    const totalQ = await db.getVar("SELECT COUNT(*) FROM quest WHERE npc_id=?", [npc.id]) || 0;
-    const doneQ = await db.getVar(
-      "SELECT COUNT(*) FROM user_quest uq JOIN quest q ON uq.quest_id=q.id WHERE uq.user_id=? AND q.npc_id=? AND uq.status=2",
-      [userId, npc.id]
-    ) || 0;
-    const availQ = await db.getVar(
-      "SELECT COUNT(*) FROM quest q WHERE q.npc_id=? AND q.level_req<=(SELECT level FROM user WHERE id=?) AND q.id NOT IN (SELECT quest_id FROM user_quest WHERE user_id=?) AND (q.pre_quest_id=0 OR q.pre_quest_id IN (SELECT quest_id FROM user_quest WHERE user_id=? AND status>=1))",
-      [npc.id, userId, userId, userId]
-    ) || 0;
-    let triggerType = 'idle';
-    if (hasReady > 0) triggerType = 'quest_ready';
-    else if (hasActive > 0) triggerType = 'quest_active';
-    else if (availQ > 0) triggerType = 'quest_available';
-    else if (totalQ > 0 && doneQ >= totalQ) triggerType = 'all_done';
-    const nd = await db.getOne(
-      "SELECT content FROM npc_dialog WHERE npc_id=? AND trigger_type=? ORDER BY sort_order LIMIT 1",
-      [npc.id, triggerType]
+  // Optimized: batch query all NPC quest stats in one pass (N+1 -> 3 queries)
+  if (npcsPlain.length > 0) {
+    const npcIds = npcsPlain.map(n => n.id);
+    const npcIdList = npcIds.join(',');
+    // Query 1: user quest counts per NPC (ready, active, done)
+    const uqStats = await db.getAll(
+      `SELECT q.npc_id, uq.status, COUNT(*) as cnt
+       FROM user_quest uq JOIN quest q ON uq.quest_id=q.id
+       WHERE uq.user_id=? AND q.npc_id IN (${npcIdList})
+       GROUP BY q.npc_id, uq.status`,
+      [userId]
     );
-    if (nd) npc.dialog = nd.content;
-    npc.quest_count = hasReady + hasActive + availQ;
+    // Query 2: total quests per NPC
+    const totalQs = await db.getAll(
+      `SELECT npc_id, COUNT(*) as cnt FROM quest WHERE npc_id IN (${npcIdList}) GROUP BY npc_id`
+    );
+    // Query 3: available quests per NPC (single query)
+    const availQs = await db.getAll(
+      `SELECT q.npc_id, COUNT(*) as cnt
+       FROM quest q
+       WHERE q.npc_id IN (${npcIdList})
+         AND q.level_req<=(SELECT level FROM user WHERE id=?)
+         AND q.id NOT IN (SELECT quest_id FROM user_quest WHERE user_id=?)
+         AND (q.pre_quest_id=0 OR q.pre_quest_id IN (SELECT quest_id FROM user_quest WHERE user_id=? AND status>=1))
+       GROUP BY q.npc_id`,
+      [userId, userId, userId]
+    );
+    // Query 4: batch NPC dialogs
+    const dialogs = await db.getAll(
+      `SELECT nd.npc_id, nd.trigger_type, nd.content
+       FROM npc_dialog nd
+       INNER JOIN (
+         SELECT npc_id,
+           CASE
+             WHEN (SELECT COUNT(*) FROM user_quest uq2 JOIN quest q2 ON uq2.quest_id=q2.id WHERE uq2.user_id=? AND q2.npc_id=nd.npc_id AND uq2.status=1) > 0 THEN 'quest_ready'
+             WHEN (SELECT COUNT(*) FROM user_quest uq2 JOIN quest q2 ON uq2.quest_id=q2.id WHERE uq2.user_id=? AND q2.npc_id=nd.npc_id AND uq2.status=0) > 0 THEN 'quest_active'
+             WHEN (SELECT COUNT(*) FROM quest q2 WHERE q2.npc_id=nd.npc_id AND q2.level_req<=(SELECT level FROM user WHERE id=?) AND q2.id NOT IN (SELECT quest_id FROM user_quest WHERE user_id=?) AND (q2.pre_quest_id=0 OR q2.pre_quest_id IN (SELECT quest_id FROM user_quest WHERE user_id=? AND status>=1))) > 0 THEN 'quest_available'
+             ELSE 'idle'
+           END as tt
+         FROM npc n WHERE n.id IN (${npcIdList})
+       ) t ON nd.npc_id=t.npc_id AND nd.trigger_type=t.tt
+       WHERE nd.npc_id IN (${npcIdList})
+       GROUP BY nd.npc_id`,
+      [userId, userId, userId, userId, userId]
+    );
+    // Build lookup maps
+    const uqMap = {}; // npcId -> {0:cnt, 1:cnt, 2:cnt}
+    uqStats.forEach(r => { if (!uqMap[r.npc_id]) uqMap[r.npc_id] = {}; uqMap[r.npc_id][r.status] = r.cnt; });
+    const totalMap = {};
+    totalQs.forEach(r => { totalMap[r.npc_id] = r.cnt; });
+    const availMap = {};
+    availQs.forEach(r => { availMap[r.npc_id] = r.cnt; });
+    const dialogMap = {};
+    dialogs.forEach(r => { dialogMap[r.npc_id] = r.content; });
+    // Assign to NPCs
+    for (const npc of npcsPlain) {
+      const uq = uqMap[npc.id] || {};
+      const hasReady = uq[1] || 0;
+      const hasActive = uq[0] || 0;
+      const doneQ = uq[2] || 0;
+      const totalQ = totalMap[npc.id] || 0;
+      const availQ = availMap[npc.id] || 0;
+      npc.quest_count = hasReady + hasActive + availQ;
+      if (dialogMap[npc.id]) npc.dialog = dialogMap[npc.id];
+    }
   }
 
   // 同场景在线玩家
