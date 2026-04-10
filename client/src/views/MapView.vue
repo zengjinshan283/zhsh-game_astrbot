@@ -147,41 +147,43 @@
     </div>
 
     <!-- 任务弹窗（预览弹窗中点击任务按钮） -->
-    <div class="modal-card modal-overlay-2" v-if="modalType==='questList'">
-      <div class="modal-header">
-        <div class="modal-avatar" style="background:rgba(95,74,49,0.15);border:2px solid #5f4a31;">📋</div>
-        <div><div class="modal-title" style="color:#5f4a31;">{{ previewNpc?.name }} · 任务</div>
-        <div class="modal-subtitle">任务接取与奖励领取</div></div>
-      </div>
-      <div class="modal-body">
-        <div v-if="previewAvailableQuests.length">
-          <div style="font-size:12px;font-weight:600;color:#2e5a3b;margin-bottom:6px;">📋 可接任务</div>
-          <div v-for="q in previewAvailableQuests" :key="'pa-'+q.id" style="background:rgba(46,90,59,0.06);border:1px solid rgba(46,90,59,0.15);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:13px;font-weight:600;">{{ q.name }}</span>
-              <span style="font-size:10px;color:#7a6848;">Lv.{{ q.lv||'?' }}</span>
-            </div>
-            <div style="font-size:11px;color:#8b784e;margin:3px 0;">{{ q.desc||'' }}</div>
-            <div style="font-size:10px;color:#6f5632;">🎁 {{ q.reward||'' }}</div>
-            <button @click="acceptQuest(q.id)" style="margin-top:6px;background:linear-gradient(135deg,#2e5a3b,#253b21);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;">✅ 接取任务</button>
-          </div>
+    <div class="modal-overlay-2" v-if="modalType==='questList'" @click.self="backToPreview">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-avatar" style="background:rgba(95,74,49,0.15);border:2px solid #5f4a31;">📋</div>
+          <div><div class="modal-title" style="color:#5f4a31;">{{ previewNpc?.name }} · 任务</div>
+          <div class="modal-subtitle">任务接取与奖励领取</div></div>
         </div>
-        <div v-if="previewActiveQuests.length">
-          <div style="font-size:12px;font-weight:600;color:#c9a758;margin-bottom:6px;" :style="previewAvailableQuests.length?'margin-top:10px;':''">🔄 进行中</div>
-          <div v-for="q in previewActiveQuests" :key="'pb-'+q.id" :style="'background:'+(q.status==1?'rgba(46,90,59,0.08)':'rgba(169,119,78,0.06)')+';border:1px solid '+(q.status==1?'rgba(46,90,59,0.2)':'rgba(169,119,78,0.12)')+';border-radius:8px;padding:8px 10px;margin-bottom:6px;'">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:13px;">{{ q.status==1?'✅':'🔄' }} {{ q.name }}</span>
-              <span style="font-size:11px;" :style="{color:q.status==1?'#2e5a3b':'#c9a758'}">{{ q.status==1?'已完成':q.progress+'/'+q.require_value }}</span>
+        <div class="modal-body" style="max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+          <div v-if="previewAvailableQuests.length">
+            <div style="font-size:12px;font-weight:600;color:#2e5a3b;margin-bottom:6px;">📋 可接任务</div>
+            <div v-for="q in previewAvailableQuests" :key="'pa-'+q.id" style="background:rgba(46,90,59,0.06);border:1px solid rgba(46,90,59,0.15);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;font-weight:600;">{{ q.name }}</span>
+                <span style="font-size:10px;color:#7a6848;">Lv.{{ q.lv||'?' }}</span>
+              </div>
+              <div style="font-size:11px;color:#8b784e;margin:3px 0;">{{ q.desc||'' }}</div>
+              <div style="font-size:10px;color:#6f5632;">🎁 {{ q.reward||'' }}</div>
+              <button @click="acceptQuest(q.id)" style="margin-top:6px;background:linear-gradient(135deg,#2e5a3b,#253b21);color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:12px;cursor:pointer;width:100%;">✅ 接取任务</button>
             </div>
-            <div v-if="q.status!=1" style="background:#2a3525;border-radius:4px;height:6px;margin-top:6px;overflow:hidden;">
-              <div style="background:linear-gradient(90deg,#c9a758,#8b6843);height:100%;" :style="{width:Math.min(100,Math.round(q.progress/Math.max(1,q.require_value)*100))+'%'}"></div>
-            </div>
-            <div v-if="q.status==1" style="margin-top:6px;text-align:center;color:#2e5a3b;font-size:12px;font-weight:600;">✅ 可在任务页面领取奖励</div>
           </div>
+          <div v-if="previewActiveQuests.length">
+            <div style="font-size:12px;font-weight:600;color:#c9a758;margin-bottom:6px;" :style="previewAvailableQuests.length?'margin-top:10px;':''">🔄 进行中</div>
+            <div v-for="q in previewActiveQuests" :key="'pb-'+q.id" :style="'background:'+(q.status==1?'rgba(46,90,59,0.08)':'rgba(169,119,78,0.06)')+';border:1px solid '+(q.status==1?'rgba(46,90,59,0.2)':'rgba(169,119,78,0.12)')+';border-radius:8px;padding:8px 10px;margin-bottom:6px;'">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:13px;">{{ q.status==1?'✅':'🔄' }} {{ q.name }}</span>
+                <span style="font-size:11px;" :style="{color:q.status==1?'#2e5a3b':'#c9a758'}">{{ q.status==1?'已完成':q.progress+'/'+q.require_value }}</span>
+              </div>
+              <div v-if="q.status!=1" style="background:#2a3525;border-radius:4px;height:6px;margin-top:6px;overflow:hidden;">
+                <div style="background:linear-gradient(90deg,#c9a758,#8b6843);height:100%;" :style="{width:Math.min(100,Math.round(q.progress/Math.max(1,q.require_value)*100))+'%'}"></div>
+              </div>
+              <div v-if="q.status==1" style="margin-top:6px;text-align:center;color:#2e5a3b;font-size:12px;font-weight:600;">✅ 可在任务页面领取奖励</div>
+            </div>
+          </div>
+          <div v-if="!previewAvailableQuests.length && !previewActiveQuests.length" style="text-align:center;padding:20px;color:#8b784e;">暂无任务</div>
         </div>
-        <div v-if="!previewAvailableQuests.length && !previewActiveQuests.length" style="text-align:center;padding:20px;color:#8b784e;">暂无任务</div>
+        <div class="modal-footer"><a href="javascript:void(0)" class="modal-btn modal-btn-close" @click.prevent="backToPreview">返回</a></div>
       </div>
-      <div class="modal-footer"><a href="javascript:void(0)" class="modal-btn modal-btn-close" @click.prevent="backToPreview">返回</a></div>
     </div>
 
     <!-- 怪物弹窗 -->
