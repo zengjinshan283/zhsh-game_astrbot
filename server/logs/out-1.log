@@ -152,3 +152,8 @@
 2026-04-10 22:47:11: [WS] User 975269528 connected
 2026-04-10 22:48:47: [WS] User 975269528 disconnected
 2026-04-10 22:48:48: [WS] User 975269528 connected
+2026-04-10 22:50:45: [HTTP] Server running on port 3000
+2026-04-10 22:50:45: [WS] WebSocket server listening on port 8282
+2026-04-10 22:50:47: [WS] User 975269528 connected
+2026-04-10 22:52:45: [WS] User 975269528 disconnected
+2026-04-10 22:52:47: [WS] User 975269528 connected

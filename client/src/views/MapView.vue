@@ -44,7 +44,7 @@
       <div class="scene-desc">
         <template v-if="scene.place.notice">{{ scene.place.notice }}</template>
         <span v-else class="empty-hint">四周一片安静，没有什么特别之处。</span>
-        <div v-if="scene.place.id === 1020" style="margin-top:8px;text-align:center;">
+        <div v-if="hasMarketNpc" style="margin-top:8px;text-align:center;">
           <router-link to="/market" style="display:inline-block;background:rgba(169,119,78,0.15);border:1px solid rgba(169,119,78,0.3);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
 🏪 进入市场交易</router-link>
         </div>
@@ -470,6 +470,11 @@ const msgColor = ref('')
 // Computed
 const hpPct = computed(() => user.value.hp_max > 0 ? Math.round(user.value.hp / user.value.hp_max * 100) : 0)
 const expPct = computed(() => user.value.exp_max > 0 ? Math.round(user.value.exp / user.value.exp_max * 100) : 0)
+
+const hasMarketNpc = computed(() => {
+  if (!scene.value || !scene.value.npcs) return false
+  return scene.value.npcs.some(n => n.type === 1)
+})
 
 const sceneEmoji = computed(() => {
   if (!scene.value) return '🗺️'
