@@ -39,7 +39,6 @@
 <div style="display:flex;gap:8px;margin-top:8px;justify-content:space-between;">
 <button class="btn btn-danger" @click="releasePet(activePet)" style="font-size:13px;padding:8px 16px;flex:1;">放生</button>
 <button class="btn btn-primary" @click="startRename(activePet)" style="font-size:13px;padding:8px 16px;flex:1;">✏️ 改名</button>
-<button class="btn" :class="hasPetFood ? 'btn-success' : 'feed-btn-disabled'" :disabled="!hasPetFood" @click="openFeed" :title="hasPetFood ? '喂食宠物' : '暂无宠物食物，据说驯兽师处可以购买'" style="font-size:13px;padding:8px 16px;flex:1;opacity:1;">{{ hasPetFood ? '🍖 喂食' : '🔒 暂无宠物食物' }}</button>
 </div>
 </div>
 

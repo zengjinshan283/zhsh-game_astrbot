@@ -118,13 +118,12 @@
     <div class="no-exit-msg" v-if="moveError">⚠️ {{ moveError }}</div>
   </div>
 
-  <!-- Toast notification (outside Teleport, fixed position) -->
-  <div class="map-toast" :class="{active:toastVisible}">
-    <span style="font-size:20px;margin-right:6px;">{{ msgIcon }}</span>
-    <span :style="{color:msgColor,fontSize:'13px'}">{{ msgText }}</span>
-  </div>
-  <!-- 弹窗容器 -->
   <Teleport to="body">
+  <!-- Toast -->
+  <div class="map-toast" :class="{active:toastVisible}">
+    <span style="font-size:22px;margin-right:8px;">{{ msgIcon }}</span>
+    <span :style="{color:msgColor,fontSize:'14px',fontWeight:'600'}">{{ msgText }}</span>
+  </div>
   <div class="modal-overlay" :class="{active: modal}" @click.self="closeModal" v-if="modal">
     <!-- NPC预览弹窗（第一步：点击NPC后） -->
     <div class="modal-card" v-if="modalType==='preview' && previewNpc">
@@ -577,7 +576,7 @@ async function move(dir) {
 
 function openModal(type, data) { modalType.value = type; modalData.value = data; modal.value = true; document.body.style.overflow = 'hidden' }
 function closeModal() { modal.value = false; modalType.value = ''; modalData.value = null; previewNpc.value = null; document.body.style.overflow = '' }
-function showMsg(icon, text, color) { msgIcon.value = icon; msgText.value = text; msgColor.value = color || '#f7efdb'; toastVisible.value = true; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastVisible.value = false }, 2000) }
+function showMsg(icon, text, color) { msgIcon.value = icon; msgText.value = text; msgColor.value = color || '#f7efdb'; toastVisible.value = true; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toastVisible.value = false }, 3000) }
 
 function openMonster(m) { openModal('monster', m) }
 
@@ -634,13 +633,15 @@ async function openShop(npc) {
 }
 
 async function buyItem(item) {
+    const buyBtn = event?.target?.closest(".btn-buy");
   const qty = shopQty[item.id] || 1
   try {
     const npc = scene.value.npcs.find(n => n.type === 1)
     await Api.post('/npc/buy', { npc_id: npc.id, item_id: item.id, quantity: qty })
     const me = await Api.get('/auth/me')
     userStore.updateUser(me.user)
-    showMsg('✅', '购买成功', '#2e5a3b')
+    showMsg("\u2705", item.name+" x"+qty+" 购买成功", "#2e5a3b");
+    await loadScene();
   } catch (e) { showMsg('❌', e.message, '#73281c') }
 }
 

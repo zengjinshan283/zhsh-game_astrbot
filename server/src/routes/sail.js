@@ -135,7 +135,8 @@ router.get('/status', authMiddleware, async (req, res, next) => {
             const cargoRows = await db.getAll("SELECT c.quantity, g.weight FROM `cargo` c JOIN `goods` g ON c.goods_id = g.id WHERE c.user_id = ?", [req.user.id]);
             cargoRows.forEach(r => cargoUsed += r.quantity * r.weight);
           }
-          return res.json({ arrived: true, event, msg, user: updatedUser, ship, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax });
+          const ownedShipsArr = (await db.getAll('SELECT ship_id FROM user_ship WHERE user_id = ?', [req.user.id])).map(r => r.ship_id);
+          return res.json({ arrived: true, event, msg, user: updatedUser, ship, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax, ownedShips: ownedShipsArr });
         }
 
         isSailing = true;
@@ -156,7 +157,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       isSailing, sailProgress, sailRemain, sailFromCity, sailToCity,
       ship, allShips, city, isDock, reachableCities,
       money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money,
-      cargoUsed, cargoMax
+      cargoUsed, cargoMax, ownedShips: [...(await db.getAll('SELECT DISTINCT ship_id FROM user_ship WHERE user_id = ? UNION SELECT ship_id FROM user WHERE id = ?', [req.user.id, req.user.id])).map(r => r.ship_id)]
     });
   } catch(e){next(e);}
 });
@@ -167,10 +168,16 @@ router.post('/buy-ship', authMiddleware, async (req, res, next) => {
     const user = await db.getOne('SELECT ship_id, money FROM `user` WHERE `id` = ?', [req.user.id]);
     const ship = await db.getOne("SELECT * FROM `ship` WHERE `id` = ?", [ship_id]);
     if (!ship) return res.status(400).json({ error: '船只不存在' });
-    if (user.ship_id == ship_id) return res.status(400).json({ error: '你已经拥有这艘船了' });
+    if (user.ship_id == ship_id) return res.status(400).json({ error: '你正在使用这艘船' });
+    const owned = await db.getOne('SELECT id FROM user_ship WHERE user_id = ? AND ship_id = ?', [req.user.id, ship_id]);
+    if (owned) {
+      await db.query('UPDATE `user` SET ship_id = ? WHERE `id` = ?', [ship_id, req.user.id]);
+      return res.json({ success: true, switched: true, msg: '⛵ 已切换到「' + ship.name + '」' });
+    }
     if (user.money < ship.price) return res.status(400).json({ error: `铜钱不足！需要 ${ship.price} 铜钱` });
     await db.query('UPDATE `user` SET money = money - ?, ship_id = ? WHERE `id` = ?', [ship.price, ship_id, req.user.id]);
-    res.json({ success: true, msg: `🎉 成功购买了「${ship.name}」！` });
+    await db.query('INSERT IGNORE INTO user_ship (user_id, ship_id) VALUES (?, ?)', [req.user.id, ship_id]);
+    res.json({ success: true, switched: false, msg: '🎉 成功购买了「' + ship.name + '」！' });
   } catch(e){next(e);}
 });
 

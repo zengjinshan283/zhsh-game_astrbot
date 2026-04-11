@@ -27,7 +27,7 @@
 <template v-else>
 <div v-if="ship" class="card" style="border-color:#2e5a3b;">
 <div class="card-title" style="color:#2e5a3b;">⛵ 当前船只：{{ ship.name }}</div>
-<div style="font-size:14px;">⚡ 速度 {{ ship.speed_desc||'一般' }} · 📦 容量 {{ ship.capacity }}</div>
+<div style="font-size:14px;">⚡ 速度 {{ ship.speed_desc||'一般' }} · 📦 船舱 {{ cargoUsed }}/{{ cargoMax }}</div>
 </div>
 <div v-if="ship" class="card" style="border-color:#3f6a4a;">
 <div class="card-title" style="color:#3f6a4a;">🗺️ 选择目的地</div>
@@ -47,7 +47,7 @@
 <span class="text-gold" style="font-size:13px;">{{ s.price>0?formatMoney(s.price)+'铜':'免费' }}</span>
 </div>
 <div class="item-desc">速度:{{ {1:'缓慢',2:'一般',3:'较快',5:'极快'}[s.speed]||'一般' }} · 容量:{{ s.capacity }}</div>
-<button v-if="currentShipId!=s.id" class="btn btn-success btn-small" @click="buyShip(s.id)" :disabled="money<s.price" style="margin-top:4px;font-size:12px;">购买</button>
+<button v-if="currentShipId!=s.id" class="btn btn-small" :class="ownedShips.includes(s.id)?'btn-primary':'btn-success'" @click="buyShip(s.id)" :disabled="!ownedShips.includes(s.id)&&money<s.price" style="margin-top:4px;font-size:12px;">{{ ownedShips.includes(s.id) ? '切换' : '购买' }}</button>
 </div>
 </div>
 </template>
@@ -86,6 +86,7 @@ const money = ref(0);
 const currentShipId = ref(0);
 const cargoUsed = ref(0);
 const cargoMax = ref(0);
+const ownedShips = ref([]);
 
 const msg = ref('');
 const msgType = ref('');
@@ -167,6 +168,7 @@ async function load(resetTarget = true) {
     currentShipId.value = ship.value?.id || 0;
     cargoUsed.value = Number(d?.cargoUsed || 0);
     cargoMax.value = Number(d?.cargoMax || 0);
+    ownedShips.value = Array.isArray(d?.ownedShips) ? d.ownedShips : [];
 
     if (resetTarget) {
       const exists = reachableCities.value.some(c => String(c.id) === String(targetCityId.value));
@@ -184,11 +186,11 @@ async function load(resetTarget = true) {
 async function buyShip(id) {
   try {
     const d = await Api.post('/sail/buy-ship', { ship_id: id });
-    msg.value = d.msg || '购买成功';
+    msg.value = d.msg || (d.switched ? '切换成功' : '购买成功');
     msgType.value = 'success';
     await load();
   } catch (e) {
-    msg.value = e?.response?.data?.error || e.message || '购买失败';
+    msg.value = e?.response?.data?.error || e.message || '操作失败';
     msgType.value = 'error';
   }
 }

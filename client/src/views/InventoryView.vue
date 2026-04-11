@@ -50,9 +50,9 @@ const categories=[
 {key:'armor',name:'防具',icon:'🛡️',color:'#3f6a4a'},
 {key:'consumable',name:'消耗',icon:'🧪',color:'#2e5a3b'},
 {key:'material',name:'材料',icon:'📦',color:'#c9a758'},
-{key:'other',name:'其他',icon:'📋',color:'#8b784e'}
+{key:'pet_food',name:'宠物',icon:'🐾',color:'#6f5632'},{key:'misc',name:'杂物',icon:'📋',color:'#8b784e'}
 ];
-function filterItems(subtype){return items.value.filter(i=>i.subtype===subtype);}
+function filterItems(key){return items.value.filter(i=>i.subtype===key || (key==='misc' && !['weapon','armor','consumable','material','pet_food'].includes(i.subtype)));}
 function calcStat(base,level){if(!base)return 0;return Math.round(base*(1+(level||0)*0.03));}
 async function load(){try{const d=await Api.get('/user/inventory');items.value=(d.items||[]).filter(i=>!i.equipped);}catch(e){}}
 async function equip(invId){try{await Api.post('/user/equip',{inventory_id:invId});const me=await Api.get('/auth/me');userStore.updateUser(me.user);await load();}catch(e){}}

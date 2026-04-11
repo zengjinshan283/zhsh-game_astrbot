@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build output
+admin/dist/
+client/dist/
+
+# Environment files
+.env
+server/.env
+*.env.local
+
+# Logs
+logs/
+*.log
+server/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Backup
+备份/
+
+# Test files
+test_*.js
