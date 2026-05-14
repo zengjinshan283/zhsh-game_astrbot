@@ -56,8 +56,8 @@ const msg=ref(''); const msgType=ref('');
 const qtyMap=reactive({});
 function formatMoney(n){if(!n)return'0';if(n>=100000000)return(n/100000000).toFixed(1)+'亿';if(n>=10000)return(n/10000).toFixed(1)+'万';return n.toLocaleString();}
 function setQty(id,delta){qtyMap[id]=Math.max(1,(qtyMap[id]||1)+delta);}
-async function load(){try{const d=await Api.get('/market/info');city.value=d.city;regionName.value=d.regionName;ship.value=d.ship;cargoUsed.value=d.cargoUsed;cargoMax.value=d.cargoMax;goodsList.value=d.goodsList||[];priceHints.value=d.priceHints||[];money.value=d.money;}catch(e){msg=e.message;msgType='error';}}
-async function buyGoods(g){const qty=qtyMap[g.id]||1;try{const d=await Api.post('/market/buy',{goods_id:g.id,quantity:qty});msg=d.msg;msgType='success';await load();}catch(e){msg=e.message;msgType='error';}}
-async function sellGoods(g){const qty=qtyMap[g.id]||1;try{const d=await Api.post('/market/sell',{goods_id:g.id,quantity:qty});msg=d.msg;msgType='success';await load();}catch(e){msg=e.message;msgType='error';}}
+async function load(){try{const d=await Api.get('/market/info');city.value=d.city;regionName.value=d.regionName;ship.value=d.ship;cargoUsed.value=d.cargoUsed;cargoMax.value=d.cargoMax;goodsList.value=d.goodsList||[];priceHints.value=d.priceHints||[];money.value=d.money;}catch(e){msg.value=e.message;msgType.value='error';}}
+async function buyGoods(g){const qty=qtyMap[g.id]||1;try{const d=await Api.post('/market/buy',{goods_id:g.id,quantity:qty});msg.value=d.msg;msgType.value='success';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
+async function sellGoods(g){const qty=qtyMap[g.id]||1;try{const d=await Api.post('/market/sell',{goods_id:g.id,quantity:qty});msg.value=d.msg;msgType.value='success';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
 onMounted(load);
 </script>

@@ -121,7 +121,7 @@ function openFeed() {
   if (!petFoods.value || !petFoods.value.length) { msg.value = '暂无宠物食物，据说驯兽师处可以购买'; msgType.value = 'error'; return; }
 }
 async function feedPet(itemId) {
-  try { const d = await Api.post('/pet/feed', {item_id: itemId}); msg.value = d.msg; msgType.value = d.success?'success':'error'; if(d.success) await load(); } catch(e) { msg=e.message||e.response?.data?.error||'喂食失败'; msgType.value = 'error'; }
+  try { const d = await Api.post('/pet/feed', {item_id: itemId}); msg.value = d.msg; msgType.value = d.success?'success':'error'; if(d.success) await load(); } catch(e) { msg.value=e.message||e.response?.data?.error||'喂食失败'; msgType.value = 'error'; }
 }
 async function releasePet(p) {
   if(!(await globalConfirm('确定放生?')))return;

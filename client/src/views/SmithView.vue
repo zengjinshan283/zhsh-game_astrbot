@@ -35,11 +35,11 @@ function getRate(l){return l>=9?30:l>=6?70:90;}
 function getCost(l){return(l+1)*200;}
 function getEnhColor(l){return l>=9?'#b85a3a':l>=7?'#6f5632':l>=5?'#9b59b6':l>=3?'#3f6a4a':'#2e5a3b';}
 function calcStat(base,level){return Math.round((base||0)*(1+level*0.03));}
-async function load(){try{const d=await Api.get('/smith/items');items.value=d.items||[];}catch(e){msg=e.message;msgType='error';}}
+async function load(){try{const d=await Api.get('/smith/items');items.value=d.items||[];}catch(e){msg.value=e.message;msgType.value='error';}}
 async function enhance(id,name,level){
 if(level>=10)return;
 if(!(await globalConfirm('花费'+getCost(level)+'铜强化? 成功率'+getRate(level)+'%'+(level>=7?' 失败降级':''))))return;
-try{const d=await Api.post('/smith/enhance',{inventory_id:id});msg=d.msg;msgType=d.success?'success':'error';const me=await Api.get('/auth/me');userStore.updateUser(me.user);await load();}catch(e){msg=e.message;msgType='error';}
+try{const d=await Api.post('/smith/enhance',{inventory_id:id});msg.value=d.msg;msgType.value=d.success?'success':'error';const me=await Api.get('/auth/me');userStore.updateUser(me.user);await load();}catch(e){msg.value=e.message;msgType.value='error';}
 }
 onMounted(load);
 </script>

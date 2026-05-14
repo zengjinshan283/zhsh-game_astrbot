@@ -47,7 +47,7 @@ const friendName=ref('');const msg=ref('');const msgType=ref('');
 function isOnline(t){return t>Date.now()/1000-900;}
 function fmtTime(t){if(!t)return'';const d=new Date(t*1000);return(d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');}
 async function load(){try{const d=await Api.get('/friend/list');friends.value=d.friends||[];requests.value=d.requests||[];}catch(e){}}
-async function addFriend(){if(!friendName.value)return;try{const d=await Api.post('/friend/add',{username:friendName.value});msg=d.msg;msgType='success';friendName.value='';await load();}catch(e){msg=e.message;msgType='error';}}
+async function addFriend(){if(!friendName.value)return;try{const d=await Api.post('/friend/add',{username:friendName.value});msg.value=d.msg;msgType.value='success';friendName.value='';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
 async function accept(id){try{await Api.post('/friend/accept',{friend_row_id:id});await load();}catch(e){}}
 async function reject(id){try{await Api.post('/friend/reject',{friend_row_id:id});await load();}catch(e){}}
 async function deleteFriend(uid){if(!(await globalConfirm('确定删除?')))return;try{await Api.post('/friend/delete',{friend_id:uid});await load();}catch(e){}}

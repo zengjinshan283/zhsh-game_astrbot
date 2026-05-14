@@ -54,9 +54,9 @@ const msgType = ref('success');
 const logs = ref([]);
 function formatMoney(n){if(!n)return'0';if(n>=100000000)return(n/100000000).toFixed(1)+'亿';if(n>=10000)return(n/10000).toFixed(1)+'万';return n.toLocaleString();}
 function logTypeName(t){return{1:'存入',2:'取出',3:'利息',4:'转帐'}[t]||'交易';}
-async function loadBank(){try{const d=await Api.get('/npc/1/bank');info.value=d;logs.value=d.logs||[];}catch(e){msg=e.message;msgType='error';}}
-async function deposit(){msg.value='';const amt=parseInt(amount.value);if(!amt||amt<=0)return;try{const d=await Api.post('/npc/deposit',{amount:amt});msg=`存入 ${formatMoney(amt)} 铜币`;msgType='success';info.value.money=d.money;info.value.bank_money=d.bank_money;amount.value=null;await loadBank();}catch(e){msg=e.message;msgType='error';}}
-async function withdraw(){msg.value='';const amt=parseInt(amount.value);if(!amt||amt<=0)return;try{const d=await Api.post('/npc/withdraw',{amount:amt});msg=`取出 ${formatMoney(amt)} 铜币`;msgType='success';info.value.money=d.money;info.value.bank_money=d.bank_money;amount.value=null;await loadBank();}catch(e){msg=e.message;msgType='error';}}
+async function loadBank(){try{const d=await Api.get('/npc/1/bank');info.value=d;logs.value=d.logs||[];}catch(e){msg.value=e.message;msgType.value='error';}}
+async function deposit(){msg.value='';const amt=parseInt(amount.value);if(!amt||amt<=0)return;try{const d=await Api.post('/npc/deposit',{amount:amt});msg.value=`存入 ${formatMoney(amt)} 铜币`;msgType.value='success';info.value.money=d.money;info.value.bank_money=d.bank_money;amount.value=null;await loadBank();}catch(e){msg.value=e.message;msgType.value='error';}}
+async function withdraw(){msg.value='';const amt=parseInt(amount.value);if(!amt||amt<=0)return;try{const d=await Api.post('/npc/withdraw',{amount:amt});msg.value=`取出 ${formatMoney(amt)} 铜币`;msgType.value='success';info.value.money=d.money;info.value.bank_money=d.bank_money;amount.value=null;await loadBank();}catch(e){msg.value=e.message;msgType.value='error';}}
 async function quickDeposit(amt){if(!amt||amt<=0)return;try{await Api.post('/npc/deposit',{amount:amt});await loadBank();}catch(e){}}
 async function quickWithdraw(amt){if(!amt||amt<=0)return;try{await Api.post('/npc/withdraw',{amount:amt});await loadBank();}catch(e){}}
 onMounted(loadBank);

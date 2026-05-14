@@ -48,8 +48,8 @@ const diceFaces={1:'⚀',2:'⚁',3:'⚂',4:'⚃',5:'⚄',6:'⚅'};
 function formatMoney(n){if(!n)return'0';if(n>=100000000)return(n/100000000).toFixed(1)+'亿';if(n>=10000)return(n/10000).toFixed(1)+'万';return n.toLocaleString();}
 async function bet(){
 if(!choice.value){return;}
-if(!betAmount.value||betAmount.value<=0){msg='请输入有效金额';msgType='error';return;}
-try{const d=await Api.post('/casino/bet',{amount:betAmount.value,choice:choice.value});result.value={dice1:d.dice1,dice2:d.dice2,total:d.total,isBig:d.isBig,choice:d.choice,isWin:d.isWin};msg=d.msg;msgType=d.success?'success':'error';const me=await Api.get('/auth/me');userStore.updateUser(me.user);money.value=me.user.money;}catch(e){msg=e.message;msgType='error';}
+if(!betAmount.value||betAmount.value<=0){msg.value='请输入有效金额';msgType.value='error';return;}
+try{const d=await Api.post('/casino/bet',{amount:betAmount.value,choice:choice.value});result.value={dice1:d.dice1,dice2:d.dice2,total:d.total,isBig:d.isBig,choice:d.choice,isWin:d.isWin};msg.value=d.msg;msgType.value=d.success?'success':'error';const me=await Api.get('/auth/me');userStore.updateUser(me.user);money.value=me.user.money;}catch(e){msg.value=e.message;msgType.value='error';}
 }
 onMounted(async()=>{try{const me=await Api.get('/auth/me');userStore.updateUser(me.user);money.value=me.user.money;}catch(e){}});
 </script>

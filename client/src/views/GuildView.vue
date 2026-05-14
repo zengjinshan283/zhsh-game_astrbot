@@ -80,12 +80,12 @@ const isLeader=computed(()=>myGuild.value?.role===3);
 const isViceLeader=computed(()=>myGuild.value?.role>=2);
 function isOnline(t){return t>Date.now()/1000-900;}
 async function load(){try{const d=await Api.get('/guild/my');myGuild.value=d.myGuild;members.value=d.members||[];guildList.value=d.guildList||[];}catch(e){}}
-async function create(){try{const d=await Api.post('/guild/create',{name:createName.value});msg=d.msg;msgType='success';createName.value='';await load();}catch(e){msg=e.message;msgType='error';}}
-async function join(){try{const d=await Api.post('/guild/join',{name:joinName.value});msg=d.msg;msgType='success';joinName.value='';await load();}catch(e){msg=e.message;msgType='error';}}
-async function leave(){if(!(await globalConfirm('确定退出?')))return;try{const d=await Api.post('/guild/leave');msg=d.msg;msgType='success';await load();}catch(e){msg=e.message;msgType='error';}}
-async function disband(){if(!(await globalConfirm('确定解散？不可恢复！')))return;try{const d=await Api.post('/guild/disband');msg=d.msg;msgType='success';await load();}catch(e){msg=e.message;msgType='error';}}
-async function saveNotice(){try{await Api.post('/guild/notice',{notice:noticeText.value});msg='公告已更新';msgType='success';}catch(e){msg=e.message;msgType='error';}}
-async function kick(uid){if(!(await globalConfirm('踢出?')))return;try{await Api.post('/guild/kick',{user_id:uid});await load();}catch(e){msg=e.message;msgType='error';}}
+async function create(){try{const d=await Api.post('/guild/create',{name:createName.value});msg.value=d.msg;msgType.value='success';createName.value='';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
+async function join(){try{const d=await Api.post('/guild/join',{name:joinName.value});msg.value=d.msg;msgType.value='success';joinName.value='';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
+async function leave(){if(!(await globalConfirm('确定退出?')))return;try{const d=await Api.post('/guild/leave');msg.value=d.msg;msgType.value='success';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
+async function disband(){if(!(await globalConfirm('确定解散？不可恢复！')))return;try{const d=await Api.post('/guild/disband');msg.value=d.msg;msgType.value='success';await load();}catch(e){msg.value=e.message;msgType.value='error';}}
+async function saveNotice(){try{await Api.post('/guild/notice',{notice:noticeText.value});msg.value='公告已更新';msgType.value='success';}catch(e){msg.value=e.message;msgType.value='error';}}
+async function kick(uid){if(!(await globalConfirm('踢出?')))return;try{await Api.post('/guild/kick',{user_id:uid});await load();}catch(e){msg.value=e.message;msgType.value='error';}}
 async function loadGuilds(){try{const d=await Api.get('/guild/my');guildList.value=d.guildList||[];}catch(e){}}
 onMounted(load);
 </script>
