@@ -12,6 +12,34 @@ function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Nu
 // In-memory battle sessions (keyed by userId)
 const battleSessions = new Map();
 
+// Apply durability loss to an equipped item (weapon or armor), returns { broken, name }
+async function applyDurabilityLoss(userId, subtype, loss) {
+  const inv = await db.getOne(
+    `SELECT inv.id AS inv_id, inv.durability, inv.durability_max, i.name, i.price_buy FROM \`inventory\` inv JOIN \`item\` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 AND i.subtype = ?`,
+    [userId, subtype]
+  );
+  if (!inv) return { broken: false, name: null };
+  let newDur = Math.max(0, inv.durability - loss);
+  await db.query('UPDATE `inventory` SET durability = ? WHERE `id` = ?', [newDur, inv.inv_id]);
+  if (newDur === 0) {
+    // Auto-unequip
+    await db.query('UPDATE `inventory` SET equipped = 0 WHERE `id` = ?', [inv.inv_id]);
+    return { broken: true, name: inv.name };
+  }
+  return { broken: false, name: null };
+}
+
+// Persist durability for all equipped items after battle ends
+async function persistDurability(userId) {
+  // Equipped items durability already persisted via applyDurabilityLoss calls, but ensure current session weapon/armor are saved
+  // The battle session may hold references - we just ensure DB is up to date
+  const equipped = await db.getAll(
+    `SELECT inv.id AS inv_id, inv.durability FROM \`inventory\` inv JOIN \`item\` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 AND i.subtype IN ('weapon','armor')`,
+    [userId]
+  );
+  // Already saved via applyDurabilityLoss, nothing extra needed unless we tracked in-session values
+}
+
 
 // 开始海盗战斗（航海随机事件）
 router.post('/start-pirate', authMiddleware, async (req, res, next) => {
@@ -142,16 +170,24 @@ router.post('/action', authMiddleware, async (req, res, next) => {
     if (!battle || battle.finished) return res.status(400).json({ error: '没有进行中的战斗' });
 
     const user = await db.getOne(
-      'SELECT id, username, level, hp, hp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, exp, exp_max FROM `user` WHERE `id` = ?',
+      'SELECT id, username, level, hp, hp_max, mp, mp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, exp, exp_max FROM `user` WHERE `id` = ?',
       [req.user.id]
     );
 
     if (action === 'attack') {
       // Player attacks
-      const pAtk = randInt(user.atk_min, user.atk_max);
+      const atkBoost = battle.temp_atk_boost || 1;
+      const pAtk = Math.floor(randInt(user.atk_min, user.atk_max) * atkBoost);
       const pDmg = Math.max(1, pAtk - battle.monster_def);
       battle.monster_hp -= pDmg;
       battle.log.push({ type: 'attack', text: `你挥剑攻击${battle.monster_name}，造成 ${pDmg} 点伤害！` });
+
+      // Weapon durability -1 to -2
+      const weaponLoss = randInt(1, 2);
+      const weaponResult = await applyDurabilityLoss(req.user.id, 'weapon', weaponLoss);
+      if (weaponResult.broken) {
+        battle.log.push({ type: 'system', text: `⚠️ 你的${weaponResult.name}损坏了！` });
+      }
 
       // Pet attacks
       if (battle.pet_atk > 0 && battle.monster_hp > 0) {
@@ -224,6 +260,82 @@ router.post('/action', authMiddleware, async (req, res, next) => {
           battleSessions.delete(req.user.id);
           return res.json(buildBattleResponse(battle, user));
         }
+      }
+    } else if (action === 'skill') {
+      const { skill_id } = req.body;
+      if (!skill_id) return res.status(400).json({ error: '缺少技能ID' });
+
+      // Get user's learned skill
+      const userSkill = await db.getOne(
+        'SELECT us.*, s.name, s.type, s.atk_multiplier, s.def_multiplier, s.mp_cost, s.cooldown, s.level_req FROM `user_skill` us JOIN `skill` s ON us.skill_id = s.id WHERE us.user_id = ? AND us.skill_id = ?',
+        [req.user.id, skill_id]
+      );
+      if (!userSkill) return res.status(400).json({ error: '尚未学会该技能' });
+
+      const now = Math.floor(Date.now() / 1000);
+
+      // Check cooldown
+      if (userSkill.cooldown_end > now) {
+        const remain = userSkill.cooldown_end - now;
+        battle.log.push({ type: 'system', text: `${userSkill.name} 冷却中（${remain}秒）` });
+        return res.json(buildBattleResponse(battle, user));
+      }
+
+      // Check level requirement
+      if (user.level < userSkill.level_req) {
+        battle.log.push({ type: 'system', text: `${userSkill.name} 需要 Lv.${userSkill.level_req}` });
+        return res.json(buildBattleResponse(battle, user));
+      }
+
+      // Check MP
+      if ((user.mp || 0) < userSkill.mp_cost) {
+        battle.log.push({ type: 'system', text: `魔法值不足（需要${userSkill.mp_cost}点）` });
+        return res.json(buildBattleResponse(battle, user));
+      }
+
+      // Deduct MP
+      const newMp = (user.mp || 0) - userSkill.mp_cost;
+      await db.query('UPDATE `user` SET mp = ? WHERE `id` = ?', [newMp, req.user.id]);
+      user.mp = newMp;
+
+      // Set cooldown
+      const cooldownEnd = now + userSkill.cooldown;
+      await db.query('UPDATE `user_skill` SET cooldown_end = ? WHERE user_id = ? AND skill_id = ?', [cooldownEnd, req.user.id, skill_id]);
+
+      // Apply skill effect
+      if (userSkill.type === 1) {
+        // Attack skill
+        const hits = skill_id == 3 ? 2 : 1; // Skill 3 = Double Strike (2 hits)
+        for (let h = 0; h < hits; h++) {
+          const pAtk = randInt(user.atk_min, user.atk_max);
+          const pDmg = Math.max(1, Math.floor((pAtk * Number(userSkill.atk_multiplier)) - battle.monster_def));
+          battle.monster_hp -= pDmg;
+          battle.log.push({ type: 'skill', text: `你施展了${userSkill.name}，造成 ${pDmg} 点伤害！` });
+        }
+      } else if (userSkill.type === 2) {
+        // Defense skill - temporarily boost def (handled in retaliation calc via battle state)
+        battle.temp_def_boost = Number(userSkill.def_multiplier);
+        battle.log.push({ type: 'skill', text: `你施展了${userSkill.name}，防御力提升 ${userSkill.def_multiplier} 倍！` });
+      } else if (userSkill.type === 3) {
+        // Buff skill
+        battle.temp_atk_boost = Number(userSkill.atk_multiplier);
+        battle.log.push({ type: 'skill', text: `你施展了${userSkill.name}，攻击力提升 ${userSkill.atk_multiplier} 倍！` });
+      }
+
+      if (battle.monster_hp <= 0) {
+        await handleMonsterKill(user, battle);
+        await resumeSailingIfNeeded(req.user.id, battle);
+        battleSessions.delete(req.user.id);
+        return res.json(buildBattleResponse(battle, user));
+      }
+
+      // Monster retaliates
+      await monsterRetaliate(user, battle);
+      if (user.hp <= 0) {
+        await handlePlayerDeath(user, battle);
+        await resumeSailingIfNeeded(req.user.id, battle);
+        battleSessions.delete(req.user.id);
+        return res.json(buildBattleResponse(battle, user));
       }
     } else if (action === 'use_shortcut') {
       const slot = Number(req.body.slot);
@@ -304,12 +416,51 @@ async function resumeSailingIfNeeded(userId, battle) {
 // Helper functions
 async function monsterRetaliate(user, battle) {
   const mAtk = randInt(battle.monster_atk_min, battle.monster_atk_max);
-  const mDmg = Math.max(1, mAtk - Number(user.def));
+  // Apply temp defense boost from skill
+  const defBoost = battle.temp_def_boost || 1;
+  const effectiveDef = Math.floor(Number(user.def) * defBoost);
+  const mDmg = Math.max(1, mAtk - effectiveDef);
   const newHp = Math.max(0, Number(user.hp) - mDmg);
   await db.query('UPDATE `user` SET hp = ? WHERE `id` = ?', [newHp, user.id]);
   user.hp = newHp;
   battle.log.push({ type: 'defend', text: `${battle.monster_name}反击，对你造成 ${mDmg} 点伤害！` });
   battle.round++;
+
+  // Ship takes damage during pirate battles (from_sail=true)
+  // 30% chance each round, 5-15 damage
+  if (battle.from_sail && user.ship_id) {
+    const shipRoll = Math.floor(Math.random() * 100) + 1;
+    if (shipRoll <= 30) {
+      const shipDmg = randInt(5, 15);
+      const shipInfo = await db.getOne('SELECT hp, hp_max FROM `user_ship` WHERE `user_id` = ? AND `ship_id` = ?', [user.id, user.ship_id]);
+      const shipBase = await db.getOne('SELECT hp_max FROM `ship` WHERE `id` = ?', [user.ship_id]);
+      const currentShipHp = shipInfo ? shipInfo.hp : (shipBase ? shipBase.hp_max : 100);
+      const newShipHp = Math.max(0, currentShipHp - shipDmg);
+
+      if (shipInfo) {
+        await db.query('UPDATE `user_ship` SET hp = ? WHERE `user_id` = ? AND `ship_id` = ?', [newShipHp, user.id, user.ship_id]);
+      } else {
+        await db.query('INSERT INTO `user_ship` (user_id, ship_id, hp, hp_max) VALUES (?, ?, ?, ?)', [user.id, user.ship_id, newShipHp, shipBase ? shipBase.hp_max : 100]);
+      }
+
+      battle.log.push({ type: 'system', text: `⛵ 船只受到波及，损失 ${shipDmg} 点HP！(船只HP: ${newShipHp}/${shipBase ? shipBase.hp_max : 100})` });
+
+      // Check if ship sinks
+      if (newShipHp <= 0) {
+        battle.log.push({ type: 'system', text: `💀 船只损毁！你被迫返回最近的港口！` });
+        battle.ship_sunk = true;
+        // Reset ship HP to minimal and return to dock
+        await db.query('UPDATE `user_ship` SET hp = 1 WHERE `user_id` = ? AND `ship_id` = ?', [user.id, user.ship_id]);
+        const userRow = await db.getOne('SELECT place_id FROM `user` WHERE `id` = ?', [user.id]);
+        if (userRow) {
+          await db.query('UPDATE `user` SET place_id = ?, hp = ?, sail_time = 0, sail_from = 0, sail_to = 0, sail_paused = 0, sail_remaining_sec = 0 WHERE `id` = ?', [userRow.place_id, Math.floor(Number(user.hp_max) * 0.1), user.id]);
+        }
+        battle.finished = true;
+        battle.result = 'ship_sunk';
+      }
+    }
+  }
+
   // Pet satiety -2 per round
   if (battle.pet_up_id && battle.pet_satiety > 0) {
     const newSat = Math.max(0, battle.pet_satiety - 2);
@@ -397,6 +548,53 @@ async function handleMonsterKill(user, battle) {
     if (status === 1) battle.log.push({ type: 'info', text: `📋 任务「${q.name}」已完成！` });
   }
 
+  // Handle item drops with quality roll
+  const drops = await db.getAll('SELECT md.item_id, md.quantity_min, md.quantity_max FROM `monster_drop` md WHERE md.monster_id = ?', [battle.monster_id]);
+  for (const drop of drops) {
+    if (randInt(1, 10000) <= drop.drop_rate) {
+      const qty = randInt(drop.quantity_min, drop.quantity_max);
+      // Roll quality: white 60%, green 25%, blue 10%, purple 4%, orange 1%
+      const roll = randInt(1, 100);
+      let quality = 0;
+      if (roll <= 60) quality = 0;       // white
+      else if (roll <= 85) quality = 1;   // green
+      else if (roll <= 95) quality = 2;    // blue
+      else if (roll <= 99) quality = 3;   // purple
+      else quality = 4;                    // orange
+
+      // Insert inventory item
+      const invId = await db.insert('inventory', {
+        user_id: user.id,
+        item_id: drop.item_id,
+        quantity: qty,
+        equipped: 0,
+        enhance_level: 0
+      });
+
+      // Update item quality
+      await db.query('UPDATE `item` SET `quality` = ? WHERE `id` = ?', [quality, drop.item_id]);
+
+      // Generate affixes if quality > 0
+      if (quality > 0) {
+        const numAffixes = randInt(1, quality + 1);
+        const affixes = await db.getAll(
+          'SELECT * FROM `item_affix` WHERE `quality` <= ? ORDER BY RAND() LIMIT ?',
+          [quality, numAffixes]
+        );
+        for (const affix of affixes) {
+          const statValue = randInt(affix.stat_min, affix.stat_max);
+          await db.insert('inventory_affix', {
+            inventory_id: invId,
+            affix_id: affix.id,
+            stat_value: statValue
+          });
+        }
+        const qualityNames = ['', '绿色', '蓝色', '紫色', '橙色'];
+        battle.log.push({ type: 'info', text: `💎 获得${qualityNames[quality]}装备！` });
+      }
+    }
+  }
+
   await db.insert('battle_log', {
     user_id: user.id, monster_id: battle.monster_id, enemy_user_id: 0,
     result: 1, exp_gained: expGain, money_gained: moneyGain,
@@ -470,6 +668,8 @@ function buildBattleResponse(battle, user) {
     resp.player_atk_min = user.atk_min;
     resp.player_atk_max = user.atk_max;
     resp.player_def = user.def;
+    resp.player_mp = user.mp || 0;
+    resp.player_mp_max = user.mp_max || 100;
     resp.pet_name = battle.pet_name;
     resp.pet_satiety = battle.pet_satiety || 0;
     resp.pet_up_id = battle.pet_up_id || 0;

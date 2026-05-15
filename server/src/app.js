@@ -29,6 +29,7 @@ app.use('/api/pet', require('./routes/pet'));
 app.use('/api/guild', require('./routes/guild'));
 app.use('/api/market', require('./routes/market'));
 app.use('/api/sail', require('./routes/sail'));
+app.use('/api/ship', require('./routes/ship'));
 app.use('/api/casino', require('./routes/casino'));
 app.use('/api/rank', require('./routes/rank'));
 app.use('/api/friend', require('./routes/friend'));

@@ -12,8 +12,15 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       [req.user.id]
     );
 
-    let ship = null;
-    if (user.ship_id > 0) ship = await db.getOne("SELECT * FROM `ship` WHERE `id` = ?", [user.ship_id]);
+    let ship = null, shipHp = 0, shipHpMax = 0;
+    if (user.ship_id > 0) {
+      ship = await db.getOne("SELECT * FROM `ship` WHERE `id` = ?", [user.ship_id]);
+      if (ship) {
+        const us = await db.getOne('SELECT hp, hp_max FROM `user_ship` WHERE `user_id` = ? AND `ship_id` = ?', [req.user.id, user.ship_id]);
+        shipHp = us ? us.hp : ship.hp_max;
+        shipHpMax = ship.hp_max;
+      }
+    }
     const allShips = await db.getAll("SELECT * FROM `ship` ORDER BY `price`");
 
     const place = await db.getOne("SELECT * FROM `place` WHERE `id` = ?", [user.place_id]);
@@ -65,7 +72,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
             sailRemain = Math.ceil((duration - elapsed) / 60);
             if (user.sail_from > 0) { const fc = await db.getOne("SELECT name FROM `map` WHERE `id` = ?", [user.sail_from]); sailFromCity = fc ? fc.name : '???'; }
             if (user.sail_to > 0) { const tc = await db.getOne("SELECT name FROM `map` WHERE `id` = ?", [user.sail_to]); sailToCity = tc ? tc.name : '???'; }
-            return res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
+            return res.json({ isSailing, sailProgress, sailRemain, sailFromCity, sailToCity, ship, shipHp, shipHpMax, allShips, city, isDock, reachableCities, money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money });
           }
           const roll = Math.floor(Math.random()*100)+1;
           if (roll <= 20) {
@@ -82,7 +89,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
               sailRemain: Math.ceil(remain / 60),
               sailFromCity: fromCity,
               sailToCity: toCity,
-              ship, allShips, city, isDock, reachableCities,
+              ship, shipHp, shipHpMax, allShips, city, isDock, reachableCities,
               money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money
             });
           }
@@ -136,7 +143,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
             cargoRows.forEach(r => cargoUsed += r.quantity * r.weight);
           }
           const ownedShipsArr = (await db.getAll('SELECT ship_id FROM user_ship WHERE user_id = ?', [req.user.id])).map(r => r.ship_id);
-          return res.json({ arrived: true, event, msg, user: updatedUser, ship, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax, ownedShips: ownedShipsArr });
+          return res.json({ arrived: true, event, msg, user: updatedUser, ship, shipHp, shipHpMax, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax, ownedShips: ownedShipsArr });
         }
 
         isSailing = true;
@@ -155,7 +162,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     }
     res.json({
       isSailing, sailProgress, sailRemain, sailFromCity, sailToCity,
-      ship, allShips, city, isDock, reachableCities,
+      ship, shipHp, shipHpMax, allShips, city, isDock, reachableCities,
       money: (await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id])).money,
       cargoUsed, cargoMax, ownedShips: [...(await db.getAll('SELECT DISTINCT ship_id FROM user_ship WHERE user_id = ? UNION SELECT ship_id FROM user WHERE id = ?', [req.user.id, req.user.id])).map(r => r.ship_id)]
     });

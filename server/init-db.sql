@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS `user` (
   `atk_max` int NOT NULL DEFAULT 28,
   `def` int NOT NULL DEFAULT 0,
   `agility` int NOT NULL DEFAULT 0,
+  `mp` int NOT NULL DEFAULT 100,
+  `mp_max` int NOT NULL DEFAULT 100,
   `place_id` int NOT NULL DEFAULT 1011,
   `bank_money` int NOT NULL DEFAULT 0,
   `pet_id` int NOT NULL DEFAULT 0,
@@ -109,7 +111,28 @@ CREATE TABLE IF NOT EXISTS `item` (
   `atk` int NOT NULL DEFAULT 0,
   `def_val` int NOT NULL DEFAULT 0,
   `hp` int NOT NULL DEFAULT 0,
+  `quality` tinyint NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `item_affix` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `stat_type` varchar(32) NOT NULL,
+  `stat_min` int NOT NULL,
+  `stat_max` int NOT NULL,
+  `weight` int NOT NULL DEFAULT 1,
+  `quality` tinyint NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `inventory_affix` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `inventory_id` int NOT NULL,
+  `affix_id` int NOT NULL,
+  `stat_value` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_inv_affix_inv` (`inventory_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `inventory` (
@@ -119,6 +142,8 @@ CREATE TABLE IF NOT EXISTS `inventory` (
   `quantity` int NOT NULL DEFAULT 1,
   `equipped` tinyint NOT NULL DEFAULT 0,
   `enhance_level` int NOT NULL DEFAULT 0,
+  `durability` int NOT NULL DEFAULT 100,
+  `durability_max` int NOT NULL DEFAULT 100,
   PRIMARY KEY (`id`),
   KEY `idx_inventory_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -201,6 +226,8 @@ CREATE TABLE IF NOT EXISTS `ship` (
   `price` int NOT NULL DEFAULT 0,
   `speed` int NOT NULL DEFAULT 1,
   `capacity` int NOT NULL DEFAULT 10,
+  `hp` int NOT NULL DEFAULT 100,
+  `hp_max` int NOT NULL DEFAULT 100,
   `description` text,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -209,6 +236,8 @@ CREATE TABLE IF NOT EXISTS `user_ship` (
   `id` int NOT NULL AUTO_INCREMENT,
   `user_id` int NOT NULL,
   `ship_id` int NOT NULL,
+  `hp` int NOT NULL DEFAULT 100,
+  `hp_max` int NOT NULL DEFAULT 100,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_ship` (`user_id`, `ship_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -369,6 +398,29 @@ CREATE TABLE IF NOT EXISTS `enum_definition` (
   `description` varchar(255) NOT NULL DEFAULT '',
   `sort_order` int NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `skill` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL,
+  `description` text,
+  `type` tinyint NOT NULL DEFAULT 1 COMMENT '1=attack,2=defense,3=buff',
+  `atk_multiplier` decimal(3,2) NOT NULL DEFAULT 1.00 COMMENT 'damage multiplier',
+  `def_multiplier` decimal(3,2) NOT NULL DEFAULT 1.00 COMMENT 'defense boost',
+  `mp_cost` int NOT NULL DEFAULT 0,
+  `cooldown` int NOT NULL DEFAULT 0 COMMENT 'seconds',
+  `level_req` int NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_skill` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `skill_id` int NOT NULL,
+  `level` int NOT NULL DEFAULT 1,
+  `cooldown_end` int NOT NULL DEFAULT 0 COMMENT 'unix timestamp',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_skill_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================
@@ -10883,3 +10935,38 @@ INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `pric
 (4043,慈航?御环仙焰,1,'sword',NULL,15000,4500,1500,0,0),
 (4044,慈航?鸾蛛明风,1,'sword',NULL,15000,4500,1500,0,0),
 (4045,慈航?寒鸦锐水,1,'sword',NULL,15000,4500,1500,0,0);
+
+-- ============================================================
+-- 技能数据 (skill)
+-- ============================================================
+INSERT IGNORE INTO `skill` (`id`, `name`, `description`, `type`, `atk_multiplier`, `def_multiplier`, `mp_cost`, `cooldown`, `level_req`) VALUES
+(1, '重击', '全力一击，造成1.5倍伤害', 1, 1.50, 1.00, 10, 30, 5),
+(2, '防御姿态', '进入防御状态，双倍防御力', 2, 1.00, 2.00, 5, 20, 3),
+(3, '连击', '快速攻击两次，每次造成0.8倍伤害', 1, 0.80, 1.00, 15, 45, 8),
+(4, '战吼', '为队伍提升1.2倍攻击力', 3, 1.20, 1.00, 20, 60, 10),
+(5, '强力一击', '毁灭性打击，造成2.0倍伤害', 1, 2.00, 1.00, 25, 60, 15);
+
+-- ============================================================
+-- 物品词缀数据 (item_affix)
+-- 0=白色(无词缀), 1=绿色, 2=蓝色, 3=紫色, 4=橙色
+-- ============================================================
+INSERT IGNORE INTO `item_affix` (`name`, `stat_type`, `stat_min`, `stat_max`, `weight`, `quality`) VALUES
+-- 绿色词缀 (quality=1)
+('攻击强化', 'atk', 5, 15, 10, 1),
+('防御强化', 'def', 3, 10, 10, 1),
+('生命强化', 'hp', 20, 50, 10, 1),
+-- 蓝色词缀 (quality=2)
+('攻击提升', 'atk', 10, 25, 5, 2),
+('防御提升', 'def', 8, 20, 5, 2),
+('生命提升', 'hp', 50, 100, 5, 2),
+('敏捷提升', 'agi', 3, 8, 5, 2),
+('暴击强化', 'crit', 1, 3, 3, 2),
+-- 紫色词缀 (quality=3)
+('攻击增强', 'atk', 20, 40, 2, 3),
+('防御增强', 'def', 15, 30, 2, 3),
+('生命增强', 'hp', 80, 150, 2, 3),
+('敏捷增强', 'agi', 5, 12, 2, 3),
+('暴击增强', 'crit', 2, 5, 2, 3),
+('生命偷取', 'lifesteal', 2, 5, 1, 3),
+-- 橙色词缀 (quality=4)
+('金币加成', 'gold_bonus', 5, 15, 1, 4);

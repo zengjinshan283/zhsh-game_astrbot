@@ -3,6 +3,8 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
 
+function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
+
 // 从 game_config 读取强化配置
 async function getEnhanceConfig(level) {
   const key = `success_rate_${level}`;
@@ -83,6 +85,39 @@ router.post('/enhance', authMiddleware, async (req, res, next) => {
         res.json({ success: false, level: currentLevel, msg: `😡 强化失败！仍是 +${currentLevel}` });
       }
     }
+  } catch(e){next(e);}
+});
+
+// 修理装备耐久度
+router.post('/repair', authMiddleware, async (req, res, next) => {
+  try {
+    const { inventory_id } = req.body;
+    // Check player is at a smith NPC (place with npc type=2)
+    const user = await db.getOne('SELECT place_id FROM `user` WHERE `id` = ?', [req.user.id]);
+    if (!user) return res.status(404).json({ error: '角色不存在' });
+    const npc = await db.getOne(
+      'SELECT id FROM `npc` WHERE `place_id` = ? AND `type` = 2 LIMIT 1',
+      [user.place_id]
+    );
+    if (!npc) return res.status(400).json({ error: '这里没有铁匠，无法修理装备' });
+
+    const inv = await db.getOne(
+      "SELECT inv.id, inv.durability, inv.durability_max, i.name, i.price_buy, i.subtype FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.id = ? AND inv.user_id = ?",
+      [inventory_id, req.user.id]
+    );
+    if (!inv) return res.status(400).json({ error: '物品不存在' });
+    if (!['weapon', 'armor'].includes(inv.subtype)) return res.status(400).json({ error: '只有武器和防具可以修理' });
+    if (inv.durability >= inv.durability_max) return res.status(400).json({ error: '该装备耐久度已满，无需修理' });
+
+    const missing = inv.durability_max - inv.durability;
+    const costPerPoint = Math.floor(inv.price_buy * 0.1);
+    const totalCost = missing * costPerPoint;
+    const player = await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id]);
+    if (player.money < totalCost) return res.status(400).json({ error: `铜币不足！需要 ${totalCost}，你只有 ${player.money}` });
+
+    await db.query('UPDATE `user` SET money = money - ? WHERE `id` = ?', [totalCost, req.user.id]);
+    await db.query('UPDATE `inventory` SET durability = ? WHERE `id` = ?', [inv.durability_max, inv.id]);
+    res.json({ success: true, msg: `✅ ${inv.name} 修复完成！恢复了 ${missing} 点耐久度，消耗 ${totalCost} 铜币` });
   } catch(e){next(e);}
 });
 

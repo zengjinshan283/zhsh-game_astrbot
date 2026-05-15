@@ -115,6 +115,57 @@ router.post('/withdraw', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// 学习技能
+router.post('/learn-skill', authMiddleware, async (req, res, next) => {
+  try {
+    const { npc_id, skill_id } = req.body;
+    if (!npc_id || !skill_id) return res.status(400).json({ error: '参数不完整' });
+
+    const npc = await db.getOne('SELECT * FROM `npc` WHERE `id` = ?', [npc_id]);
+    if (!npc) return res.status(404).json({ error: 'NPC不存在' });
+
+    const skill = await db.getOne('SELECT * FROM `skill` WHERE `id` = ?', [skill_id]);
+    if (!skill) return res.status(404).json({ error: '技能不存在' });
+
+    // Check if already learned
+    const existing = await db.getOne('SELECT * FROM `user_skill` WHERE `user_id` = ? AND `skill_id` = ?', [req.user.id, skill_id]);
+    if (existing) return res.status(400).json({ error: '已学会该技能' });
+
+    // Cost: skill level * 1000 copper
+    const cost = skill.level_req * 1000;
+    const user = await db.getOne('SELECT money, level FROM `user` WHERE `id` = ?', [req.user.id]);
+    if (user.money < cost) return res.status(400).json({ error: '铜币不足（需要' + cost + '）' });
+    if (user.level < skill.level_req) return res.status(400).json({ error: '等级不足（需要Lv.' + skill.level_req + '）' });
+
+    await db.query('UPDATE `user` SET `money` = `money` - ? WHERE `id` = ?', [cost, req.user.id]);
+    await db.insert('user_skill', { user_id: req.user.id, skill_id, level: 1, cooldown_end: 0 });
+
+    res.json({ success: true, skill_name: skill.name, cost });
+  } catch (err) { next(err); }
+});
+
+// 获取所有技能列表
+router.get('/skills/all', authMiddleware, async (req, res, next) => {
+  try {
+    const skills = await db.getAll('SELECT * FROM `skill` ORDER BY `level_req`, `id`');
+    res.json({ skills });
+  } catch (err) { next(err); }
+});
+
+// 获取用户已学会的技能
+router.get('/skills/my', authMiddleware, async (req, res, next) => {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const skills = await db.getAll(
+      `SELECT us.*, s.name, s.description, s.type, s.atk_multiplier, s.def_multiplier, s.mp_cost, s.cooldown, s.level_req,
+       (CASE WHEN us.cooldown_end > ? THEN us.cooldown_end - ? ELSE 0 END) as cooldown_remaining
+       FROM user_skill us JOIN skill s ON us.skill_id = s.id WHERE us.user_id = ? ORDER BY s.type, s.level_req`,
+      [now, now, req.user.id]
+    );
+    res.json({ skills });
+  } catch (err) { next(err); }
+});
+
 // NPC对话API - 复刻npc_chat.php
 router.get('/:id/chat', authMiddleware, async (req, res, next) => {
   try {

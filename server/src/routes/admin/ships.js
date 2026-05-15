@@ -149,4 +149,34 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// 维修玩家船只
+router.post('/:userId/repair', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { ship_id } = req.body;
+
+    const user = await db.getOne('SELECT ship_id FROM `user` WHERE `id` = ?', [userId]);
+    if (!user) return res.json({ code: 1, message: '玩家不存在' });
+
+    const targetShipId = ship_id || user.ship_id;
+    if (!targetShipId) return res.json({ code: 1, message: '该玩家没有船只' });
+
+    const ship = await db.getOne('SELECT hp_max FROM `ship` WHERE `id` = ?', [targetShipId]);
+    if (!ship) return res.json({ code: 1, message: '船只不存在' });
+
+    const userShip = await db.getOne('SELECT hp, hp_max FROM `user_ship` WHERE `user_id` = ? AND `ship_id` = ?', [userId, targetShipId]);
+
+    if (userShip) {
+      await db.query('UPDATE `user_ship` SET hp = ?, hp_max = ? WHERE `user_id` = ? AND `ship_id` = ?', [ship.hp_max, ship.hp_max, userId, targetShipId]);
+    } else {
+      await db.query('INSERT INTO `user_ship` (user_id, ship_id, hp, hp_max) VALUES (?, ?, ?, ?)', [userId, targetShipId, ship.hp_max, ship.hp_max]);
+    }
+
+    await logAction(req.admin.id, 'repair', 'ship', `管理员为玩家${userId}维修船只`, req);
+    res.json({ code: 0, message: '维修成功', data: { hp: ship.hp_max, hp_max: ship.hp_max } });
+  } catch (err) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
 module.exports = router;

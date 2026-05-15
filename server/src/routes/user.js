@@ -11,9 +11,21 @@ const router = express.Router();
 router.get('/inventory', authMiddleware, async (req, res, next) => {
   try {
     const items = await db.getAll(
-      'SELECT inv.id AS inv_id, inv.quantity, inv.equipped, inv.enhance_level, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? ORDER BY inv.equipped DESC, i.type, i.id',
+      'SELECT inv.id AS inv_id, inv.quantity, inv.equipped, inv.enhance_level, inv.durability, inv.durability_max, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? ORDER BY inv.equipped DESC, i.type, i.id',
       [req.user.id]
     );
+    // Load affixes for each inventory item
+    for (const item of items) {
+      const affixes = await db.getAll(
+        "SELECT ia.stat_value, ia.affix_id, ia.id AS inv_affix_id, ia.inventory_id, " +
+        "ia2.name, ia2.stat_type, ia2.stat_min, ia2.stat_max, ia2.quality " +
+        "FROM `inventory_affix` ia " +
+        "JOIN `item_affix` ia2 ON ia.affix_id = ia2.id " +
+        "WHERE ia.inventory_id = ?",
+        [item.inv_id]
+      );
+      item.affixes = affixes || [];
+    }
     res.json({ items });
   } catch (err) { next(err); }
 });
