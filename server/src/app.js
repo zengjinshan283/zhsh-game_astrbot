@@ -23,6 +23,7 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/user', require('./routes/user2'));
 app.use('/api/smith', require('./routes/smith'));
 app.use('/api/quest', require('./routes/quest'));
+app.use('/api/mentor', require('./routes/mentor'));
 app.use('/api/pet', require('./routes/pet'));
 app.use('/api/guild', require('./routes/guild'));
 app.use('/api/market', require('./routes/market'));
