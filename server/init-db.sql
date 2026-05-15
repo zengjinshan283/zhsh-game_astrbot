@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   `sail_paused` tinyint NOT NULL DEFAULT 0,
   `buff_end` int NOT NULL DEFAULT 0 COMMENT 'buff过期时间戳',
   `buff_flags` int NOT NULL DEFAULT 0 COMMENT 'buff标记：1=航行加速 2=掉落加成 4=防御增强 8=攻击增强 16=经验加成',
+  `status_effects` json NOT NULL DEFAULT ('[]') COMMENT '状态效果列表JSON',
   `shortcut_slot_1` int NOT NULL DEFAULT 0,
   `shortcut_slot_2` int NOT NULL DEFAULT 0,
   `shortcut_slot_3` int NOT NULL DEFAULT 0,
@@ -10990,3 +10991,51 @@ INSERT IGNORE INTO `item_affix` (`name`, `stat_type`, `stat_min`, `stat_max`, `w
 ('生命偷取', 'lifesteal', 2, 5, 1, 3),
 -- 橙色词缀 (quality=4)
 ('金币加成', 'gold_bonus', 5, 15, 1, 4);
+
+-- ============================================================
+-- 状态效果定义表
+-- ============================================================
+DROP TABLE IF EXISTS `status_effect`;
+CREATE TABLE IF NOT EXISTS `status_effect` (
+  `id` varchar(32) NOT NULL,
+  `name` varchar(32) NOT NULL,
+  `icon` varchar(8) NOT NULL DEFAULT '',
+  `type` tinyint NOT NULL DEFAULT 1 COMMENT '1=buff,2=debuff',
+  `stackable` tinyint NOT NULL DEFAULT 1 COMMENT '最大可叠加层数',
+  `tick_seconds` int NOT NULL DEFAULT 0 COMMENT '周期触发秒数，0表示不触发',
+  `tick_damage` int NOT NULL DEFAULT 0 COMMENT '每次触发扣血百分比',
+  `atk_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00 COMMENT '攻击倍率',
+  `def_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00 COMMENT '防御倍率',
+  `exp_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00 COMMENT '经验倍率',
+  `money_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00 COMMENT '金币倍率',
+  `drop_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00 COMMENT '掉落倍率',
+  `sail_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00 COMMENT '航海时间倍率（<1加速）',
+  `flee_penalty` int NOT NULL DEFAULT 0 COMMENT '逃跑率惩罚百分比（负数）',
+  `accuracy_penalty` int NOT NULL DEFAULT 0 COMMENT '命中率惩罚（负数）',
+  `silence` tinyint NOT NULL DEFAULT 0 COMMENT '是否沉默',
+  `confuse` tinyint NOT NULL DEFAULT 0 COMMENT '是否混乱',
+  `freeze` tinyint NOT NULL DEFAULT 0 COMMENT '是否冰冻',
+  `description` varchar(128) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT IGNORE INTO `status_effect` (`id`, `name`, `icon`, `type`, `stackable`, `tick_seconds`, `tick_damage`, `atk_multiplier`, `def_multiplier`, `exp_multiplier`, `money_multiplier`, `drop_multiplier`, `sail_multiplier`, `flee_penalty`, `accuracy_penalty`, `silence`, `confuse`, `freeze`, `description`) VALUES
+-- Buff (增益)
+('hp_surge', 'HP涌动', '💖', 1, 1, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '每分钟恢复3%HP'),
+('energy', '精力充沛', '⚔️', 1, 1, 0, 0, 1.15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '攻击+15%'),
+('ironwall', '铁壁', '🛡️', 1, 1, 0, 0, 0, 1.20, 0, 0, 0, 0, 0, 0, 0, 0, 0, '受到伤害-20%'),
+('lucky', '幸运', '🍀', 1, 1, 0, 0, 0, 0, 0, 0, 1.30, 0, 0, 0, 0, 0, 0, '掉落率+30%'),
+('fortune', '财神', '💰', 1, 1, 0, 0, 0, 0, 0, 1.20, 0, 0, 0, 0, 0, 0, '金币获取+20%'),
+('navigator', '航海家', '⛵', 1, 1, 0, 0, 0, 0, 0, 0, 0, 0.80, 0, 0, 0, 0, '航海时间-20%'),
+('wisdom', '领悟', '📖', 1, 1, 0, 0, 0, 0, 1.20, 0, 0, 0, 0, 0, 0, 0, '经验值+20%'),
+('mage', '魔导师', '🔮', 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '魔法上限+30%'),
+-- Debuff (减益)
+('poison', '中毒', '🐍', 2, 3, 60, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '每分钟损失2%HP，可叠加3层'),
+('burn', '灼烧', '🔥', 2, 1, 60, 1, 0.95, 0, 0, 0, 0, 0, 0, 0, 0, 0, '每分钟损失1%HP，攻击-5%'),
+('freeze', '冰冻', '🧊', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, '无法行动1回合'),
+('confuse', '混乱', '😵', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, '30%概率攻击自己人，持续2回合'),
+('silence', '沉默', '🤐', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '无法使用技能2回合'),
+('weak', '虚弱', '😫', 2, 1, 0, 0, 0.80, 0.90, 0, 0, 0, 0, 0, 0, 0, 0, '攻击-20%，防御-10%'),
+('curse', '诅咒', '💀', 2, 1, 0, 0, 0, 0, 0.50, 0, 0, 0, 0, 0, 0, 0, '经验获取-50%'),
+('blind', '致盲', '👁️', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -30, 0, 0, '命中率-30%'),
+('fear', '恐惧', '😱', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, -50, 0, 0, 0, '逃跑成功率-50%');

@@ -5,6 +5,7 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const config = require('../config').game;
+const statusUtil = require('../utils/status');
 
 const router = express.Router();
 function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
@@ -175,10 +176,19 @@ router.post('/action', authMiddleware, async (req, res, next) => {
     );
 
     if (action === 'attack') {
-      // Player attacks
-      const atkBoost = battle.temp_atk_boost || 1;
+      // Load & preprocess status effects
+      const { effects: statusEffects, activeStatuses } = await statusUtil.preBattleProcess(req.user.id, user, battle);
+      // Frozen: skip attack
+      if (battle.frozen) {
+        battle.round++;
+        battleSessions.set(req.user.id, battle);
+        return res.json(buildBattleResponse(battle, user));
+      }
+      // Apply atk multiplier from status
+      const atkBoost = (battle.temp_atk_boost || 1) * (statusEffects.atkMult || 1.0);
+      const defReduction = 1.0 - Math.max(0, (statusEffects.defMult || 1.0) - 1.0);
       const pAtk = Math.floor(randInt(user.atk_min, user.atk_max) * atkBoost);
-      const pDmg = Math.max(1, pAtk - battle.monster_def);
+      const pDmg = Math.max(1, Math.floor((pAtk - battle.monster_def * (1 - defReduction))));
       battle.monster_hp -= pDmg;
       battle.log.push({ type: 'attack', text: `你挥剑攻击${battle.monster_name}，造成 ${pDmg} 点伤害！` });
 
@@ -217,6 +227,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         battle.log.push({ type: 'info', text: '你成功逃离了战斗！' });
         battle.result = 'flee';
         battle.finished = true;
+        await statusUtil.clearDebuffsOnBattleEnd(req.user.id);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
         return res.json(buildBattleResponse(battle, user));
@@ -415,6 +426,14 @@ async function resumeSailingIfNeeded(userId, battle) {
 
 // Helper functions
 async function monsterRetaliate(user, battle) {
+  // Process tick debuffs on player (poison, burn) at start of retaliation
+  const tickLogs = await statusUtil.processTickEffects(req.user.id, battle.activeStatuses || [], user, battle);
+  for (const l of tickLogs) battle.log.push(l);
+  if (user.hp <= 0) {
+    battle.log.push({ type: 'system', text: '你倒下了……' });
+    return;
+  }
+
   const mAtk = randInt(battle.monster_atk_min, battle.monster_atk_max);
   // Apply temp defense boost from skill
   const defBoost = battle.temp_def_boost || 1;
@@ -470,6 +489,11 @@ async function monsterRetaliate(user, battle) {
       battle.pet_atk = 0;
       battle.log.push({ type: 'system', text: `🐶 ${battle.pet_name}饱食度耗尽，无法继续战斗！` });
     }
+  }
+
+  // Monster tries to apply debuff on retaliation
+  if (user.hp > 0) {
+    await statusUtil.tryApplyMonsterDebuff(req.user.id, user, battle, battle.monster_level || 1);
   }
 }
 
@@ -535,6 +559,7 @@ async function handleMonsterKill(user, battle) {
   battle.finished = true;
   battle.exp_gained = expGain;
   battle.money_gained = moneyGain;
+  await statusUtil.clearDebuffsOnBattleEnd(user.id);
 
   // Check kill quests
   const quests = await db.getAll(

@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
+const statusUtil = require('../utils/status');
 
 async function consumeOne(invId, item, uid) {
   if (item.quantity <= 1) {
@@ -53,6 +54,31 @@ router.post('/unequip', authMiddleware, async (req, res, next) => {
     if (!inv) return res.status(400).json({ error: '未装备该物品' });
     await db.query('UPDATE `inventory` SET `equipped` = 0 WHERE `id` = ?', [inventory_id]);
     res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// 查询当前状态效果（Buff/Debuff）
+router.get('/status', authMiddleware, async (req, res, next) => {
+  try {
+    await statusUtil.clearExpired(req.user.id);
+    const statuses = await statusUtil.getUserStatuses(req.user.id);
+    const defs = await statusUtil.getAllStatusDefs();
+    const now = Math.floor(Date.now() / 1000);
+    const result = statuses.map(s => {
+      const def = defs.find(d => d.id === s.id);
+      return {
+        id: s.id,
+        name: s.name,
+        icon: s.icon,
+        type: s.type,
+        stack: s.stack || 1,
+        remain_sec: Math.max(0, (s.end_at || now) - now),
+        tick_seconds: def ? def.tick_seconds : 0,
+        tick_damage: def ? def.tick_damage : 0,
+        description: def ? def.description : s.description || ''
+      };
+    });
+    res.json({ statuses: result });
   } catch (err) { next(err); }
 });
 
@@ -118,12 +144,12 @@ router.post('/use', authMiddleware, async (req, res, next) => {
     // Buff items
     if (inv.subtype === 'buff') {
       const name = inv.name;
-      let flag = 0, duration = 0, buffMsg = '';
-      if (name.includes('罗盘')) { flag = 1; duration = 86400; buffMsg = '航行速度+20%！'; }
-      else if (name.includes('幸运符')) { flag = 2; duration = 86400; buffMsg = '下次战斗掉落率+30%！'; }
-      else if (name.includes('护体石')) { flag = 4; duration = 1800; buffMsg = '30分钟内受到伤害-20%！'; }
-      else if (name.includes('力量粉')) { flag = 8; duration = 1800; buffMsg = '30分钟内攻击+15%！'; }
-      else if (name.includes('幸运星')) { flag = 16; duration = 1800; buffMsg = '30分钟内经验值+20%！'; }
+      let flag = 0, duration = 0, buffMsg = '', statusId = null;
+      if (name.includes('罗盘')) { flag = 1; duration = 86400; buffMsg = '航行速度+20%！'; statusId = 'navigator'; }
+      else if (name.includes('幸运符')) { flag = 2; duration = 86400; buffMsg = '下次战斗掉落率+30%！'; statusId = 'lucky'; }
+      else if (name.includes('护体石')) { flag = 4; duration = 1800; buffMsg = '30分钟内受到伤害-20%！'; statusId = 'ironwall'; }
+      else if (name.includes('力量粉')) { flag = 8; duration = 1800; buffMsg = '30分钟内攻击+15%！'; statusId = 'energy'; }
+      else if (name.includes('幸运星')) { flag = 16; duration = 1800; buffMsg = '30分钟内经验值+20%！'; statusId = 'wisdom'; }
       else return res.status(400).json({ error: '暂不支持该增益物品' });
 
       const now = Math.floor(Date.now() / 1000);
@@ -131,6 +157,8 @@ router.post('/use', authMiddleware, async (req, res, next) => {
       const newFlags = (Number(user.buff_flags || 0) | flag);
       await consumeOne(inventory_id, inv, req.user.id);
       await db.query('UPDATE `user` SET `buff_end` = ?, `buff_flags` = ? WHERE `id` = ?', [newEnd, newFlags, req.user.id]);
+      // Also apply new status system
+      if (statusId) await statusUtil.applyStatus(req.user.id, statusId, duration, 1);
       return res.json({ success: true, msg: buffMsg });
     }
 
