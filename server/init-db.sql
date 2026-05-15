@@ -536,7 +536,6 @@ INSERT IGNORE INTO `monster` (`id`, `name`, `place_id`, `level`, `hp`, `atk_min`
 -- ============================================================
 -- 怪物数据扩充（按场景/等级分布）
 -- ============================================================
-INSERT IGNORE INTO `monster` (`id`, `name`, `place_id`, `level`, `hp`, `atk_min`, `atk_max`, `def`, `agility`, `exp`, `money`, `capture_rate`) VALUES
 -- === 威尼斯野外（place_id=1015 附近）===
 (1,  '野狗',        1015,  1,  35,  2,  6,  0,  1,  20,  30,  0),
 (3,  '山贼喽啰',    1015,  3,  60,  5, 12,  1,  2,  50,  80,  0),
@@ -679,12 +678,13 @@ INSERT IGNORE INTO `dungeon` (`name`, `place_id`, `floor`, `level_req`, `entry_f
 ('四象圣殿-朱雀宫', 9002,  4, 100, 0, 37, '朱雀骨妖（精英）');
 
 -- ============================================================
--- 师徒系统：user 表增加 mentor_id
+-- 师徒系统：user 表增加 mentor_id 相关字段（MySQL 8 手动执行）
+-- ALTER TABLE user ADD COLUMN mentor_id int NOT NULL DEFAULT 0 AFTER shortcut_slot_3;
+-- ALTER TABLE user ADD COLUMN mentor_contribution int NOT NULL DEFAULT 0 AFTER mentor_id;
+-- ALTER TABLE user ADD COLUMN apprentice_count int NOT NULL DEFAULT 0 AFTER mentor_contribution;
+-- ALTER TABLE user ADD COLUMN is_mentor tinyint NOT NULL DEFAULT 0 AFTER apprentice_count;
+
 -- ============================================================
-ALTER TABLE `user` ADD COLUMN IF NOT EXISTS `mentor_id` int NOT NULL DEFAULT 0 AFTER `title`,
-  ADD COLUMN IF NOT EXISTS `mentor_contribution` int NOT NULL DEFAULT 0 AFTER `mentor_id`,
-  ADD COLUMN IF NOT EXISTS `apprentice_count` int NOT NULL DEFAULT 0 AFTER `mentor_contribution`,
-  ADD COLUMN IF NOT EXISTS `is_mentor` tinyint NOT NULL DEFAULT 0 AFTER `apprentice_count`;
 
 -- ============================================================
 -- 游戏配置表（game_config）- 强化系统
