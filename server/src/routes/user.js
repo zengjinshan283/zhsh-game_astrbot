@@ -68,6 +68,37 @@ router.post('/use', authMiddleware, async (req, res, next) => {
 
     // Navigation items
     if (inv.subtype === 'navigation') {
+      // 引路蜂：传送到当前任务目标地点
+      if (inv.name.includes('引路蜂')) {
+        // 找进行中的任务（status=0/1），优先取探索类(type=3)任务的目标
+        const activeQuests = await db.getAll(
+          "SELECT q.*, uq.status FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND uq.status IN (0,1) ORDER BY uq.status DESC, q.sort_order LIMIT 5",
+          [req.user.id]
+        );
+        let targetPlaceId = null;
+        for (const q of activeQuests) {
+          // type=3 是探索地区，target_id 就是 place_id
+          if (q.type === 3 && q.target_id > 0) {
+            const placeExists = await db.getVar('SELECT COUNT(*) FROM `place` WHERE `id` = ?', [q.target_id]);
+            if (placeExists > 0) { targetPlaceId = q.target_id; break; }
+          }
+        }
+        // 如果没有探索任务，尝试对话类(type=2)：target_id是npc_id，找npc所在的place
+        if (!targetPlaceId) {
+          for (const q of activeQuests) {
+            if (q.type === 2 && q.target_id > 0) {
+              const npc = await db.getOne('SELECT place_id FROM `npc` WHERE `id` = ?', [q.target_id]);
+              if (npc && npc.place_id > 0) { targetPlaceId = npc.place_id; break; }
+            }
+          }
+        }
+        if (!targetPlaceId) return res.status(400).json({ error: '当前没有需要前往的任务目标' });
+        await consumeOne(inventory_id, inv, req.user.id);
+        await db.query('UPDATE `user` SET `place_id` = ?, `sail_time`=0, `sail_from`=0, `sail_to`=0, `sail_paused`=0 WHERE `id` = ?', [targetPlaceId, req.user.id]);
+        return res.json({ success: true, msg: `引路蜂带你飞向任务目标地点！`, place_id: targetPlaceId });
+      }
+
+      // 其他导航道具：传送到最近港口
       let dockPlace = null;
       if (user.place_id) {
         const currentPlace = await db.getOne('SELECT city_id FROM `place` WHERE `id` = ?', [user.place_id]);
