@@ -905,4 +905,41 @@ INSERT IGNORE INTO `enum_definition` (`group_name`, `key_value`, `label`, `descr
 ('pet_type', '0', '普通', '', 1),
 ('pet_type', '1', '稀有', '', 2),
 ('pet_type', '2', '史诗', '', 3),
-('pet_type', '3', '传说', '', 4);
+('pet_type', '3', '传说', '', 4),
+('item_type', '3', '材料', '', 3),
+('item_type', '4', '任务道具', '', 4);
+
+-- ============================================================
+-- 签到系统
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `sign_in` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `sign_date` date NOT NULL COMMENT '签到日期',
+  `consecutive_days` int NOT NULL DEFAULT 1 COMMENT '本次连续签到天数',
+  `created_at` int NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_date` (`user_id`, `sign_date`),
+  KEY `idx_sign_in_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `sign_reward` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `day` int NOT NULL COMMENT '第几天(1-7循环)',
+  `reward_type` varchar(32) NOT NULL COMMENT 'money/exp/item/gold',
+  `reward_value` int NOT NULL DEFAULT 0 COMMENT '奖励值或物品ID',
+  `reward_qty` int NOT NULL DEFAULT 1 COMMENT '物品数量',
+  `description` varchar(128) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sign_reward_day` (`day`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7天循环签到奖励（连签第N天获得的奖励）
+INSERT IGNORE INTO `sign_reward` (`id`, `day`, `reward_type`, `reward_value`, `reward_qty`, `description`) VALUES
+(1,  1, 'money',  100,  1, '第1天：铜币 x100'),
+(2,  2, 'exp',    200,  1, '第2天：经验 x200'),
+(3,  3, 'money',  300,  1, '第3天：铜币 x300'),
+(4,  4, 'exp',    500,  1, '第4天：经验 x500'),
+(5,  5, 'item',   50,   1, '第5天：玄铁石 x1'),
+(6,  6, 'money',  800,  1, '第6天：铜币 x800'),
+(7,  7, 'item',   57,   1, '第7天：龙珠碎片 x1');

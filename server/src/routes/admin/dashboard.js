@@ -56,10 +56,11 @@ router.get('/stats', async (req, res) => {
 // 扩展统计（场景、任务、宠物、船舶、经济）
 router.get('/extra-stats', async (req, res) => {
   try {
-    const [totalQuests, totalPets, totalShips] = await Promise.all([
+    const [totalQuests, totalPets, totalShips, totalSignToday] = await Promise.all([
       db.getVar('SELECT COUNT(*) FROM quest'),
       db.getVar('SELECT COUNT(*) FROM pet'),
-      db.getVar('SELECT COUNT(*) FROM ship')
+      db.getVar('SELECT COUNT(*) FROM ship'),
+      db.getVar('SELECT COUNT(*) FROM sign_in WHERE sign_date = CURDATE()'),
     ]);
 
     // Economy stats
@@ -92,6 +93,7 @@ router.get('/extra-stats', async (req, res) => {
         totalQuests: totalQuests || 0,
         totalPets: totalPets || 0,
         totalShips: totalShips || 0,
+        totalSignToday: totalSignToday || 0,
         economy: {
           total_money: economy?.total_money || 0,
           total_gold: economy?.total_gold || 0,

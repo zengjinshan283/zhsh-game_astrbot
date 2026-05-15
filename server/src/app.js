@@ -31,6 +31,7 @@ app.use('/api/sail', require('./routes/sail'));
 app.use('/api/casino', require('./routes/casino'));
 app.use('/api/rank', require('./routes/rank'));
 app.use('/api/friend', require('./routes/friend'));
+app.use('/api/sign', require('./routes/sign'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));
