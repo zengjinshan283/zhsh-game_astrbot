@@ -39,7 +39,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       }
     }
     // Consumables for shortcut picker
-    const consumables = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, i.name, i.hp AS item_hp FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 0 AND i.subtype = 'consumable' AND i.hp > 0 ORDER BY i.hp", [uid]);
+    const consumables = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, i.name, i.hp AS item_hp FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 0 AND i.type = 1 AND i.subtype IN ('consumable', 'navigation', 'buff', 'battle_item') ORDER BY i.hp", [uid]);
     res.json({ user, place, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, bonusAtk, bonusDef }, equips, battleCount, winCount, pet, invCount, shortcuts, consumables });
   } catch(e){next(e);}
 });

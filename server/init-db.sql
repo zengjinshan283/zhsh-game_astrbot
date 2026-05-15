@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS `user` (
   `sail_event_checked_at` int NOT NULL DEFAULT 0,
   `sail_remaining_sec` int NOT NULL DEFAULT 0,
   `sail_paused` tinyint NOT NULL DEFAULT 0,
+  `buff_end` int NOT NULL DEFAULT 0 COMMENT 'buff过期时间戳',
+  `buff_flags` int NOT NULL DEFAULT 0 COMMENT 'buff标记：1=航行加速 2=掉落加成 4=防御增强 8=攻击增强 16=经验加成',
   `shortcut_slot_1` int NOT NULL DEFAULT 0,
   `shortcut_slot_2` int NOT NULL DEFAULT 0,
   `shortcut_slot_3` int NOT NULL DEFAULT 0,
@@ -868,7 +870,25 @@ INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `pric
 (110, '天魔碧玉束腰设计图', 4, 'quest', '天工神剪制作图纸',    0,   0, 0, 0, 0),
 (111, '天魔荆棘皇冠设计图', 4, 'quest', '天工神剪制作图纸',    0,   0, 0, 0, 0),
 (112, '天魔风沙之靴设计图', 4, 'quest', '天工神剪制作图纸',    0,   0, 0, 0, 0),
-(113, '魑魅魍魉',        4, 'quest', '釜底抽薪任务道具',       0,   0, 0, 0, 0);
+(113, '魑魅魍魉',        4, 'quest', '釜底抽薪任务道具',       0,   0, 0, 0, 0),
+-- === 新增消耗品 ===
+(114, '引路蜂',         1, 'navigation', '自动飞行至最近港口/城市',  300, 150, 0, 0, 0),
+(115, '港口地图',       1, 'navigation', '显示当前海域所有港口位置', 150,  75, 0, 0, 0),
+(116, '精确罗盘',       1, 'buff',      '航行速度+20%（单次有效）',   800, 400, 0, 0, 0),
+(117, '万能解毒剂',     1, 'consumable', '解除所有负面状态',           200, 100, 0, 0, 0),
+(118, '清醒草',         1, 'consumable', '解除混乱/魅惑状态',         180,  90, 0, 0, 0),
+(119, '退烧药',         1, 'consumable', '解除发烧状态',              150,  75, 0, 0, 0),
+(120, '驱寒汤',         1, 'consumable', '解除冰冻状态',              160,  80, 0, 0, 0),
+(121, '幸运符',         1, 'buff',      '下次战斗掉落率+30%',         500, 250, 0, 0, 0),
+(122, '护体石',         1, 'buff',      '30分钟内受到伤害-20%',        600, 300, 0, 0, 0),
+(123, '力量粉',         1, 'buff',      '30分钟内攻击+15%',            400, 200, 0, 0, 0),
+(124, '捕捉网',         1, 'battle_item','战斗中使用，尝试捕捉怪物',   250, 125, 0, 0, 0),
+(125, '撤退符',         1, 'battle_item','100%逃跑成功（单次）',       100,  50, 0, 0, 0),
+(126, '航海指南针',     1, 'navigation', '下一次航海必平安抵达',      2000,1000, 0, 0, 0),
+(127, '船舶修复包',     1, 'consumable', '恢复船只100点HP',           1500, 750, 0, 0, 0),
+(128, '幸运星',         1, 'buff',      '30分钟内经验值+20%',         600, 300, 0, 0, 0),
+(129, '水下呼吸草',     1, 'consumable', '在水下呼吸30分钟',           300, 150, 0, 0, 0),
+(130, '夜视草',         1, 'consumable', '黑暗中视物30分钟',           250, 125, 0, 0, 0);
 
 INSERT IGNORE INTO `npc_shop_item` (`npc_id`, `item_id`) VALUES
 -- 威尼斯·东方商人（酒馆NPC 5）

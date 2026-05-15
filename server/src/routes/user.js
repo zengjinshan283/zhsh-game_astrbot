@@ -1,95 +1,142 @@
-/**
- * 用户路由 - 背包/装备/状态
- */
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
-
 const router = express.Router();
 
-// 背包
+async function consumeOne(invId, item, uid) {
+  if (item.quantity <= 1) {
+    await db.delete('inventory', '`id` = ?', [invId]);
+  } else {
+    await db.update('inventory', { quantity: item.quantity - 1 }, '`id` = ?', [invId]);
+  }
+}
+
+// Get inventory
 router.get('/inventory', authMiddleware, async (req, res, next) => {
   try {
     const items = await db.getAll(
-      'SELECT inv.id AS inv_id, inv.quantity, inv.equipped, inv.enhance_level, inv.durability, inv.durability_max, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? ORDER BY inv.equipped DESC, i.type, i.id',
+      'SELECT inv.id AS inv_id, inv.quantity, inv.equipped, inv.enhance_level, inv.durability, inv.durability_max, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? ORDER BY i.type, i.subtype',
       [req.user.id]
     );
-    // Load affixes for each inventory item
-    for (const item of items) {
-      const affixes = await db.getAll(
-        "SELECT ia.stat_value, ia.affix_id, ia.id AS inv_affix_id, ia.inventory_id, " +
-        "ia2.name, ia2.stat_type, ia2.stat_min, ia2.stat_max, ia2.quality " +
-        "FROM `inventory_affix` ia " +
-        "JOIN `item_affix` ia2 ON ia.affix_id = ia2.id " +
-        "WHERE ia.inventory_id = ?",
-        [item.inv_id]
-      );
-      item.affixes = affixes || [];
-    }
     res.json({ items });
   } catch (err) { next(err); }
 });
 
-// 装备/卸下
+// Equip item
 router.post('/equip', authMiddleware, async (req, res, next) => {
   try {
     const { inventory_id } = req.body;
-    const inv = await db.getOne('SELECT inv.*, i.type, i.subtype FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.id = ? AND inv.user_id = ?', [inventory_id, req.user.id]);
+    const inv = await db.getOne('SELECT * FROM `inventory` WHERE `id` = ? AND `user_id` = ?', [inventory_id, req.user.id]);
     if (!inv) return res.status(400).json({ error: '物品不存在' });
+    const item = await db.getOne('SELECT * FROM `item` WHERE `id` = ?', [inv.item_id]);
+    if (!item) return res.status(400).json({ error: '物品数据异常' });
 
-    if (inv.equipped) {
-      // 卸下
-      await db.update('inventory', { equipped: 0 }, '`id` = ?', [inventory_id]);
-      // 减属性
-      const bonus = getItemBonus(inv, inv.enhance_level);
-      await db.query('UPDATE `user` SET `atk_min` = GREATEST(0, `atk_min` - ?), `atk_max` = GREATEST(0, `atk_max` - ?), `def` = GREATEST(0, `def` - ?), `hp_max` = GREATEST(1, `hp_max` - ?) WHERE `id` = ?',
-        [bonus.atk, bonus.atk, bonus.def, bonus.hp, req.user.id]);
-    } else {
-      // 装备 - 先卸下同类型
-      const same = await db.getAll('SELECT inv.id FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 AND i.subtype = ?', [req.user.id, inv.subtype]);
-      for (const s of same) {
-        await db.update('inventory', { equipped: 0 }, '`id` = ?', [s.id]);
-      }
-      await db.update('inventory', { equipped: 1 }, '`id` = ?', [inventory_id]);
-      const bonus = getItemBonus(inv, inv.enhance_level);
-      await db.query('UPDATE `user` SET `atk_min` = `atk_min` + ?, `atk_max` = `atk_max` + ?, `def` = `def` + ?, `hp_max` = `hp_max` + ? WHERE `id` = ?',
-        [bonus.atk, bonus.atk, bonus.def, bonus.hp, req.user.id]);
+    // Unequip current item of same subtype
+    const curEquipped = await db.getAll(
+      'SELECT inv.id FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 AND i.subtype = ?',
+      [req.user.id, item.subtype]
+    );
+    for (const ce of curEquipped) {
+      await db.query('UPDATE `inventory` SET `equipped` = 0 WHERE `id` = ?', [ce.id]);
     }
-    res.json({ success: true, equipped: !inv.equipped });
+
+    await db.query('UPDATE `inventory` SET `equipped` = 1 WHERE `id` = ?', [inventory_id]);
+    res.json({ success: true });
   } catch (err) { next(err); }
 });
 
-// 使用物品
+// Unequip item
+router.post('/unequip', authMiddleware, async (req, res, next) => {
+  try {
+    const { inventory_id } = req.body;
+    const inv = await db.getOne('SELECT * FROM `inventory` WHERE `id` = ? AND `user_id` = ? AND `equipped` = 1', [inventory_id, req.user.id]);
+    if (!inv) return res.status(400).json({ error: '未装备该物品' });
+    await db.query('UPDATE `inventory` SET `equipped` = 0 WHERE `id` = ?', [inventory_id]);
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Use consumable / item
 router.post('/use', authMiddleware, async (req, res, next) => {
   try {
     const { inventory_id } = req.body;
     const inv = await db.getOne('SELECT inv.*, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.id = ? AND inv.user_id = ?', [inventory_id, req.user.id]);
     if (!inv) return res.status(400).json({ error: '物品不存在' });
-    if (inv.type !== 3) return res.status(400).json({ error: '该物品无法使用' });
+    if (inv.type !== 1) return res.status(400).json({ error: '该物品无法使用' });
 
-    const user = await db.getOne('SELECT hp, hp_max FROM `user` WHERE `id` = ?', [req.user.id]);
-    const healAmount = inv.hp;
-    const newHp = Math.min(user.hp_max, user.hp + healAmount);
+    const user = await db.getOne('SELECT * FROM `user` WHERE `id` = ?', [req.user.id]);
 
-    if (inv.quantity <= 1) {
-      await db.delete('inventory', '`id` = ?', [inventory_id]);
-    } else {
-      await db.update('inventory', { quantity: inv.quantity - 1 }, '`id` = ?', [inventory_id]);
+    // Navigation items
+    if (inv.subtype === 'navigation') {
+      let dockPlace = null;
+      if (user.place_id) {
+        const currentPlace = await db.getOne('SELECT city_id FROM `place` WHERE `id` = ?', [user.place_id]);
+        if (currentPlace && currentPlace.city_id) {
+          dockPlace = await db.getOne('SELECT * FROM `place` WHERE `city_id` = ? AND `type` = 1 LIMIT 1', [currentPlace.city_id]);
+        }
+      }
+      if (!dockPlace) {
+        dockPlace = await db.getOne('SELECT p.* FROM `place` p JOIN `map` m ON p.city_id = m.id WHERE m.type = 1 AND p.type = 1 LIMIT 1');
+      }
+      if (!dockPlace) return res.status(400).json({ error: '无法找到附近的港口' });
+      await consumeOne(inventory_id, inv, req.user.id);
+      await db.query('UPDATE `user` SET `place_id` = ?, `sail_time`=0, `sail_from`=0, `sail_to`=0, `sail_paused`=0 WHERE `id` = ?', [dockPlace.id, req.user.id]);
+      return res.json({ success: true, msg: `传送至 ${dockPlace.name}！`, place_id: dockPlace.id });
     }
-    await db.query('UPDATE `user` SET `hp` = ? WHERE `id` = ?', [newHp, req.user.id]);
 
-    res.json({ success: true, heal: newHp - user.hp, hp: newHp, hp_max: user.hp_max });
+    // Buff items
+    if (inv.subtype === 'buff') {
+      const name = inv.name;
+      let flag = 0, duration = 0, buffMsg = '';
+      if (name.includes('罗盘')) { flag = 1; duration = 86400; buffMsg = '航行速度+20%！'; }
+      else if (name.includes('幸运符')) { flag = 2; duration = 86400; buffMsg = '下次战斗掉落率+30%！'; }
+      else if (name.includes('护体石')) { flag = 4; duration = 1800; buffMsg = '30分钟内受到伤害-20%！'; }
+      else if (name.includes('力量粉')) { flag = 8; duration = 1800; buffMsg = '30分钟内攻击+15%！'; }
+      else if (name.includes('幸运星')) { flag = 16; duration = 1800; buffMsg = '30分钟内经验值+20%！'; }
+      else return res.status(400).json({ error: '暂不支持该增益物品' });
+
+      const now = Math.floor(Date.now() / 1000);
+      const newEnd = Math.max(Number(user.buff_end || 0), now) + duration;
+      const newFlags = (Number(user.buff_flags || 0) | flag);
+      await consumeOne(inventory_id, inv, req.user.id);
+      await db.query('UPDATE `user` SET `buff_end` = ?, `buff_flags` = ? WHERE `id` = ?', [newEnd, newFlags, req.user.id]);
+      return res.json({ success: true, msg: buffMsg });
+    }
+
+    // Battle items
+    if (inv.subtype === 'battle_item') {
+      return res.status(400).json({ error: '该物品需要在战斗中使用', battle_item: true });
+    }
+
+    // Regular consumables (HP healing, stamina, ship repair)
+    let healAmount = 0;
+    let msg = '';
+
+    if (inv.name.includes('体力宝')) {
+      healAmount = inv.name.includes('大') ? 200 : 50;
+      msg = `恢复${healAmount}点体力`;
+    } else if (inv.name.includes('船舶修复包')) {
+      if (!user.ship_id) return res.status(400).json({ error: '你没有船只' });
+      const us = await db.getOne('SELECT * FROM `user_ship` WHERE `user_id` = ? AND `ship_id` = ?', [req.user.id, user.ship_id]);
+      if (!us) return res.status(400).json({ error: '船只状态异常' });
+      const repaired = Math.min(us.hp_max - us.hp, 100);
+      if (repaired <= 0) return res.status(400).json({ error: '船只无需修理' });
+      await consumeOne(inventory_id, inv, req.user.id);
+      await db.query('UPDATE `user_ship` SET `hp` = `hp` + ? WHERE `user_id` = ? AND `ship_id` = ?', [repaired, req.user.id, user.ship_id]);
+      return res.json({ success: true, msg: `修好船只${repaired}HP！`, ship_hp: us.hp + repaired, ship_hp_max: us.hp_max });
+    } else if (inv.hp > 0) {
+      healAmount = inv.hp;
+    }
+
+    if (healAmount > 0) {
+      const newHp = Math.min(user.hp_max, user.hp + healAmount);
+      await consumeOne(inventory_id, inv, req.user.id);
+      await db.query('UPDATE `user` SET `hp` = ? WHERE `id` = ?', [newHp, req.user.id]);
+      return res.json({ success: true, heal: newHp - user.hp, hp: newHp, hp_max: user.hp_max, msg: msg || `恢复${healAmount}点HP` });
+    }
+
+    return res.status(400).json({ error: '该物品无法直接使用' });
   } catch (err) { next(err); }
 });
-
-function getItemBonus(item, enhanceLevel) {
-  const eLv = enhanceLevel || 0;
-  const mult = 1 + eLv * 0.1;
-  return {
-    atk: Math.round((item.atk || 0) * mult),
-    def: Math.round((item.def_val || 0) * mult),
-    hp: item.hp || 0
-  };
-}
 
 module.exports = router;
