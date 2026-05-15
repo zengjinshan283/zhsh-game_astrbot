@@ -18,6 +18,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/map', require('./routes/map'));
 app.use('/api/battle', require('./routes/battle'));
 app.use('/api/npc', require('./routes/npc'));
+app.use('/api/bank', require('./routes/bank'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/user', require('./routes/user'));
 app.use('/api/user', require('./routes/user2'));
@@ -32,6 +33,7 @@ app.use('/api/casino', require('./routes/casino'));
 app.use('/api/rank', require('./routes/rank'));
 app.use('/api/friend', require('./routes/friend'));
 app.use('/api/sign', require('./routes/sign'));
+app.use('/api/cdkey', require('./routes/cdkey'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));
@@ -49,6 +51,7 @@ app.use('/api/admin/ships', require('./routes/admin/ships'));
 app.use('/api/admin/players', require('./routes/admin/players'));
 app.use('/api/admin/logs', require('./routes/admin/logs'));
 app.use('/api/admin/changelogs', require('./routes/admin/changelogs'));
+app.use('/api/admin/cdkey', require('./routes/admin/cdkey'));
 
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
