@@ -28,7 +28,13 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     }
 
     const info = GUIDE_STEPS[step] || { msg: '引导步骤未知' };
-    res.json({ active: true, step, ...info });
+    // 获取当前引导对应的任务信息
+    let questName = '';
+    if (step === 1 || step === 2) {
+      const q = await db.getOne('SELECT name FROM quest WHERE id = 1');
+      questName = q ? q.name : '清理城郊野狗';
+    }
+    res.json({ active: true, step, questName, ...info });
   } catch (err) { next(err); }
 });
 

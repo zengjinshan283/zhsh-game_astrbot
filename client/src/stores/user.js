@@ -15,6 +15,8 @@ export const useUserStore = defineStore('user', () => {
     user.value = data.user;
     localStorage.setItem('zhsh_token', data.token);
     localStorage.setItem('zhsh_user', JSON.stringify(data.user));
+    if (data.guide) localStorage.setItem('zhsh_guide', JSON.stringify(data.guide));
+    if (data.starter_given) localStorage.setItem('zhsh_starter', JSON.stringify(data.starter_given));
   }
 
   function updateUser(data) {
