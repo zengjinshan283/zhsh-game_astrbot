@@ -561,6 +561,14 @@ async function handleMonsterKill(user, battle) {
   battle.money_gained = moneyGain;
   await statusUtil.clearDebuffsOnBattleEnd(user.id);
 
+  // 调用每日活跃进度（击败怪物）
+  try {
+    await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+      [user.id, new Date().toISOString().slice(0,10), 'daily_battle', Math.floor(Date.now()/1000)]);
+    await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 100), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+      [Math.floor(Date.now()/1000), user.id, new Date().toISOString().slice(0,10), 'daily_battle']);
+  } catch(e) { console.error('[daily] daily_battle progress error:', e.message); }
+
   // Check kill quests
   const quests = await db.getAll(
     'SELECT q.id, q.name, q.require_value, uq.progress FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND q.type = 0 AND q.target_id = ? AND uq.status = 0',

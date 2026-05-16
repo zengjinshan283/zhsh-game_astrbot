@@ -81,6 +81,41 @@ CREATE TABLE IF NOT EXISTS `welfare_milestone` (
   UNIQUE KEY `uk_user_milestone` (`user_id`, `milestone_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 在线奖励配置表（每5分钟一档，60分钟循环）
+CREATE TABLE IF NOT EXISTS `online_reward` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `minutes` INT NOT NULL COMMENT '第几分钟可领取（如5/10/15...）',
+  `reward_type` VARCHAR(16) NOT NULL COMMENT 'money/item/both',
+  `reward_value` INT NOT NULL COMMENT '铜币数量或item_id',
+  `quantity` INT NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 用户在线奖励记录表
+CREATE TABLE IF NOT EXISTS `user_online_reward` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `user_id` INT NOT NULL,
+  `last_claim_at` INT NOT NULL DEFAULT 0 COMMENT '上次领取时的unix timestamp',
+  `total_claimed` INT NOT NULL DEFAULT 0 COMMENT '累计领取次数',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 初始化在线奖励数据（每5分钟一档，共12档60分钟循环）
+INSERT IGNORE INTO `online_reward` (`minutes`, `reward_type`, `reward_value`, `quantity`) VALUES
+(5,  'money', 100,  1),
+(10, 'money', 200,  1),
+(15, 'money', 300,  1),
+(20, 'money', 500,  1),
+(25, 'item',  96,   1),
+(30, 'money', 800,  1),
+(35, 'money', 1000, 1),
+(40, 'money', 1500, 1),
+(45, 'item',  97,   1),
+(50, 'money', 2000, 1),
+(55, 'money', 2500, 1),
+(60, 'both',  94,   2);
+
 CREATE TABLE IF NOT EXISTS `map` (
   `id` int NOT NULL,
   `name` varchar(64) NOT NULL,
@@ -11150,3 +11185,81 @@ INSERT IGNORE INTO `status_effect` (`id`, `name`, `icon`, `type`, `stackable`, `
 ('curse', '诅咒', '💀', 2, 1, 0, 0, 0, 0, 0.50, 0, 0, 0, 0, 0, 0, 0, '经验获取-50%'),
 ('blind', '致盲', '👁️', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -30, 0, 0, '命中率-30%'),
 ('fear', '恐惧', '😱', 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, -50, 0, 0, 0, '逃跑成功率-50%');
+
+-- ============================================================
+-- 每日活跃系统表
+-- ============================================================
+
+-- 活动任务定义表
+CREATE TABLE IF NOT EXISTS `daily_activity` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `key` varchar(32) NOT NULL UNIQUE,
+  `name` varchar(64) NOT NULL,
+  `description` varchar(128) NOT NULL,
+  `target` int NOT NULL DEFAULT 1,
+  `active_point` int NOT NULL DEFAULT 20,
+  PRIMARY KEY (`id`)
+);
+
+-- 玩家每日活动进度
+CREATE TABLE IF NOT EXISTS `user_daily_activity` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `date` date NOT NULL,
+  `activity_key` varchar(32) NOT NULL,
+  `progress` int NOT NULL DEFAULT 0,
+  `claimed` tinyint NOT NULL DEFAULT 0,
+  `updated_at` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_date_key` (`user_id`, `date`, `activity_key`)
+);
+
+-- 活跃度宝箱配置
+CREATE TABLE IF NOT EXISTS `activity_reward` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `active_point` int NOT NULL,
+  `reward_type` varchar(16) NOT NULL,
+  `reward_value` int NOT NULL,
+  `quantity` int NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`)
+);
+
+-- 玩家活跃度宝箱领取记录
+CREATE TABLE IF NOT EXISTS `user_activity_reward` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `date` date NOT NULL,
+  `reward_id` int NOT NULL,
+  `claimed_at` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_date_reward` (`user_id`, `date`, `reward_id`)
+);
+
+-- ============================================================
+-- 每日活动任务数据
+-- ============================================================
+INSERT IGNORE INTO `daily_activity` (`key`, `name`, `description`, `target`, `active_point`) VALUES
+('monster_kill', '怪物猎手', '击杀任意怪物', 100, 20),
+('dungeon', '副本先锋', '完成任意副本', 1, 30),
+('arena', '竞技新星', '参与竞技场挑战', 1, 20),
+('fishing', '钓鱼达人', '成功钓获鱼类', 3, 15),
+('quest_complete', '任务达人', '完成任意任务', 1, 15),
+('trade', '市场贸易', '城市间进行市场贸易', 5, 20);
+
+-- ============================================================
+-- 活跃度宝箱配置
+-- ============================================================
+INSERT IGNORE INTO `activity_reward` (`active_point`, `reward_type`, `reward_value`, `quantity`) VALUES
+(20, 'item', 3001, 1),
+(40, 'item', 96, 2),
+(60, 'item', 94, 2),
+(80, 'item', 2001, 1),
+(100, 'item', 2002, 2);
+
+-- ============================================================
+-- 新增物品：千银矿石、月华密令、龙门镖旗
+-- ============================================================
+INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `price_buy`, `price_sell`, `atk`, `def_val`, `hp`) VALUES
+(3001, '千银矿石', 4, 'material', '蕴含千倍银光的珍稀矿石，可用于强化', 500, 250, 0, 0, 0),
+(2001, '月华密令', 4, 'token', '月光凝炼的令牌，传说可召唤神秘力量', 2000, 1000, 0, 0, 0),
+(2002, '龙门镖旗', 4, 'token', '龙门镖局的信物，江湖人皆知', 3000, 1500, 0, 0, 0);

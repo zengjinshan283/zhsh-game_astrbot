@@ -71,6 +71,16 @@ router.post('/buy', authMiddleware, async (req, res, next) => {
     const existing = await db.getOne("SELECT * FROM cargo WHERE user_id=? AND goods_id=?", [req.user.id, goods_id]);
     if (existing) await db.update('cargo', { quantity: existing.quantity + qty }, 'id=?', [existing.id]);
     else await db.insert('cargo', { user_id: req.user.id, goods_id, quantity: qty });
+
+    // 调用每日活跃进度 - 市场贸易进货
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [req.user.id, today, 'daily_trade', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 5), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), req.user.id, today, 'daily_trade']);
+    } catch(e) { console.error('[daily] daily_trade progress error:', e.message); }
+
     res.json({ success: true, msg: `买入${g.name}×${qty}，花费${cost}铜币` });
   } catch(e){next(e);}
 });
@@ -95,6 +105,15 @@ router.post('/sell', authMiddleware, async (req, res, next) => {
     else await db.update('cargo', { quantity: c.quantity - qty }, 'id=?', [c.id]);
     await db.query('UPDATE `user` SET money = money + ? WHERE `id` = ?', [gain, req.user.id]);
     res.json({ success: true, msg: `卖出${g.name}×${qty}，获得${gain}铜币` });
+
+    // 调用每日活跃进度 - 市场贸易
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [req.user.id, today, 'daily_trade', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 5), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), req.user.id, today, 'daily_trade']);
+    } catch(e) { console.error('[daily] trade progress error:', e.message); }
   } catch(e){next(e);}
 });
 

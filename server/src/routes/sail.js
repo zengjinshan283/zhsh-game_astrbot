@@ -115,6 +115,15 @@ router.get('/status', authMiddleware, async (req, res, next) => {
 
           await db.query('UPDATE `user` SET place_id=?, sail_time=0, sail_from=0, sail_to=0, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [newPlaceId, req.user.id]);
           const updatedUser = await db.getOne('SELECT * FROM `user` WHERE `id` = ?', [req.user.id]);
+
+          // 调用每日活跃进度 - 完成航海
+          try {
+            const today = new Date().toISOString().slice(0,10);
+            await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+              [req.user.id, today, 'daily_sail', Math.floor(Date.now()/1000)]);
+            await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 1), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+              [Math.floor(Date.now()/1000), req.user.id, today, 'daily_sail']);
+          } catch(e) { console.error('[daily] daily_sail progress error:', e.message); }
           const updatedPlace = await db.getOne('SELECT city_id FROM `place` WHERE `id` = ?', [updatedUser.place_id]);
           const updatedCity = updatedPlace?.city_id ? await db.getOne("SELECT * FROM `map` WHERE `id` = ?", [updatedPlace.city_id]) : null;
           // Rebuild dock info for arrived city

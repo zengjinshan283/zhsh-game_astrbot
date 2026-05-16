@@ -179,11 +179,11 @@ router.post('/:id/message', async (req, res) => {
     if (!user) return res.json({ code: 1, message: '玩家不存在' });
     // Write to chat table as system message
     await db.insert('chat', {
-      from_id: 0,
-      to_id: id,
-      content: message.trim(),
+      user_id: 0,
+      target_id: id,
+      message: message.trim(),
       type: 1,
-      created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
+      created_at: Math.floor(Date.now() / 1000)
     });
     await logAction(req.admin.id, 'update', 'user', `发送系统消息给 ${user.username}: ${message.trim()}`, req);
     res.json({ code: 0, message: '消息已发送' });

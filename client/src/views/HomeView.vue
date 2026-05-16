@@ -8,6 +8,43 @@
     </div>
     <StatusBar :user="userStore.user" />
 
+    <!-- 在线奖励 -->
+    <div class="card" style="margin-top:12px;" v-if="onlineReward">
+      <div class="card-title">⏱️ 在线奖励</div>
+      <div v-if="onlineReward.loading" style="text-align:center;color:#888;padding:8px;">加载中...</div>
+      <div v-else style="font-size:13px;line-height:1.8;">
+        <div style="color:#cfc19e;">
+          在线 <span style="color:#ffd700;">{{ onlineReward.totalMinutes }}</span> 分钟
+          <span v-if="!onlineReward.canClaim" style="color:#888;">
+           ，还需 <span style="color:#ff6b6b;">{{ Math.ceil(onlineReward.remainingSeconds / 60) }}</span> 分钟可领取
+          </span>
+          <span v-else style="color:#4fc3f7;">—— 可领取！</span>
+        </div>
+        <div style="margin-top:4px;font-size:12px;color:#888;">
+          当前档位: {{ onlineReward.currentTier + 1 }}/{{ onlineReward.totalTiers }} &nbsp;|&nbsp;
+          累计领取: {{ onlineReward.totalClaimed }} 次
+        </div>
+        <div style="margin-top:6px;padding:6px 10px;background:#1a1a2e;border-radius:6px;font-size:12px;color:#cfc19e;">
+          本档奖励:
+          <span v-if="onlineReward.reward.reward_type === 'money'">💰 铜币 × {{ onlineReward.reward.reward_value }}</span>
+          <span v-else-if="onlineReward.reward.reward_type === 'item'">📦 {{ onlineReward.reward.itemName || '物品' }} × {{ onlineReward.reward.quantity }}</span>
+          <span v-else>🎁 铜币×5000 + 龙泉水×2</span>
+        </div>
+        <button
+          v-if="onlineReward.canClaim"
+          @click="claimOnline"
+          class="btn btn-primary btn-block"
+          style="margin-top:8px;"
+        >🎁 立即领取</button>
+        <button
+          v-else
+          disabled
+          class="btn btn-secondary btn-block"
+          style="margin-top:8px;opacity:0.5;"
+        >⏳ {{ Math.ceil(onlineReward.remainingSeconds / 60) }}分钟后可领取</button>
+      </div>
+    </div>
+
     <!-- 每日签到 -->
     <div class="card" style="margin-top:12px;">
       <div class="card-title">📅 每日签到</div>
@@ -80,6 +117,37 @@ const signStatus = ref({ signed: false, consecutive_days: 0 });
 const rewards = ref([]);
 const signedDays = ref(new Set());
 
+// 在线奖励
+const onlineReward = ref(null);
+const ONLINE_TOTAL_TIERS = 12;
+const ITEM_NAMES = { 94: '龙泉水', 96: '体力宝', 97: '大体力宝' };
+
+async function loadOnlineReward() {
+  try {
+    const data = await Api.get('/welfare/online-status');
+    if (data.reward) {
+      if (data.reward.reward_type === 'item' || data.reward.reward_type === 'both') {
+        data.reward.itemName = ITEM_NAMES[data.reward.reward_value] || '物品';
+      }
+    }
+    data.totalTiers = ONLINE_TOTAL_TIERS;
+    onlineReward.value = data;
+  } catch (e) {
+    console.error('在线奖励加载失败', e);
+  }
+}
+
+async function claimOnline() {
+  try {
+    const res = await Api.post('/welfare/claim-online', {});
+    alert(res.msg || '领取成功！');
+    onlineReward.value = null;
+    await loadOnlineReward();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
 const todayRewardDay = computed(() => {
   if (signStatus.value.signed) {
     return signStatus.value.reward_day;
@@ -99,6 +167,7 @@ onMounted(async () => {
     if (statusData.signed) {
       signedDays.value.add(statusData.reward_day);
     }
+    await loadOnlineReward();
   } catch (e) {
     console.error('签到加载失败', e);
   } finally {

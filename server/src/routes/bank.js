@@ -27,6 +27,15 @@ router.post('/deposit', authMiddleware, async (req, res, next) => {
     await db.insert('bank_log', { user_id: req.user.id, type: 1, amount: amt, balance: user.bank_money + amt, created_at: Math.floor(Date.now() / 1000) });
     const updated = await db.getOne('SELECT money, bank_money FROM `user` WHERE `id` = ?', [req.user.id]);
     res.json({ success: true, money: updated.money, bank_money: updated.bank_money });
+
+    // 调用每日活跃进度 - 银行存款
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [req.user.id, today, 'daily_deposit', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 1), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), req.user.id, today, 'daily_deposit']);
+    } catch(e) { console.error('[daily] daily_deposit progress error:', e.message); }
   } catch (err) { next(err); }
 });
 

@@ -292,6 +292,22 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
       available_quests: availList,
       active_quests: activeQuests
     });
+
+    // 触发新手引导：NPC交互后推进（异步，不阻塞响应）
+    (async () => {
+      try {
+        const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
+        const step = guideUser.guide_step;
+        // 马可(id=1)：步骤1→2（接任务），步骤3→4（交任务）
+        if (npcId === 1) {
+          if (step === 1) {
+            await db.update('user', { guide_step: 2 }, '`id` = ?', [req.user.id]);
+          } else if (step === 3) {
+            await db.update('user', { guide_step: 4 }, '`id` = ?', [req.user.id]);
+          }
+        }
+      } catch (e) {}
+    })();
   } catch (err) { next(err); }
 });
 

@@ -108,7 +108,7 @@ router.post('/', async (req, res) => {
   try {
     const { name, speed, capacity, price, desc } = req.body;
     const id = await db.insert('ship', {
-      name, speed: speed || 1, capacity: capacity || 100, price: price || 0, desc: desc || ''
+      name, speed: speed || 1, capacity: capacity || 100, price: price || 0, description: desc || ''
     });
     await logAction(req.admin.id, 'create', 'ship', `新增船舶: ${name}`, req);
     await logChangelog(req.admin.id, 'ship', id, 'create', null, req.body, req);
@@ -123,7 +123,7 @@ router.put('/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     const old = await db.getOne('SELECT * FROM ship WHERE id = ?', [id]);
     if (!old) return res.json({ code: 1, message: '记录不存在' });
-    const allowed = ['name','speed','capacity','price','desc'];
+    const allowed = ['name','speed','capacity','price','description'];
     const data = {};
     for (const k of allowed) { if (req.body[k] !== undefined) data[k] = req.body[k]; }
     await db.update('ship', data, 'id = ?', [id]);

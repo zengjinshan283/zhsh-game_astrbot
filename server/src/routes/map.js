@@ -211,7 +211,11 @@ async function buildScene(placeId, userId) {
     }
   }
 
+  // 返回数据（已在第214行 buildScene 返回）
   return { place, city, monsters, npcs: npcsPlain, onlineUsers, exits };
 }
+
+// place.type 含义（兼容 CityMapView）
+// 0=普通野外 1=码头 2=广场 3=功能NPC(银行/铁匠) 4=酒馆 5=商店
 
 module.exports = router;

@@ -26,6 +26,8 @@ const routes = [
   { path: '/citymap/:cityId?', name: 'citymap', component: () => import('../views/CityMapView.vue'), meta: { auth: true } },
   { path: '/cdkey', name: 'cdkey', component: () => import('../views/CdkeyView.vue'), meta: { auth: true } },
   { path: '/welfare', name: 'welfare', component: () => import('../views/WelfareView.vue'), meta: { auth: true } },
+  { path: '/daily', name: 'daily', component: () => import('../views/DailyView.vue'), meta: { auth: true } },
+  { path: '/mall', name: 'mall', component: () => import('../views/MallView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ];
 

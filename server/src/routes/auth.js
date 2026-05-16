@@ -56,7 +56,7 @@ router.post('/register', async (req, res, next) => {
       guide_step: 1,
       login_days: 1,
       last_login: new Date(),
-      claimed_rewards: JSON.stringify([]),
+      claimed_rewards: JSON.stringify(['starter']),  // 注册礼包已在注册时发放
       status_effects: JSON.stringify([])
     });
 
@@ -127,6 +127,15 @@ router.post('/login', async (req, res, next) => {
       last_login: new Date()
     }, '`id` = ?', [user.id]);
 
+    // 调用每日活跃进度 - 每日登录
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [user.id, today, 'daily_login', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 1), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), user.id, today, 'daily_login']);
+    } catch(e) { console.error('[daily] daily_login progress error:', e.message); }
+
     const token = jwt.sign({ id: user.id, username: user.username }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
     res.json({ token, user: { id: user.id, username: user.username, sex: user.sex } });
   } catch (err) { next(err); }
@@ -136,7 +145,7 @@ router.post('/login', async (req, res, next) => {
 router.get('/me', authMiddleware, async (req, res, next) => {
   try {
     const user = await db.getOne(
-      'SELECT id, username, sex, avatar, level, exp, exp_max, hp, hp_max, atk_min, atk_max, def, agility, money, gold, place_id, bank_money, pet_id, pet_name, pet_level, pet_exp, ship_id, sail_time, sail_from, sail_to, shortcut_slot_1, shortcut_slot_2, shortcut_slot_3, guide_step, login_days, milestone_claimed, starter_claimed FROM `user` WHERE `id` = ?',
+      'SELECT id, username, sex, avatar, level, exp, exp_max, hp, hp_max, atk_min, atk_max, def, agility, money, gold, place_id, bank_money, pet_id, pet_name, pet_level, pet_exp, ship_id, sail_time, sail_from, sail_to, shortcut_slot_1, shortcut_slot_2, shortcut_slot_3, guide_step, login_days, claimed_rewards FROM `user` WHERE `id` = ?',
       [req.user.id]
     );
     if (!user) return res.status(404).json({ error: '角色不存在' });

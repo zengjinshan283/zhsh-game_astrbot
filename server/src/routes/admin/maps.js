@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
     const params = [];
     if (keyword) { where += ' AND (m.name LIKE ?)'; params.push(`%${keyword}%`); }
     const totalSql = `SELECT COUNT(*) FROM map m WHERE ${where}`;
-    const listSql = `SELECT m.*, (SELECT COUNT(*) FROM place WHERE city_id = m.id) AS place_count FROM map m WHERE ${where} ORDER BY m.sort_order, m.id LIMIT ? OFFSET ?`;
+    const listSql = `SELECT m.*, (SELECT COUNT(*) FROM place WHERE city_id = m.id) AS place_count FROM map m WHERE ${where} ORDER BY m.id LIMIT ? OFFSET ?`;
     const total = await db.getVar(totalSql, params);
     const list = await db.getAll(listSql, [...params, parseInt(pageSize), (parseInt(page) - 1) * parseInt(pageSize)]);
     res.json({ code: 0, data: { list, total, page: parseInt(page), pageSize: parseInt(pageSize) }, message: 'success' });
@@ -40,7 +40,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, parent_id, type, sort_order } = req.body;
-    const id = await db.insert('map', { name, parent_id: parent_id || 0, type: type || 0, sort_order: sort_order || 0 });
+    const id = await db.insert('map', { name, parent_id: parent_id || 0, type: type || 0 });
     await logAction(req.admin.id, 'create', 'map', `新增地图: ${name}`, req);
     await logChangelog(req.admin.id, 'map', id, 'create', null, req.body, req);
     res.json({ code: 0, data: { id }, message: 'success' });
@@ -60,7 +60,6 @@ router.put('/:id', async (req, res) => {
     if (name !== undefined) data.name = name;
     if (parent_id !== undefined) data.parent_id = parent_id;
     if (type !== undefined) data.type = type;
-    if (sort_order !== undefined) data.sort_order = sort_order;
     await db.update('map', data, 'id = ?', [id]);
     await logAction(req.admin.id, 'update', 'map', `更新地图: ${old.name}`, req);
     await logChangelog(req.admin.id, 'map', id, 'update', old, { ...old, ...data }, req);

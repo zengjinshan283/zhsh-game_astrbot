@@ -115,6 +115,15 @@ router.post('/claim', authMiddleware, async (req, res, next) => {
     }
     await db.update('user_quest', { status: 2, completed_at: Math.floor(Date.now() / 1000) }, '`id` = ?', [uq.id]);
 
+    // 调用每日活跃进度 - 任务完成
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [uid, today, 'daily_quest', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 1), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), uid, today, 'daily_quest']);
+    } catch(e) { console.error('[daily] quest_complete progress error:', e.message); }
+
     // 触发新手引导：任务完成检查（异步不阻塞）
     (async () => {
       try {

@@ -12,6 +12,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../../client/dist')));
+app.use('/admin', express.static(path.join(__dirname, '../../admin/dist')));
 
 // ========== 游戏API路由 ==========
 app.use('/api/auth', require('./routes/auth'));
@@ -34,9 +35,11 @@ app.use('/api/casino', require('./routes/casino'));
 app.use('/api/rank', require('./routes/rank'));
 app.use('/api/friend', require('./routes/friend'));
 app.use('/api/sign', require('./routes/sign'));
+app.use('/api/daily', require('./routes/daily'));
 app.use('/api/cdkey', require('./routes/cdkey'));
 app.use('/api/welfare', require('./routes/welfare'));
 app.use('/api/guide', require('./routes/guide'));
+app.use('/api/mall', require('./routes/mall'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));
