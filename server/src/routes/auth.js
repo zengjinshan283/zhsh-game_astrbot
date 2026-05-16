@@ -53,10 +53,11 @@ router.post('/register', async (req, res, next) => {
       def: 0,
       agility: 0,
       place_id: config.game.startPlaceId,
-      guide_step: 1,           // 新手引导从第1步开始
-      starter_claimed: 0,       // 尚未领取注册礼包
-      login_days: 1,           // 首日登录
-      last_login_date: new Date().toISOString().slice(0, 10) // 2025-01-26 格式
+      guide_step: 1,
+      login_days: 1,
+      last_login: new Date(),
+      claimed_rewards: JSON.stringify([]),
+      status_effects: JSON.stringify([])
     });
 
     // 自动接取第一条主线任务 "清理城郊野狗" (id=1)
@@ -118,12 +119,12 @@ router.post('/login', async (req, res, next) => {
       // 连续登录处理
       login_days: (() => {
         const today = new Date().toISOString().slice(0, 10);
-        const last = user.last_login_date;
-        if (last === today) return user.login_days; // 当天重复登录不增加
+        const last = user.last_login ? new Date(user.last_login).toISOString().slice(0, 10) : null;
+        if (last === today) return user.login_days;
         const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
         return (last === yesterday) ? (user.login_days + 1) : 1;
       })(),
-      last_login_date: new Date().toISOString().slice(0, 10)
+      last_login: new Date()
     }, '`id` = ?', [user.id]);
 
     const token = jwt.sign({ id: user.id, username: user.username }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
