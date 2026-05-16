@@ -42,8 +42,43 @@ CREATE TABLE IF NOT EXISTS `user` (
   `shortcut_slot_1` int NOT NULL DEFAULT 0,
   `shortcut_slot_2` int NOT NULL DEFAULT 0,
   `shortcut_slot_3` int NOT NULL DEFAULT 0,
+  `guide_step` tinyint NOT NULL DEFAULT 0 COMMENT '新手引导步骤 0未开始 1-N进行中 99已跳过',
+  `login_days` int NOT NULL DEFAULT 0 COMMENT '连续登录天数',
+  `last_login_date` date NOT NULL DEFAULT '2000-01-01' COMMENT '上次登录日期',
+  `milestone_claimed` varchar(200) NOT NULL DEFAULT '' COMMENT '已领取的里程碑ID列表(逗号分隔)',
+  `starter_claimed` tinyint NOT NULL DEFAULT 0 COMMENT '是否已领取注册礼包 0未领 1已领',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 新手引导步骤说明:
+-- 0 = 未开始新手引导
+-- 1 = 去找马可接任务
+-- 2 = 清理城郊野狗(战斗)
+-- 3 = 向马可交任务
+-- 4 = 去码头找船长
+-- 5 = 购买船只
+-- 6 = 起航雅典
+-- 99 = 已跳过/完成
+
+-- 7日连续登录福利表
+CREATE TABLE IF NOT EXISTS `welfare_login` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `day_index` INT NOT NULL COMMENT '第几天 1-7',
+  `claimed` TINYINT NOT NULL DEFAULT 0,
+  `claimed_at` INT NOT NULL DEFAULT 0,
+  UNIQUE KEY `uk_user_day` (`user_id`, `day_index`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 成长里程碑记录表
+CREATE TABLE IF NOT EXISTS `welfare_milestone` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `milestone_id` VARCHAR(32) NOT NULL COMMENT '里程碑ID 如 lv10',
+  `level` INT NOT NULL DEFAULT 0 COMMENT '领取时的等级',
+  `claimed_at` INT NOT NULL DEFAULT 0,
+  UNIQUE KEY `uk_user_milestone` (`user_id`, `milestone_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `map` (
@@ -950,6 +985,36 @@ INSERT IGNORE INTO `ship` (`id`, `name`, `price`, `speed`, `capacity`, `descript
 (1, '小帆船', 1000, 1, 20, '入门船只'),
 (2, '轻快帆船', 5000, 2, 40, '速度更快，货舱更大'),
 (3, '商用大船', 15000, 3, 80, '适合贸易');
+
+-- ============================================================
+-- 新手/福利配置数据（可由管理后台修改）
+-- ============================================================
+
+-- 注册礼包配置
+INSERT IGNORE INTO `sys_config` (`key`, `value`, `description`) VALUES
+('starter_pack', '{"money":5000,"items":[{"id":2,"qty":1},{"id":1,"qty":3},{"id":115,"qty":1}]}', '注册礼包: 5000铜 + 铁剑×1 + 小HP药×3 + 港口地图×1');
+
+-- 7日登录奖励(每档奖励内容)
+INSERT IGNORE INTO `sys_config` (`key`, `value`, `description`) VALUES
+('login_rewards', '{
+  "1":{"money":500,"items":[{"id":1,"qty":2}]},
+  "2":{"money":1000,"items":[{"id":3,"qty":1}]},
+  "3":{"money":1500,"items":[{"id":22,"qty":1}]},
+  "4":{"money":2000,"items":[{"id":3,"qty":2}]},
+  "5":{"money":3000,"items":[{"id":4,"qty":1}]},
+  "6":{"money":5000,"items":[{"id":127,"qty":1}]},
+  "7":{"money":10000,"items":[{"id":22,"qty":1},{"id":3,"qty":3}]}
+}', '7日登录奖励配置');
+
+-- 成长里程碑奖励
+INSERT IGNORE INTO `sys_config` (`key`, `value`, `description`) VALUES
+('milestone_rewards', '{
+  "lv10":{"money":2000,"exp":500,"items":[{"id":22,"qty":1},{"id":3,"qty":5}]},
+  "lv20":{"money":5000,"exp":1500,"items":[{"id":24,"qty":1},{"id":3,"qty":10}]},
+  "lv30":{"money":10000,"exp":3000,"items":[{"id":28,"qty":1},{"id":4,"qty":5}]},
+  "lv40":{"money":20000,"exp":5000,"items":[{"id":115,"qty":1},{"id":127,"qty":2}]},
+  "lv50":{"money":30000,"exp":8000,"items":[]}
+}', '成长里程碑奖励(Lv10/20/30/40/50)');
 
 INSERT IGNORE INTO `goods` (`id`, `name`, `category`, `description`, `unit`, `weight`) VALUES
 (1, '葡萄酒', 1, '威尼斯特产', '桶', 2),

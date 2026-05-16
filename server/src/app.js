@@ -35,6 +35,8 @@ app.use('/api/rank', require('./routes/rank'));
 app.use('/api/friend', require('./routes/friend'));
 app.use('/api/sign', require('./routes/sign'));
 app.use('/api/cdkey', require('./routes/cdkey'));
+app.use('/api/welfare', require('./routes/welfare'));
+app.use('/api/guide', require('./routes/guide'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));

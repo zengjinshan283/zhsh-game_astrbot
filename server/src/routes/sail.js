@@ -184,6 +184,17 @@ router.post('/buy-ship', authMiddleware, async (req, res, next) => {
     if (user.money < ship.price) return res.status(400).json({ error: `铜钱不足！需要 ${ship.price} 铜钱` });
     await db.query('UPDATE `user` SET money = money - ?, ship_id = ? WHERE `id` = ?', [ship.price, ship_id, req.user.id]);
     await db.query('INSERT IGNORE INTO user_ship (user_id, ship_id) VALUES (?, ?)', [req.user.id, ship_id]);
+
+    // 新手引导：买船后推进到步骤6
+    (async () => {
+      try {
+        const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
+        if (guideUser.guide_step === 5) {
+          await db.update('user', { guide_step: 6 }, '`id` = ?', [req.user.id]);
+        }
+      } catch (e) {}
+    })();
+
     res.json({ success: true, switched: false, msg: '🎉 成功购买了「' + ship.name + '」！' });
   } catch(e){next(e);}
 });

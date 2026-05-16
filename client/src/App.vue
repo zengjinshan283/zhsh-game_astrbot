@@ -6,6 +6,7 @@
     </div>
     <BottomNav v-if="userStore.isLoggedIn && showNav" />
     <BattleOverlay v-if="gameStore.inBattle" />
+    <GuideOverlay v-if="userStore.isLoggedIn" ref="guideRef" />
 
     <!-- Global Confirm/Alert Modal -->
     <div class="modal-overlay" :class="{active: visible}" v-if="visible" @click.self="confirmCancel" style="z-index:10001;">
@@ -31,6 +32,7 @@ import { useGameStore } from './stores/game';
 import TopBar from './components/TopBar.vue';
 import BottomNav from './components/BottomNav.vue';
 import BattleOverlay from './components/BattleOverlay.vue';
+import GuideOverlay from './components/GuideOverlay.vue';
 import { useGameWS } from './composables/useGameWS';
 import { visible, title, message, isConfirm, confirmOk, confirmCancel } from './composables/useConfirm';
 

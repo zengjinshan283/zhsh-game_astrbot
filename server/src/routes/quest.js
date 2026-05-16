@@ -114,6 +114,17 @@ router.post('/claim', authMiddleware, async (req, res, next) => {
       rewards.push(`${item ? item.name : '物品'} x${quest.reward_item_qty}`);
     }
     await db.update('user_quest', { status: 2, completed_at: Math.floor(Date.now() / 1000) }, '`id` = ?', [uq.id]);
+
+    // 触发新手引导：任务完成检查（异步不阻塞）
+    (async () => {
+      try {
+        const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [uid]);
+        if (guideUser.guide_step === 2 && quest_id == 1) {
+          await db.update('user', { guide_step: 3 }, '`id` = ?', [uid]);
+        }
+      } catch (e) {}
+    })();
+
     res.json({ success: true, msg: `🎉 任务完成！${rewards.join('，')}` });
   } catch (e) { next(e); }
 });

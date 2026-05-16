@@ -75,6 +75,20 @@ router.post('/move', authMiddleware, async (req, res, next) => {
 
     await db.update('user', { place_id: targetId }, '`id` = ?', [req.user.id]);
     const scene = await buildScene(targetId, req.user.id);
+
+    // 触发新手引导：进入地点检查（异步，不阻塞主流程）
+    require('../routes/guide'); // 确保路由已加载
+    db.query("SELECT 1").then(() => {}).catch(() => {});
+    // 用最新方式触发引导检查（通过内部调用）
+    (async () => {
+      try {
+        const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
+        if (guideUser.guide_step === 4 && targetId === 1022) {
+          await db.update('user', { guide_step: 5 }, '`id` = ?', [req.user.id]);
+        }
+      } catch (e) {}
+    })();
+
     res.json({ ...scene, success: true });
   } catch (err) { next(err); }
 });

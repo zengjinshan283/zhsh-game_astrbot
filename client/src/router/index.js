@@ -25,6 +25,7 @@ const routes = [
   { path: '/player/:id', name: 'player', component: () => import('../views/PlayerView.vue'), meta: { auth: true } },
   { path: '/citymap/:cityId?', name: 'citymap', component: () => import('../views/CityMapView.vue'), meta: { auth: true } },
   { path: '/cdkey', name: 'cdkey', component: () => import('../views/CdkeyView.vue'), meta: { auth: true } },
+  { path: '/welfare', name: 'welfare', component: () => import('../views/WelfareView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ];
 

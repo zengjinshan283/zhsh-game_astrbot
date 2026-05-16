@@ -27,6 +27,7 @@
             <router-link to="/pet" class="func-btn" @click="showMore=false"><span class="func-emoji">🐶</span><span class="func-label">宠物</span></router-link>
             <router-link to="/rank" class="func-btn" @click="showMore=false"><span class="func-emoji">🏆</span><span class="func-label">排行</span></router-link>
             <router-link to="/guild" class="func-btn" @click="showMore=false"><span class="func-emoji">🏴</span><span class="func-label">帮会</span></router-link>
+            <router-link to="/welfare" class="func-btn" @click="showMore=false"><span class="func-emoji">🎁</span><span class="func-label">福利</span></router-link>
           </div>
           <div v-if="dynamicBtns.length" class="func-grid" style="margin-top:2px;padding-top:2px;border-top:1px solid rgba(226,183,20,0.1);">
             <template v-for="(b, idx) in dynamicBtns" :key="idx">
