@@ -496,6 +496,15 @@ CREATE TABLE IF NOT EXISTS `user_skill` (
   KEY `idx_user_skill_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 装备图鉴记录表
+CREATE TABLE IF NOT EXISTS `user_codex` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `item_id` INT NOT NULL,
+  `unlocked_at` INT NOT NULL DEFAULT 0,
+  UNIQUE KEY `uk_user_item` (`user_id`, `item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ============================================================
 -- 扩容后的 map 表：6 海域 + 40 城市
 -- ============================================================
@@ -976,8 +985,8 @@ INSERT IGNORE INTO `npc_shop_item` (`npc_id`, `item_id`) VALUES
 INSERT IGNORE INTO `quest` (`id`, `name`, `description`, `category`, `type`, `target_id`, `require_value`, `npc_id`, `pre_quest_id`, `level_req`, `reward_exp`, `reward_money`, `reward_item_id`, `reward_item_qty`, `sort_order`) VALUES
 -- === 主线任务（威尼斯→航海→世界）===
 (1,  '清理城郊野狗',    '马可说威尼斯城郊有野狗出没，帮忙清理3只。',            0, 0, 1,   3, 1,  0,  1,  100,  200,  1, 2, 1),
-(2,  '初识航海',        '去码头找船长，了解如何出海。',                            0, 2, 1,   1, 1,  1,  5,  120,  300,  0, 0, 2),
-(3,  '雅典之行',        '搭船前往雅典（map_id=102），探索爱琴海城市。',          0, 3, 102, 1, 1,  2, 10,  200,  500,  0, 0, 3),
+(2,  '初识航海',        '去码头找马可请教航海知识，了解如何购买船只出海。',   0, 2, 1,   1, 1,  1,  5,  120,  300,  0, 0, 2),
+(3,  '雅典之行',        '从威尼斯码头起航，前往雅典城（target=place 1011）。',  0, 3, 1011,1, 0,  2, 10,  200,  500,  0, 0, 3),
 (4,  '雅典商人',        '向雅典商人打听东方航线。',                               0, 2, 2,   1, 2,  3, 12,  250,  400, 22, 1, 4),
 (5,  '海盗的威胁',      '雅典附近海上有海盗作乱，去教训他们！',                   0, 0, 6,   5, 2,  4, 15,  300,  600,  0, 0, 5),
 (6,  '亚历山大之行',    '乘船前往埃及亚历山大（map_id=202），探索非洲海岸。',     0, 3, 202, 1, 2,  5, 18,  400,  800,  0, 0, 6),

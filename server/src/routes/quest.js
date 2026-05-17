@@ -131,6 +131,10 @@ router.post('/claim', authMiddleware, async (req, res, next) => {
         if (guideUser.guide_step === 2 && quest_id == 1) {
           await db.update('user', { guide_step: 3 }, '`id` = ?', [uid]);
         }
+        // 引导步骤7：完成雅典之行（quest 3），引导结束
+        if (guideUser.guide_step === 7 && quest_id == 3) {
+          await db.update('user', { guide_step: 99 }, '`id` = ?', [uid]);
+        }
       } catch (e) {}
     })();
 

@@ -83,8 +83,8 @@ router.post('/move', authMiddleware, async (req, res, next) => {
     (async () => {
       try {
         const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
-        if (guideUser.guide_step === 4 && targetId === 1022) {
-          await db.update('user', { guide_step: 5 }, '`id` = ?', [req.user.id]);
+        if (guideUser.guide_step === 3 && targetId === 1022) {
+          await db.update('user', { guide_step: 4 }, '`id` = ?', [req.user.id]);
         }
       } catch (e) {}
     })();

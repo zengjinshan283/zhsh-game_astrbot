@@ -1,5 +1,13 @@
 <template>
 <div class="page">
+  <!-- 引导未完成时显示提示 -->
+  <div v-if="guideStep !== 99 && guideStep !== 0" class="card" style="text-align:center;padding:24px;background:linear-gradient(135deg,#1a1a2e,#16213e);">
+    <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
+    <div style="color:#c9a758;font-size:14px;margin-bottom:8px;">新手引导未完成</div>
+    <div style="color:#888;font-size:12px;margin-bottom:14px;">请先完成引导任务，再查看所有任务</div>
+    <router-link to="/quest-guide" class="btn btn-primary">📜 前往引导任务</router-link>
+  </div>
+
   <div class="location-bar">
     <div class="location-name">📋 任务面板</div>
     <div class="location-path">进行中 {{ active.length }}</div>
@@ -76,6 +84,7 @@ const completed = ref([]);
 const available = ref([]);
 const msg = ref('');
 const msgType = ref('');
+const guideStep = ref(99); // 99=引导完成，显示完整任务
 const questTypes = {0:'⚔️杀怪',1:'📦收集',2:'📍到达',3:'💬对话',4:'🛡️护送'};
 
 const filtered = computed(() => {
@@ -94,7 +103,22 @@ function fmtTime(t) {
     d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
 
+async function loadGuideStep() {
+  try {
+    const d = await Api.get('/auth/me');
+    guideStep.value = d.user?.guide_step ?? 99;
+    // 引导未完成时 redirect to QuestGuideView
+    if (guideStep.value !== 99 && guideStep.value !== 0) {
+      // Show only guide quests (no full list loading needed)
+    }
+  } catch(e) {
+    guideStep.value = 99;
+  }
+}
+
 async function load() {
+  // guide_step < 99 时只显示引导任务，不加载完整列表
+  if (guideStep.value !== 99) return;
   try {
     const d = await Api.get('/quest/list');
     active.value = d.active || [];
@@ -128,5 +152,5 @@ async function abandon(id) {
 
 function showMsg(text, type='success') { msg.value=text; msgType.value=type; setTimeout(()=>msg.value='',3000); }
 
-onMounted(load);
+onMounted(async () => { await loadGuideStep(); await load(); });
 </script>

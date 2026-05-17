@@ -194,12 +194,12 @@ router.post('/buy-ship', authMiddleware, async (req, res, next) => {
     await db.query('UPDATE `user` SET money = money - ?, ship_id = ? WHERE `id` = ?', [ship.price, ship_id, req.user.id]);
     await db.query('INSERT IGNORE INTO user_ship (user_id, ship_id) VALUES (?, ?)', [req.user.id, ship_id]);
 
-    // 新手引导：买船后推进到步骤6
+    // 引导：买船成功后，推进到"起航"步骤
     (async () => {
       try {
         const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
-        if (guideUser.guide_step === 5) {
-          await db.update('user', { guide_step: 6 }, '`id` = ?', [req.user.id]);
+        if (guideUser.guide_step === 4) {
+          await db.update('user', { guide_step: 5 }, '`id` = ?', [req.user.id]);
         }
       } catch (e) {}
     })();
@@ -221,6 +221,17 @@ router.post('/depart', authMiddleware, async (req, res, next) => {
     if (!targetCity) return res.status(400).json({ error: '目标城市不存在' });
     if (targetCity.id === place.city_id) return res.status(400).json({ error: '你已经在当前城市了' });
     await db.query('UPDATE `user` SET sail_time=?, sail_from=?, sail_to=?, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [Math.floor(Date.now()/1000), place.city_id, target_city_id, req.user.id]);
+
+    // 引导：起航成功 → step 99
+    (async () => {
+      try {
+        const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
+        if (guideUser.guide_step === 5) {
+          await db.update('user', { guide_step: 99 }, '`id` = ?', [req.user.id]);
+        }
+      } catch (e) {}
+    })();
+
     res.json({ success: true });
   } catch(e){next(e);}
 });

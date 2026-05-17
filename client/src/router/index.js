@@ -14,6 +14,7 @@ const routes = [
   { path: '/sail', name: 'sail', component: () => import('../views/SailView.vue'), meta: { auth: true } },
   { path: '/pet', name: 'pet', component: () => import('../views/PetView.vue'), meta: { auth: true } },
   { path: '/quest', name: 'quest', component: () => import('../views/QuestView.vue'), meta: { auth: true } },
+  { path: '/quest-guide', name: 'quest-guide', component: () => import('../views/QuestGuideView.vue'), meta: { auth: true } },
   { path: '/chat', name: 'chat', component: () => import('../views/ChatView.vue'), meta: { auth: true } },
   { path: '/guild', name: 'guild', component: () => import('../views/GuildView.vue'), meta: { auth: true } },
   { path: '/casino', name: 'casino', component: () => import('../views/CasinoView.vue'), meta: { auth: true } },
@@ -28,6 +29,11 @@ const routes = [
   { path: '/welfare', name: 'welfare', component: () => import('../views/WelfareView.vue'), meta: { auth: true } },
   { path: '/daily', name: 'daily', component: () => import('../views/DailyView.vue'), meta: { auth: true } },
   { path: '/mall', name: 'mall', component: () => import('../views/MallView.vue'), meta: { auth: true } },
+  { path: '/vip', name: 'vip', component: () => import('../views/VipView.vue'), meta: { auth: true } },
+  { path: '/dungeon', name: 'dungeon', component: () => import('../views/DungeonView.vue'), meta: { auth: true } },
+  { path: '/arena', name: 'arena', component: () => import('../views/ArenaView.vue'), meta: { auth: true } },
+  { path: '/codex', name: 'codex', component: () => import('../views/CodexView.vue'), meta: { auth: true } },
+  { path: '/invite', name: 'invite', component: () => import('../views/InviteView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ];
 

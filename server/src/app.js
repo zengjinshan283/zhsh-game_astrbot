@@ -40,6 +40,11 @@ app.use('/api/cdkey', require('./routes/cdkey'));
 app.use('/api/welfare', require('./routes/welfare'));
 app.use('/api/guide', require('./routes/guide'));
 app.use('/api/mall', require('./routes/mall'));
+app.use('/api/dungeon', require('./routes/dungeon'));
+app.use('/api/arena', require('./routes/arena'));
+app.use('/api/vip', require('./routes/vip'));
+app.use('/api/invite', require('./routes/invite'));
+app.use('/api/codex', require('./routes/codex'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));

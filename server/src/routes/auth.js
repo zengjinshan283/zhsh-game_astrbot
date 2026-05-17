@@ -53,7 +53,7 @@ router.post('/register', async (req, res, next) => {
       def: 0,
       agility: 0,
       place_id: config.game.startPlaceId,
-      guide_step: 1,
+      guide_step: 0,  // 0=开场剧情，完成后变1
       login_days: 1,
       last_login: new Date(),
       claimed_rewards: JSON.stringify(['starter']),  // 注册礼包已在注册时发放

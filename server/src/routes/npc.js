@@ -298,12 +298,12 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
       try {
         const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
         const step = guideUser.guide_step;
-        // 马可(id=1)：步骤1→2（接任务），步骤3→4（交任务）
+        // 马可(id=1)：步骤0(开场后→接任务)→1，步骤2(做任务中→交任务)→3
         if (npcId === 1) {
-          if (step === 1) {
-            await db.update('user', { guide_step: 2 }, '`id` = ?', [req.user.id]);
-          } else if (step === 3) {
-            await db.update('user', { guide_step: 4 }, '`id` = ?', [req.user.id]);
+          if (step === 0) {
+            await db.update('user', { guide_step: 1 }, '`id` = ?', [req.user.id]);
+          } else if (step === 2) {
+            await db.update('user', { guide_step: 3 }, '`id` = ?', [req.user.id]);
           }
         }
       } catch (e) {}

@@ -26,10 +26,15 @@
             <router-link to="/friend" class="func-btn" @click="showMore=false"><span class="func-emoji">👥</span><span class="func-label">好友</span></router-link>
             <router-link to="/pet" class="func-btn" @click="showMore=false"><span class="func-emoji">🐶</span><span class="func-label">宠物</span></router-link>
             <router-link to="/rank" class="func-btn" @click="showMore=false"><span class="func-emoji">🏆</span><span class="func-label">排行</span></router-link>
+            <router-link to="/arena" class="func-btn" @click="showMore=false"><span class="func-emoji">⚔️</span><span class="func-label">竞技场</span></router-link>
             <router-link to="/guild" class="func-btn" @click="showMore=false"><span class="func-emoji">🏴</span><span class="func-label">帮会</span></router-link>
             <router-link to="/welfare" class="func-btn" @click="showMore=false"><span class="func-emoji">🎁</span><span class="func-label">福利</span></router-link>
             <router-link to="/daily" class="func-btn" @click="showMore=false"><span class="func-emoji">📅</span><span class="func-label">每日</span></router-link>
             <router-link to="/mall" class="func-btn" @click="showMore=false"><span class="func-emoji">🛒</span><span class="func-label">商城</span></router-link>
+            <router-link to="/codex" class="func-btn" @click="showMore=false"><span class="func-emoji">📜</span><span class="func-label">图鉴</span></router-link>
+            <router-link to="/dungeon" class="func-btn" @click="showMore=false"><span class="func-emoji">🏔️</span><span class="func-label">副本</span></router-link>
+            <router-link to="/vip" class="func-btn" @click="showMore=false"><span class="func-emoji">👑</span><span class="func-label">月卡</span></router-link>
+            <router-link to="/invite" class="func-btn" @click="showMore=false"><span class="func-emoji">🎯</span><span class="func-label">推广</span></router-link>
           </div>
           <div v-if="dynamicBtns.length" class="func-grid" style="margin-top:2px;padding-top:2px;border-top:1px solid rgba(226,183,20,0.1);">
             <template v-for="(b, idx) in dynamicBtns" :key="idx">

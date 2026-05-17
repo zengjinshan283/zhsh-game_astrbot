@@ -136,13 +136,7 @@ router.post('/buy', authMiddleware, async (req, res, next) => {
         equipped: 0,
         enhance_level: 0,
       };
-      // 装备属性
-      if (item.atk_min) invData.atk_min = item.atk_min;
-      if (item.atk_max) invData.atk_max = item.atk_max;
-      if (item.def)     invData.def = item.def;
-      if (item.hp_max)  invData.hp_max = item.hp_max;
-      if (item.agility) invData.agility = item.agility;
-
+      // 装备属性存储在 item 表，inventory 只存储基础数据
       await db.insert('inventory', invData);
     }
 
