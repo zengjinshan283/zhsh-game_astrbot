@@ -222,11 +222,13 @@ router.post('/depart', authMiddleware, async (req, res, next) => {
     if (targetCity.id === place.city_id) return res.status(400).json({ error: '你已经在当前城市了' });
     await db.query('UPDATE `user` SET sail_time=?, sail_from=?, sail_to=?, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [Math.floor(Date.now()/1000), place.city_id, target_city_id, req.user.id]);
 
-    // 引导：起航成功 → step 99
+    // 引导：起航成功 → step 99（同时处理 step 5→6→99 的正常流程，以及直接 5→99 的跳过流程）
     (async () => {
       try {
         const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [req.user.id]);
         if (guideUser.guide_step === 5) {
+          await db.update('user', { guide_step: 6 }, '`id` = ?', [req.user.id]);
+        } else if (guideUser.guide_step === 6) {
           await db.update('user', { guide_step: 99 }, '`id` = ?', [req.user.id]);
         }
       } catch (e) {}

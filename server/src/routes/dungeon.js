@@ -157,6 +157,21 @@ router.post('/:id/enter', authMiddleware, async (req, res, next) => {
     };
     dungeonSessions.set(req.user.id, session);
 
+    // 自动触发 type=3 进入副本任务（如牛头山/四象圣殿入口任务）
+    (async () => {
+      try {
+        const arriveQuests = await db.getAll(
+          "SELECT q.id, q.name, q.require_value, uq.progress FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND q.type = 3 AND q.target_id = ? AND uq.status = 0",
+          [req.user.id, dungeon.place_id]
+        );
+        for (const q of arriveQuests) {
+          const newProgress = Math.min(q.require_value, q.progress + 1);
+          const status = newProgress >= q.require_value ? 1 : 0;
+          await db.update('user_quest', { progress: newProgress, status }, '`user_id` = ? AND `quest_id` = ?', [req.user.id, q.id]);
+        }
+      } catch (e) {}
+    })();
+
     res.json({
       ok: 1,
       msg: `成功进入 ${dungeon.name}！当前第 1 层`,

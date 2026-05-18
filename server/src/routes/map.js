@@ -35,6 +35,21 @@ router.get('/scene', authMiddleware, async (req, res, next) => {
             if (dock) newPlaceId = dock.id;
           }
           await db.query('UPDATE `user` SET place_id=?, sail_time=0, sail_from=0, sail_to=0, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [newPlaceId, req.user.id]);
+          // 自动触发 type=3 到达地点任务
+          (async () => {
+            try {
+              const uid = req.user.id;
+              const arriveQuests = await db.getAll(
+                "SELECT q.id, q.name, q.target_id, q.require_value, uq.progress FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND q.type = 3 AND q.target_id = ? AND uq.status = 0",
+                [uid, newPlaceId]
+              );
+              for (const q of arriveQuests) {
+                const newProgress = Math.min(q.require_value, q.progress + 1);
+                const status = newProgress >= q.require_value ? 1 : 0;
+                await db.update('user_quest', { progress: newProgress, status }, '`user_id` = ? AND `quest_id` = ?', [uid, q.id]);
+              }
+            } catch (e) {}
+          })();
           // Fall through to buildScene with new place_id
         } else {
           return res.json({ sailing: true, sail_time: fullUser.sail_time });
@@ -74,6 +89,20 @@ router.post('/move', authMiddleware, async (req, res, next) => {
     if (targetId <= 0) return res.status(400).json({ error: '这个方向没有出口' });
 
     await db.update('user', { place_id: targetId }, '`id` = ?', [req.user.id]);
+    // 自动触发 type=3 到达地点任务（步行）
+    (async () => {
+      try {
+        const arriveQuests = await db.getAll(
+          "SELECT q.id, q.name, q.require_value, uq.progress FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND q.type = 3 AND q.target_id = ? AND uq.status = 0",
+          [req.user.id, targetId]
+        );
+        for (const q of arriveQuests) {
+          const newProgress = Math.min(q.require_value, q.progress + 1);
+          const status = newProgress >= q.require_value ? 1 : 0;
+          await db.update('user_quest', { progress: newProgress, status }, '`user_id` = ? AND `quest_id` = ?', [req.user.id, q.id]);
+        }
+      } catch (e) {}
+    })();
     const scene = await buildScene(targetId, req.user.id);
 
     // 触发新手引导：进入地点检查（异步，不阻塞主流程）

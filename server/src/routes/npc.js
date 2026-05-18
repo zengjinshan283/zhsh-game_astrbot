@@ -278,10 +278,19 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
 
     // 获取进行中任务
     const activeQuests = await db.getAll(
-      `SELECT q.*, uq.progress, uq.status FROM quest q JOIN user_quest uq ON q.id=uq.quest_id 
+      `SELECT q.*, uq.progress, uq.status FROM quest q JOIN user_quest uq ON q.id=uq.quest_id
        WHERE uq.user_id=? AND q.npc_id=? AND uq.status<2 ORDER BY q.sort_order, q.id`,
       [req.user.id, npcId]
     );
+
+    // 自动触发 type=2 对话任务（与该NPC对话1次即完成）
+    const completedTalkQuests = [];
+    for (const q of activeQuests) {
+      if (q.type === 2 && q.target_id === 1) {
+        await db.update('user_quest', { progress: 1, status: 1 }, '`user_id` = ? AND `quest_id` = ?', [req.user.id, q.id]);
+        completedTalkQuests.push({ id: q.id, name: q.name });
+      }
+    }
 
     res.json({
       ok: true,
@@ -290,7 +299,8 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
       default_chat: defaultChat,
       chat_topics: chatTopics,
       available_quests: availList,
-      active_quests: activeQuests
+      active_quests: activeQuests,
+      completed_talk_quests: completedTalkQuests
     });
 
     // 触发新手引导：NPC交互后推进（异步，不阻塞响应）

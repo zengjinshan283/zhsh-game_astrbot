@@ -569,16 +569,35 @@ async function handleMonsterKill(user, battle) {
       [Math.floor(Date.now()/1000), user.id, new Date().toISOString().slice(0,10), 'daily_battle']);
   } catch(e) { console.error('[daily] daily_battle progress error:', e.message); }
 
-  // Check kill quests
-  const quests = await db.getAll(
+  // Check kill quests (type=0: defeat monster)
+  const killQuests = await db.getAll(
     'SELECT q.id, q.name, q.require_value, uq.progress FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND q.type = 0 AND q.target_id = ? AND uq.status = 0',
     [user.id, battle.monster_id]
   );
-  for (const q of quests) {
+  for (const q of killQuests) {
     const newProgress = Math.min(q.require_value, q.progress + 1);
     const status = newProgress >= q.require_value ? 1 : 0;
     await db.update('user_quest', { progress: newProgress, status }, '`user_id` = ? AND `quest_id` = ?', [user.id, q.id]);
     if (status === 1) battle.log.push({ type: 'info', text: `📋 任务「${q.name}」已完成！` });
+  }
+
+  // Check collection quests (type=1: collect item) — triggered by battle loot
+  // When a battle awards items, check if any collection quest needs them
+  const allLoot = battle.loot || [];
+  if (allLoot.length > 0) {
+    for (const loot of allLoot) {
+      const collectedItemId = typeof loot === 'object' ? loot.item_id : loot;
+      const collectQuests = await db.getAll(
+        'SELECT q.id, q.name, q.require_value, q.target_id, uq.progress FROM `quest` q JOIN `user_quest` uq ON q.id = uq.quest_id WHERE uq.user_id = ? AND q.type = 1 AND q.target_id = ? AND uq.status = 0',
+        [user.id, collectedItemId]
+      );
+      for (const q of collectQuests) {
+        const newProgress = Math.min(q.require_value, q.progress + 1);
+        const status = newProgress >= q.require_value ? 1 : 0;
+        await db.update('user_quest', { progress: newProgress, status }, '`user_id` = ? AND `quest_id` = ?', [user.id, q.id]);
+        if (status === 1) battle.log.push({ type: 'info', text: `📋 任务「${q.name}」已完成！` });
+      }
+    }
   }
 
   // Handle item drops with quality roll
