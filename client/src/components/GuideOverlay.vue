@@ -57,6 +57,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Api } from '../composables/useApi';
+import { globalAlert } from '../composables/useConfirm';
 import { useUserStore } from '../stores/user';
 
 const userStore = useUserStore();
@@ -199,7 +200,7 @@ async function skip() {
     active.value = false;
     stopPoll();
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   }
 }
 

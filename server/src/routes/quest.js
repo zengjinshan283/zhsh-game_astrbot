@@ -128,11 +128,11 @@ router.post('/claim', authMiddleware, async (req, res, next) => {
     (async () => {
       try {
         const guideUser = await db.getOne('SELECT guide_step FROM `user` WHERE `id` = ?', [uid]);
-        if (guideUser.guide_step === 2 && quest_id == 1) {
+        if (guideUser.guide_step === 2 && quest_id === 1) {
           await db.update('user', { guide_step: 3 }, '`id` = ?', [uid]);
         }
         // 引导步骤7：完成雅典之行（quest 3），引导结束
-        if (guideUser.guide_step === 7 && quest_id == 3) {
+        if (guideUser.guide_step === 7 && quest_id === 3) {
           await db.update('user', { guide_step: 99 }, '`id` = ?', [uid]);
         }
       } catch (e) {}

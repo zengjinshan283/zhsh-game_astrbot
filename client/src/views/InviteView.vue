@@ -91,8 +91,8 @@ async function load() {
     const d = await Api.get('/invite/status');
     status.value = d;
     // 我的邀请码就是用户ID
-    const me = await Api.get('/user/info');
-    userId.value = me.id || '';
+    const me = await Api.get('/auth/me')
+    userId.value = me.user?.id || '';
   } catch (e) {
     showMsg(e.message, 'error');
   }

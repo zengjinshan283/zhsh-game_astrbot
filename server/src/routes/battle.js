@@ -99,7 +99,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       monster_id: pirate.id, monster_name: pirate.name,
       monster_hp: Number(pirate.hp), monster_hp_max: Number(pirate.hp),
       monster_atk_min: Number(pirate.atk_min), monster_atk_max: Number(pirate.atk_max), monster_def: Number(pirate.def),
-      monster_exp: Number(pirate.exp), monster_money_min: Math.floor(Number(pirate.money) * 0.9), monster_money_max: Math.floor(Number(pirate.money) * 1.1),
+      monster_exp: Number(pirate.exp_reward), monster_money_min: Math.floor(Number(pirate.money) * 0.9), monster_money_max: Math.floor(Number(pirate.money) * 1.1),
       monster_desc: pirate.description || '',
       captureable: 0, capture_rate: 0,
       round: 1, result: null, finished: false,
@@ -316,7 +316,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       // Apply skill effect
       if (userSkill.type === 1) {
         // Attack skill
-        const hits = skill_id == 3 ? 2 : 1; // Skill 3 = Double Strike (2 hits)
+        const hits = skill_id === 3 ? 2 : 1; // Skill 3 = Double Strike (2 hits)
         for (let h = 0; h < hits; h++) {
           const pAtk = randInt(user.atk_min, user.atk_max);
           const pDmg = Math.max(1, Math.floor((pAtk * Number(userSkill.atk_multiplier)) - battle.monster_def));

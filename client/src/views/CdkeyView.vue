@@ -93,10 +93,6 @@ async function redeemCode() {
 }
 
 async function loadHistory() {
-  // Try to load history from cdkey log
-  try {
-    const d = await Api.get('/cdkey/query/QUERY');
-    // noop - just trigger any pre-fetch
-  } catch(e) {}
+  // history loaded on demand via redeemCode response
 }
 </script>

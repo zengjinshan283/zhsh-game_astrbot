@@ -3,6 +3,7 @@
  */
 import { useUserStore } from '../stores/user';
 import { useGameStore } from '../stores/game';
+import { globalAlert } from './useConfirm';
 
 let ws = null;
 let reconnectAttempts = 0;

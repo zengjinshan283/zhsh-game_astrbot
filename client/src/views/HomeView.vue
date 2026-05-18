@@ -108,6 +108,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { globalAlert } from '../composables/useConfirm';
 import StatusBar from '../components/StatusBar.vue';
 
 const userStore = useUserStore();
@@ -140,11 +141,11 @@ async function loadOnlineReward() {
 async function claimOnline() {
   try {
     const res = await Api.post('/welfare/claim-online', {});
-    alert(res.msg || '领取成功！');
+    await globalAlert(res.msg || '领取成功！');
     onlineReward.value = null;
     await loadOnlineReward();
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   }
 }
 
@@ -183,7 +184,7 @@ async function doSign() {
     signStatus.value.consecutive_days = res.consecutive_days;
     signedDays.value.add(res.reward_day);
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   }
 }
 

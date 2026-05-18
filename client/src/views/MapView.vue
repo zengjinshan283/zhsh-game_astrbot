@@ -738,7 +738,7 @@ async function casinoBet() {
   const amount = parseInt(casinoBetAmt.value) || 0
   if (amount <= 0) return
   try {
-    const data = await Api.post('/casino/bet', { bet: amount, choice: casinoChoice.value })
+    const data = await Api.post('/casino/bet', { amount: amount, choice: casinoChoice.value })
     if (data.ok && data.dice1) {
       casinoResult.value = data
       casinoResultColor.value = data.isWin ? '39,174,96' : '231,76,60'

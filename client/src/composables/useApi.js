@@ -2,7 +2,6 @@
  * API 请求封装
  */
 import { useUserStore } from '../stores/user';
-import { useRouter } from 'vue-router';
 
 const BASE = '/api';
 
