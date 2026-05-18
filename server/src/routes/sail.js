@@ -64,7 +64,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
         const canCheckTs = Number(user.sail_event_checked_at) || 0;
         if (elapsed < duration && progressRatio >= 0.2 && (nowTs - canCheckTs) >= 30) {
           // Atomic: only one request wins the race
-          const [upd] = await db.query('UPDATE `user` SET sail_event_checked_at=? WHERE `id`=? AND (sail_event_checked_at IS NULL OR sail_event_checked_at<?)', [nowTs, req.user.id, nowTs]);
+          const upd = await db.query('UPDATE `user` SET sail_event_checked_at=? WHERE `id`=? AND (sail_event_checked_at IS NULL OR sail_event_checked_at<?)', [nowTs, req.user.id, nowTs]);
           if (!upd || upd.affectedRows === 0) {
             // Another request already handled this check, skip
             isSailing = true;

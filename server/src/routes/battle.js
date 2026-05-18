@@ -427,7 +427,7 @@ async function resumeSailingIfNeeded(userId, battle) {
 // Helper functions
 async function monsterRetaliate(user, battle) {
   // Process tick debuffs on player (poison, burn) at start of retaliation
-  const tickLogs = await statusUtil.processTickEffects(req.user.id, battle.activeStatuses || [], user, battle);
+  const tickLogs = await statusUtil.processTickEffects(user.id, battle.activeStatuses || [], user, battle);
   for (const l of tickLogs) battle.log.push(l);
   if (user.hp <= 0) {
     battle.log.push({ type: 'system', text: '你倒下了……' });
@@ -493,7 +493,7 @@ async function monsterRetaliate(user, battle) {
 
   // Monster tries to apply debuff on retaliation
   if (user.hp > 0) {
-    await statusUtil.tryApplyMonsterDebuff(req.user.id, user, battle, battle.monster_level || 1);
+    await statusUtil.tryApplyMonsterDebuff(user.id, user, battle, battle.monster_level || 1);
   }
 }
 

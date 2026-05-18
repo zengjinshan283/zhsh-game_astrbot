@@ -30,7 +30,7 @@ router.get('/list', authMiddleware, async (req, res, next) => {
       SELECT d.name, d.place_id, MIN(d.floor) as min_floor, MAX(d.floor) as max_floor,
              d.level_req, d.entry_fee, d.monster_id, d.description
       FROM dungeon d
-      GROUP BY d.name, d.place_id, d.level_req, d.entry_fee
+      GROUP BY d.name, d.place_id, d.level_req, d.entry_fee, d.monster_id, d.description
       ORDER BY d.place_id
     `);
 
@@ -126,7 +126,7 @@ router.post('/:id/enter', authMiddleware, async (req, res, next) => {
 
     const dungeon = await db.getOne(`
       SELECT name, place_id, level_req, entry_fee, MIN(floor) as min_floor, MAX(floor) as max_floor
-      FROM dungeon WHERE name = ? LIMIT 1
+      FROM dungeon WHERE name = ? GROUP BY name, place_id, level_req, entry_fee
     `, [dungeonName]);
     if (!dungeon) return res.status(404).json({ error: '副本不存在' });
 
