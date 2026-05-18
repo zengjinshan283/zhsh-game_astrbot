@@ -1,346 +1,181 @@
-# 纵横四海 - 项目大纲 v3.0
+# 纵横四海 - 项目大纲 (Project Outline)
 
-## 一、项目概述
-
-- **名称**：纵横四海（zhsh-game）
-- **类型**：航海RPG / H5文字冒险游戏（重制版）
-- **架构**：Node.js后端 + Vue3前端 SPA + WebSocket实时通信
-- **工作目录**：`/home/ubuntu/work/zhsh-game_astrbot`
-- **分支**：`future`
-- **端口**：HTTP 3000，WebSocket 8282
-- **核心玩法**：大航海时代背景，玩家扮演航海冒险者，完成任务、出海航行、贸易战斗、收集装备宠物
+> v4.0 | 2026-05-18 | 分支: future
 
 ---
 
-## 二、目录结构
+## 1. 项目概述
+
+- **名称**: 纵横四海 (zhsh-game)
+- **类型**: 航海RPG + 社交竞技
+- **技术栈**: Node.js(后端) + Vue3(前端) + MySQL + WebSocket
+- **端口**: 后端 3000, WebSocket 8282, 前端Dev 5173
+- **工作目录**: `/home/ubuntu/work/zhsh-game_astrbot`
+- **分支**: `future` (已push到origin)
+
+---
+
+## 2. 目录结构
 
 ```
-/home/ubuntu/work/zhsh-game_astrbot/
-├── client/                    # Vue3 前端（H5）
-│   ├── src/
-│   │   ├── App.vue                # 根组件（全局挂载 GuideOverlay / BattleOverlay）
-│   │   ├── main.js
-│   │   ├── router/index.js        # 路由定义
-│   │   ├── stores/
-│   │   │   ├── user.js            # 用户状态（Pinia）
-│   │   │   └── game.js            # 游戏状态（Pinia）
-│   │   ├── composables/
-│   │   │   ├── useApi.js          # REST API封装
-│   │   │   ├── useConfirm.js      # 全局确认/提示弹窗
-│   │   │   └── useGameWS.js       # WebSocket连接管理
-│   │   ├── components/
-│   │   │   ├── BattleOverlay.vue  # 战斗遮罩（全局，战斗中显示）
-│   │   │   ├── GuideOverlay.vue   # 新手引导遮罩（全局，guide_step≠99时显示）⚠️待优化
-│   │   │   ├── BottomNav.vue      # 底部导航栏
-│   │   │   ├── ItemCard.vue       # 物品卡片
-│   │   │   ├── QuestCard.vue      # 任务卡片
-│   │   │   └── ...
-│   │   └── views/
-│   │       ├── HomeView.vue       # 首页
-│   │       ├── UserView.vue       # 角色面板
-│   │       ├── BattleView.vue     # 战斗场景
-│   │       ├── MapView.vue        # 地图/航行
-│   │       ├── CityView.vue       # 城市内探索
-│   │       ├── QuestView.vue      # 任务面板（引导未完成时跳/quest-guide）⚠️待优化
-│   │       ├── QuestGuideView.vue # 独立引导页面（待删除）⚠️待优化
-│   │       ├── ShopView.vue       # 商店
-│   │       ├── MarketView.vue     # 集市（玩家间交易）
-│   │       ├── AuctionView.vue    # 拍卖行
-│   │       ├── InventoryView.vue  # 背包
-│   │       ├── EquipView.vue      # 装备强化
-│   │       ├── SkillView.vue      # 技能学习
-│   │       ├── PetView.vue        # 宠物界面
-│   │       ├── DungeonView.vue    # 副本
-│   │       ├── WelfareView.vue    # 福利/开服活动
-│   │       ├── ArenaView.vue      # 竞技场（1v1）
-│   │       ├── GuildView.vue      # 公会
-│   │       └── ...
-│   └── public/
-│       └── icons/                 # 游戏图标
-├── server/                    # Node.js 后端
-│   ├── src/
-│   │   ├── app.js                 # 后端入口（node src/app.js）
-│   │   ├── routes/                # 路由模块
-│   │   │   ├── user.js            # 用户/注册/登录
-│   │   │   ├── quest.js           # 任务系统
-│   │   │   ├── guide.js           # 引导状态机 ⚠️待优化
-│   │   │   ├── battle.js          # 战斗
-│   │   │   ├── ship.js            # 船只
-│   │   │   ├── map.js             # 地图/航行
-│   │   │   ├── city.js            # 城市
-│   │   │   ├── trade.js           # 跑商
-│   │   │   ├── market.js          # 集市
-│   │   │   ├── auction.js         # 拍卖行
-│   │   │   ├── equip.js           # 装备
-│   │   │   ├── skill.js           # 技能
-│   │   │   ├── pet.js             # 宠物
-│   │   │   ├── dungeon.js         # 副本
-│   │   │   ├── welfare.js         # 福利 ⚠️待扩展
-│   │   │   ├── welfare_new.js     # 新版福利（2026-05-16）
-│   │   │   ├── arena.js           # 竞技场
-│   │   │   ├── guild.js           # 公会
-│   │   │   ├── mentor.js          # 师徒
-│   │   │   ├── mail.js            # 邮件系统
-│   │   │   ├── login_reward.js    # 登录奖励
-│   │   │   ├── daily_activity.js  # 每日活跃
-│   │   │   └── card/              # 卡牌系统（部分）
-│   │   ├── middleware/
-│   │   │   └── auth.js
-│   │   └── db/
-│   │       └── index.js           # MySQL连接池
-│   ├── init-db.sql               # 完整建库脚本（11,274行）
-│   └── package.json
-└── package.json               # 顶层工程配置
+zhsh-game_astrbot/
+├── server/               # Node.js/Express 后端
+│   └── src/
+│       ├── app.js        # 入口 (不是index.js)
+│       ├── routes/       # 路由模块
+│       │   ├── auth.js       # 登录/注册/角色
+│       │   ├── user.js       # 用户状态/装备/背包
+│       │   ├── battle.js     # 战斗系统
+│       │   ├── quest.js      # 任务系统
+│       │   ├── map.js        # 地图移动
+│       │   ├── npc.js        # NPC对话
+│       │   ├── dungeon.js    # 副本系统
+│       │   ├── mall.js       # 商城
+│       │   ├── market.js     # 市场
+│       │   ├── bank.js       # 银行
+│       │   ├── casino.js     # 赌场
+│       │   ├── sign.js       # 签到
+│       │   ├── welfare.js    # 福利中心
+│       │   ├── sail.js       # 航海系统
+│       │   ├── arena.js      # 竞技场
+│       │   ├── vip.js        # VIP
+│       │   ├── daily.js      # 每日任务
+│       │   ├── rank.js       # 排行榜
+│       │   ├── codex.js      # 图鉴
+│       │   ├── invite.js     # 邀请系统
+│       │   ├── chat.js       # 聊天
+│       │   ├── cdkey.js      # CDKEY
+│       │   ├── pet.js        # 宠物
+│       │   ├── ship.js       # 船只
+│       │   ├── guild.js      # 公会
+│       │   ├── mentor.js     # 师徒
+│       │   ├── guide.js      # 新手引导
+│       │   └── smith.js      # 铁匠铺
+│       ├── db.js             # MySQL封装 (getOne/getAll/query/update)
+│       └── middleware/auth.js
+├── client/               # Vue3 前端
+│   └── src/
+│       ├── views/            # 30+ 页面
+│       ├── components/       # 通用组件
+│       ├── composables/      # 组合式函数
+│       ├── stores/           # Pinia状态
+│       └── router/           # 路由配置
+├── docs/                 # 设计文档
+│   ├── GAME_DESIGN.md
+│   ├── QUEST_DESIGN.md
+│   └── ITEM_MONSTER_DESIGN.md
+└── sql/
+    └── init-db.sql          # 初始化SQL
 ```
 
 ---
 
-## 三、数据库（MySQL）
+## 3. 货币体系 (已确定)
 
-**库名**：`zhsh_game`
+| 货币 | 字段 | 用途 | 获取途径 |
+|------|------|------|----------|
+| 铜币 | `money` | 基础货币：装备/修船/航海/强化 | 打怪/任务/贸易 |
+| 银币 | `silver` | 高级：技能/藏宝图/副本次数重置 | 每日任务/竞技场/公会战 |
+| 金币 | `gold` | 珍稀：商城珍稀道具/VIP/快速恢复 | 充值/活动 |
 
-### 主要数据表
-
-| 表名 | 用途 |
-|------|------|
-| `user` | 玩家角色（等级/HP/MP/金钱/仓库/快捷栏/师徒） |
-| `user_ship` | 玩家船只（HP/载重/速度/经验） |
-| `quest` | 任务（270条：主线17+支线247+日常6） |
-| `quest_progress` | 任务进度 |
-| `npc` | NPC（17个，含NPC商店） |
-| `map` | 地图（6大海域 + 42城市） |
-| `place` | 地点（城市内场景，如酒馆/城门/码头等） |
-| `monster` | 怪物定义 |
-| `monster_drop` | 怪物掉落表 |
-| `item` | 物品（装备/消耗品/任务道具） |
-| `item_affix` | 装备词缀 |
-| `user_item` | 玩家背包 |
-| `user_equip` | 玩家装备栏 |
-| `skill` | 技能定义 |
-| `user_skill` | 玩家技能 |
-| `pet` | 宠物定义 |
-| `user_pet` | 玩家宠物 |
-| `dungeon` | 副本（牛头山12层/四象圣殿） |
-| `guild` | 公会 |
-| `guild_member` | 公会成员 |
-| `mail` | 邮件 |
-| `market_item` | 集市上架物品 |
-| `auction_item` | 拍卖行物品 |
-| `arena_match` | 竞技场记录 |
-| `welfare` | 福利领取状态 |
-| `guide` | 引导状态（guide_step） |
-| `daily_activity` | 每日活跃数据 |
-| `login_reward` | 登录奖励状态 |
-| `online_reward` | 在线奖励状态 |
-| `mentor` | 师徒关系 |
-
-### init-db.sql 关键数据
-
-- **任务**：270条
-  - 主线17条（id 1-17，Lv1-Lv50，威尼斯→雅典→亚历山大→南特→伦敦→爱丁堡→阿姆斯特丹→汉堡→奥斯陆→威尼斯→卢旺达→亚特兰蒂斯→长安）
-  - 支线247条（id 20-45 + 1000-1231，15个独立支线+29城市×8种任务类型）
-  - 日常6条（id 40-45，各城市日常）
-- **地图**：6片海域（地中海/北海/非洲/东亚/印度洋/新大陆）+ 42座城市
-- **地点**：城市内场景（酒馆/码头/城门/赌场/银行/铁匠铺/旅馆/商店等）
-- **NPC**：17个（含新手引导马可）
-- **怪物**：按海域/城市分布，有等级和掉落
-- **副本**：牛头山12层（Lv30-60），四象圣殿（白虎/玄武/青龙/朱雀4宫×4层，Lv100）
-- **装备**：按品质（白/绿/蓝/紫/橙）+ 词缀系统
-- **技能**：被动+主动，分职业/等级
-- **宠物**：按等级/资质
+> **重要**: `mall.js` 曾用 `gold` 定价，需改为 `money`（铜币购买）
 
 ---
 
-## 四、路由（client/src/router/index.js）
+## 4. 已验证 API 路由 (全部通过)
 
-共36个路由页面，核心页面：
+### 核心战斗
+- `POST /api/auth/login` / `POST /api/auth/register`
+- `GET /api/user/status` / `GET /api/user/inventory` / `GET /api/user/equipment`
+- `POST /api/user/equip` / `POST /api/user/unequip`
+- `POST /api/battle/start` / `POST /api/battle/action`
 
-| 路由 | 视图 | 说明 |
-|------|------|------|
-| `/` | HomeView | 首页 |
-| `/user` | UserView | 角色面板 |
-| `/battle/:monsterId` | BattleView | 战斗场景 |
-| `/map` | MapView | 世界地图/航行 |
-| `/city/:cityId` | CityView | 城市内探索 |
-| `/quest` | QuestView | 任务面板 |
-| `/quest-guide` | QuestGuideView | **待删除** ⚠️ |
-| `/shop/:npcId` | ShopView | NPC商店 |
-| `/market` | MarketView | 集市 |
-| `/auction` | AuctionView | 拍卖行 |
-| `/inventory` | InventoryView | 背包 |
-| `/equip` | EquipView | 装备强化 |
-| `/skill` | SkillView | 技能 |
-| `/pet` | PetView | 宠物 |
-| `/dungeon/:dungeonId` | DungeonView | 副本 |
-| `/welfare` | WelfareView | 福利活动 |
-| `/arena` | ArenaView | 竞技场 |
-| `/guild` | GuildView | 公会 |
+### 任务与探索
+- `GET /api/quest/list` / `POST /api/quest/accept` / `POST /api/quest/claim`
+- `POST /api/map/move?dir=` / `GET /api/map/scene`
+- `POST /api/npc/chat?npc_id=`
+- `GET /api/dungeon/list` / `POST /api/dungeon/:name/enter`
+- `GET /api/dungeon/status` / `POST /api/dungeon/floor/attack` / `POST /api/dungeon/exit`
 
----
+### 航海
+- `GET /api/sail/status` / `POST /api/sail/depart` / `GET /api/sail/ports`
+- `GET /api/sail/ship/list` / `GET /api/ship/status`
 
-## 五、引导系统 ⚠️ 待合并
+### 交易与福利
+- `GET /api/mall` / `POST /api/mall/buy`
+- `GET /api/market/info` / `POST /api/market/buy`
+- `GET /api/bank/info` / `GET /api/sign/status` / `POST /api/sign/in`
+- `GET /api/welfare/status` / `POST /api/welfare/claim-login` / `POST /api/welfare/claim-starter`
 
-**现状**：存在两套引导实现，需要合并
+### 社交竞技
+- `GET /api/arena/status` / `GET /api/arena/opponents` / `POST /api/arena/challenge`
+- `GET /api/daily/status` / `POST /api/daily/claim`
+- `GET /api/rank/level` / `GET /api/rank/power`
+- `GET /api/guild/my` / `GET /api/pet/info`
 
-### 方案：保留 GuideOverlay，去掉 QuestGuideView
-
-| 组件 | 文件 | 状态 |
-|------|------|------|
-| 遮罩引导 | `GuideOverlay.vue` | ✅ 保留 |
-| 独立引导页 | `QuestGuideView.vue` | ❌ 删除 |
-| 引导状态后端 | `routes/guide.js` | ✅ 保留 |
-
-### GuideOverlay 逻辑
-
-- `guide_step` = 0：INTRO 剧情（7步，马可讲述背景）
-- `guide_step` = 1-6：引导步骤（创建角色→进城→接任务→打怪→强化→出海）
-- `guide_step` = 99：引导完成
-- 全局挂载于 `App.vue`，登录后自动弹出
-
-### 待执行合并
-
-1. 删除 `client/src/views/QuestGuideView.vue`
-2. 删除 `/quest-guide` 路由
-3. 修改 `QuestView.vue`：引导未完成时不再跳转，而是触发 GuideOverlay
-4. 调整 `BottomNav.vue`：引导中隐藏部分导航入口
-5. 提交 git
+### 其他
+- `GET /api/codex/list` / `GET /api/invite/status`
+- `GET /api/chat/messages` / `GET /api/cdkey/query/:code`
+- `GET /api/guide/status` / `POST /api/guide/step`
+- `GET /api/smith/items` / `POST /api/smith/enhance`
+- `GET /api/vip/status` / `GET /api/mentor/ranking`
 
 ---
 
-## 六、货币体系
+## 5. 已知 Bug 修复记录
 
-**三元体系**（2026-05-16 确定）：
-
-| 货币 | 字段 | 用途 |
-|------|------|------|
-| 铜币 | `money` | 打怪/任务/贸易获得，基础功能（装备/修船/航海/强化） |
-| 银币 | `silver` | 每日任务/竞技场/公会战获得，高级技能/藏宝图/副本次数重置 |
-| 金币 | `gold` | 充值/活动获得，商城珍稀道具/VIP/快速恢复 |
-
-**当前问题**：`mall.js` 用 `gold` 定价，但玩家 `gold` 均为0，需改为 `money`（铜币购买）。
-
-**可选兑换**：铜币10000→银币1，银币100→金币1
-
----
-
-## 七、战斗系统
-
-- 回合制自动战斗
-- 船只 HP：战损，修船费用
-- 技能：主动技能（战斗中使用）/ 被动技能（永久生效）
-- 装备耐久：战斗后降低，耐久为0时效果消失
-- 装备品级：白/绿/蓝/紫/橙 + 词缀系统
+### 已修复 (commit 3741f15)
+| 文件 | Bug | 修复 |
+|------|-----|------|
+| `battle.js` | 海盗战 `pirate.exp` → undefined | → `pirate.exp_reward` |
+| `InviteView.vue` | `/user/info` 路由不存在 | → `/auth/me` + `me.user.id` |
+| `MapView.vue` | casino bet参数 `bet` → 后端读`amount` | → `amount: amount` |
+| `useGameWS.js` | `globalAlert` 未导入崩溃 | → 导入 `globalAlert` |
+| `HomeView.vue` | 4处原生 `alert()` | → `globalAlert()` |
+| `GuideOverlay.vue` | 原生 `alert()` | → `globalAlert()` |
+| `CdkeyView.vue` | 硬编码 `'QUERY'` 占位符 | → 删除无效调用 |
+| `useApi.js` | 导入未使用的 `useRouter` | → 删除 |
+| `quest.js` | `quest_id ==` 松散比较 | → `===` |
+| `battle.js` | `skill_id ==` 松散比较 | → `===` |
+| `mentor.js` | 5处 `nickname` → user表无此字段 | → `username` (commit 2ec0435) |
 
 ---
 
-## 八、技能系统
+## 6. 启动命令
 
-- 分为主动技能（战斗中施放）和被动技能（永久加成）
-- 按等级解锁
-- 战斗脚本见 `server/src/routes/battle.js`
+```bash
+# 后端
+cd /home/ubuntu/work/zhsh-game_astrbot
+node server/src/app.js > /tmp/server.log 2>&1
 
----
+# 前端dev
+cd /home/ubuntu/work/zhsh-game_astrbot/client
+npm run dev -- --host 0.0.0.0 --port 5173
 
-## 九、装备系统
-
-- **品级**：白/绿/蓝/紫/橙（白→橙，品质递增）
-- **词缀**：`item_affix` 表，随机生成额外属性
-- **耐久度**：`inventory.durability` / `inventory.durability_max`
-- **强化**：`equip.js` 路线
-
----
-
-## 十、宠物系统
-
-- `pet` + `user_pet` 表
-- 宠物等级/资质影响战斗
+# 前端构建
+npm run build
+```
 
 ---
 
-## 十一、副本系统
+## 7. 数据库
 
-| 副本 | 地点 | 层数 | 等级 |
-|------|------|------|------|
-| 牛头山 | place_id=9001 | 12层 | Lv30-60 |
-| 四象圣殿-白虎宫 | place_id=9002 | 4层 | Lv100 |
-| 四象圣殿-玄武宫 | place_id=9002 | 4层 | Lv100 |
-| 四象圣殿-青龙宫 | place_id=9002 | 4层 | Lv100 |
-| 四象圣殿-朱雀宫 | place_id=9002 | 4层 | Lv100 |
+- **MySQL**: 本机, root无密码, 库名 `zhsh_game`
+- **关键表**: user, user_ship, inventory, item, monster, quest, place, npc
+- **注意**: init-db.sql 与实际DB常有字段不一致；每次报错先对比SQL文件，缺字段用 `ALTER TABLE` 补
 
 ---
 
-## 十二、福利系统 ⚠️ 待完善
+## 8. 测试账号
 
-**当前状态**：
-- `welfare.js`：claim-starter 有 debug 代码残留，重复领取返回200而非400
-- `welfare_new.js`：新版福利（2026-05-16）
-- 每日活跃/在线奖励/登录奖励 均已实现
-
-**待做**：`todo_11` - 开服7日/成长指南 welfare.js 扩展
+- `tester1` / `test123456` (ID=26, Lv1, 铜币约19300)
+- 当前所在: 雅典码头 (place_id=1021)
 
 ---
 
-## 十三、社交系统
+## 9. 待完成 / 已知问题
 
-- **公会**：`guild.js` + `guild_member`
-- **师徒**：`mentor.js`（mentor_id/contribution/apprentice_count）
-- **邮件**：`mail.js`
-- **竞技场**：`arena.js`（1v1）
-
----
-
-## 十四、摆摊/交易系统
-
-| 系统 | 路由 | 说明 |
-|------|------|------|
-| 集市 | `market.js` | 玩家间一对一交易 |
-| 拍卖行 | `auction.js` | 竞价拍卖 |
-
----
-
-## 十五、世界地图与城市
-
-### 6片海域
-
-| 海域 | 城市 |
-|------|------|
-| 地中海 | 威尼斯/里斯本/亚历山大/拉古扎/雅典/伊斯坦布尔/突尼斯/阿尔及尔/马塞 |
-| 北海 | 南特/伦敦/爱丁堡/阿姆斯特丹/汉堡/奥斯陆/哥本哈根 |
-| 非洲 | 达喀尔/圣乔治/卢旺达/开普敦/亚特兰蒂斯/莫桑比克/马达加斯加/蒙巴萨 |
-| 东亚 | 马六甲/广州/泉州/杭州/扬州/长安/大阪/京都 |
-| 印度洋 | 亚丁/荷姆兹/锡兰/孟买 |
-| 新大陆 | 新大陆港 |
-
-### 城市内地点类型
-
-酒馆/码头/城门/赌场/银行/铁匠铺/旅馆/商店/医院/码头办公室/交易所
-
----
-
-## 十六、已知问题与待办
-
-| 优先级 | 问题 | 状态 |
-|--------|------|------|
-| 🔴 高 | 引导系统合并（两套并一套） | 待执行 |
-| 🔴 高 | mall.js gold定价 → 改为 money | 待修复 |
-| 🟡 中 | welfare.js debug残留 + 重复领取返回200 | 待修复 |
-| 🟡 中 | `todo_11` 开服7日/成长指南扩展 | 未实现 |
-| 🟢 低 | 负面状态(debuff)系统 | 占位符待完善 |
-
----
-
-## 十七、git 提交记录（近期）
-
-| 提交 | 内容 |
-|------|------|
-| `d375a93` | 批量修复6张表字段缺失、每日活跃触发点、在线奖励Tab、城内建筑交互面板 |
-| `3707ae2` | （早期） |
-
----
-
-## 十八、开发规范
-
-- **风格**：先简洁后繁，先跑通后完善
-- **服务启动**：`node src/app.js`（后台运行 `background=true`）
-- **数据库**：MySQL 本机，root 无密码，库名 `zhsh_game`
-- **建库参考**：`init-db.sql` 与实际 DB 可能有字段不一致，每次报错先对比 SQL 文件
+1. **雅典城只有码头+酒馆且无连接** - 玩家到码头后困住
+2. **game_config 表缺数据** - 导致部分查询间歇性超时
+3. **无负面状态(debuff)系统** - 解毒剂/清醒草等为占位符
+4. **mall.js 定价问题** - 仍使用 gold 定价，需改为 money
