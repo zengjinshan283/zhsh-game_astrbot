@@ -119,14 +119,67 @@ async function buildScene(placeId, userId) {
     city = await db.getOne('SELECT * FROM `map` WHERE `id` = ?', [place.city_id]);
   }
 
-  // 怪物列表
-  const monsters = await db.getAll(
-    'SELECT * FROM `monster` WHERE `place_id` = ? OR `place_id` = 0 ORDER BY `id`',
-    [placeId]
+  // ── 地点内容配置（place_content）优先，否则 fallback 到旧逻辑 ──
+  let monsters = [];
+  let npcs = [];
+
+  const user = await db.getOne('SELECT level FROM `user` WHERE `id` = ?', [userId]);
+  const userLevel = user ? (user.level || 1) : 1;
+
+  const contentRows = await db.getAll(
+    'SELECT * FROM `place_content` WHERE `place_id` = ? AND `enabled` = 1 AND ? BETWEEN `min_level` AND `max_level` ORDER BY `sort_order`',
+    [placeId, userLevel]
   );
 
-  // NPC 列表（含动态对话）
-  const npcs = await db.getAll('SELECT * FROM `npc` WHERE `place_id` = ? ORDER BY `id`', [placeId]);
+  if (contentRows.length > 0) {
+    // 按 type 分组
+    const npcIds = contentRows.filter(r => r.content_type === 'npc').map(r => r.content_id);
+    const monsterIds = contentRows.filter(r => r.content_type === 'monster').map(r => r.content_id);
+    const bossIds = contentRows.filter(r => r.content_type === 'boss').map(r => r.content_id);
+
+    if (npcIds.length > 0) {
+      const rawNpcs = await db.getAll('SELECT * FROM `npc` WHERE `id` IN (' + npcIds.join(',') + ')', []);
+      // 按 sort_order 排序，random 模式下按 weight 筛选
+      const npcRows = contentRows.filter(r => r.content_type === 'npc');
+      npcs = npcRows.map(r => {
+        const n = rawNpcs.find(x => x.id === r.content_id);
+        if (!n) return null;
+        // random 模式：伪随机命中
+        if (r.display_mode === 'random' && Math.random() * 100 > r.weight) return null;
+        return n;
+      }).filter(Boolean);
+    }
+
+    if (monsterIds.length > 0) {
+      const rawMonsters = await db.getAll('SELECT * FROM `monster` WHERE `id` IN (' + monsterIds.join(',') + ')', []);
+      const monsterRows = contentRows.filter(r => r.content_type === 'monster');
+      monsters = monsterRows.map(r => {
+        const m = rawMonsters.find(x => x.id === r.content_id);
+        if (!m) return null;
+        if (r.display_mode === 'random' && Math.random() * 100 > r.weight) return null;
+        return m;
+      }).filter(Boolean);
+    }
+
+    if (bossIds.length > 0) {
+      const rawBosses = await db.getAll('SELECT * FROM `monster` WHERE `id` IN (' + bossIds.join(',') + ')', []);
+      const bossRows = contentRows.filter(r => r.content_type === 'boss');
+      const bosses = bossRows.map(r => {
+        const m = rawBosses.find(x => x.id === r.content_id);
+        if (!m) return null;
+        if (r.display_mode === 'random' && Math.random() * 100 > r.weight) return null;
+        return m;
+      }).filter(Boolean);
+      monsters = monsters.concat(bosses);
+    }
+  } else {
+    // ── Fallback：旧逻辑，按 monster.place_id / npc.place_id ──
+    monsters = await db.getAll(
+      'SELECT * FROM `monster` WHERE `place_id` = ? OR `place_id` = 0 ORDER BY `id`',
+      [placeId]
+    );
+    npcs = await db.getAll('SELECT * FROM `npc` WHERE `place_id` = ? ORDER BY `id`', [placeId]);
+  }
   const npcsPlain = npcs.map(n => Object.assign({}, n));
   // Optimized: batch query all NPC quest stats in one pass (N+1 -> 3 queries)
   if (npcsPlain.length > 0) {

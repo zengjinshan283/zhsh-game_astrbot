@@ -97,7 +97,8 @@
         </template>
       </div>
       <div class="modal-footer">
-        <button class="modal-btn modal-btn-primary" @click="goto(buildingModal.id)">📍 前往</button>
+        <button v-if="buildingModal.type === 1" class="modal-btn modal-btn-primary" @click="goSail" style="background:#2e5a3b;">⛵ 航海</button>
+        <button v-else class="modal-btn modal-btn-primary" @click="goto(buildingModal.id)">📍 前往</button>
         <a href="javascript:void(0)" class="modal-btn modal-btn-close" @click.prevent="closeBuilding">关闭</a>
       </div>
     </div>
@@ -197,6 +198,11 @@ async function goto(placeId) {
     await Api.post('/user/teleport', { place_id: placeId });
     router.push('/map');
   } catch (e) {}
+}
+
+function goSail() {
+  closeBuilding();
+  router.push('/sail');
 }
 
 onMounted(load);
