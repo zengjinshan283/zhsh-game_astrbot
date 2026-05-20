@@ -52,6 +52,10 @@
           <router-link :to="'/citymap/' + scene.city.id" style="display:inline-block;background:rgba(95,74,49,0.25);border:1px solid rgba(201,167,88,0.4);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
 🏛️ 进入城市</router-link>
         </div>
+        <div v-if="scene.place && scene.place.type === 1" style="margin-top:8px;text-align:center;">
+          <router-link to="/sail" style="display:inline-block;background:rgba(46,90,59,0.25);border:1px solid rgba(63,106,74,0.5);color:#5f8a6f;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
+⛵ 航海</router-link>
+        </div>
       </div>
 
       <!-- 怪物 + NPC 并排 -->

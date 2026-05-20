@@ -98,7 +98,7 @@
       </div>
       <div class="modal-footer">
         <template v-if="buildingModal.type === 1">
-          <button class="modal-btn modal-btn-primary" @click="goSail" style="background:#2e5a3b;">⛵ 航海</button>
+          <button class="modal-btn modal-btn-primary" @click="enterDock">📍 进入码头</button>
         </template>
         <template v-else-if="buildingModal.type === 2">
           <!-- 广场：可接任务/看公告 -->
@@ -243,6 +243,15 @@ function goSmith() { closeBuilding(); router.push('/smith'); }
 function goDaily() { closeBuilding(); router.push('/daily'); }
 function goShop() { closeBuilding(); router.push('/mall'); }
 function goMarket() { closeBuilding(); router.push('/market'); }
+function enterDock() {
+  closeBuilding();
+  // 先teleport到码头，再跳转MapView
+  Api.post('/user/teleport', { place_id: buildingModal.value?.id }).then(() => {
+    router.push('/map');
+  }).catch(() => {
+    router.push('/map');
+  });
+}
 
 onMounted(load);
 </script>
