@@ -10,6 +10,19 @@
 <div class="bar-label"><span>✨ EXP</span><span>{{ data.user?.exp }}/{{ data.user?.exp_max }}</span></div>
 <div class="bar-track"><div class="bar-fill" :style="{width:expPct+'%'}"></div></div>
 </div>
+<div class="card" v-if="activeStatuses.length">
+<div class="card-title">💫 当前状态</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;">
+  <div v-for="s in activeStatuses" :key="s.id"
+    :style="s.type===2?'background:rgba(180,60,60,0.12);border:1px solid rgba(220,80,80,0.3);':'background:rgba(60,120,60,0.12);border:1px solid rgba(80,180,80,0.3);'"
+    style="display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:12px;">
+    <span style="font-size:14px;">{{ s.icon }}</span>
+    <div style="display:flex;flex-direction:column;">
+      <span :style="s.type===2?'color:#e07070':'color:#70c070'">{{ s.name }}</span>
+      <span style="font-size:9px;color:#8b784e;">{{ s.type===2?'负面':'增益' }}</span>
+    </div>
+  </div>
+</div>
 </div>
 <div class="card">
 <div class="card-title">📊 属性</div>
@@ -77,7 +90,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Api } from '../composables/useApi';
-const data=ref({user:{},stats:{},equips:[],battleCount:0,winCount:0,pet:null,invCount:0,shortcuts:[],consumables:[],place:{}});
+const data=ref({user:{},stats:{},equips:[],battleCount:0,winCount:0,pet:null,invCount:0,shortcuts:[],consumables:[],place:{},statuses:[]});
+const activeStatuses=computed(()=>(data.value.statuses||[]).filter(s=>s.type===2));
 const shortcuts=ref([]);const consumables=ref([]);const showPicker=ref(false);const pickerSlot=ref(1);
 const hpPct=computed(()=>data.value.user?.hp_max>0?Math.round(data.value.user.hp/data.value.user.hp_max*100):0);
 const expPct=computed(()=>data.value.user?.exp_max>0?Math.round(data.value.user.exp/data.value.user.exp_max*100):0);

@@ -167,6 +167,21 @@ router.post('/use', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: '该物品需要在战斗中使用', battle_item: true });
     }
 
+    // Debuff-clearing consumables (cure debuffs via item.effect_key)
+    if (inv.effect_key && inv.effect_key.startsWith('cure_')) {
+      const debuffId = inv.effect_key.replace('cure_', '');
+      const statuses = await statusUtil.getUserStatuses(req.user.id);
+      const before = statuses.length;
+      // Remove matching debuff(s)
+      const cleared = statuses.filter(s => s.id !== debuffId);
+      if (cleared.length === before) {
+        return res.status(400).json({ error: `当前没有${inv.name}可解除的状态` });
+      }
+      await consumeOne(inventory_id, inv, req.user.id);
+      await statusUtil.saveUserStatuses(req.user.id, cleared);
+      return res.json({ success: true, msg: `${inv.name}解除了 ${cleared.length > 0 ? debuffId : '异常'}状态！`, cleared: debuffId });
+    }
+
     // Regular consumables (HP healing, stamina, ship repair)
     let healAmount = 0;
     let msg = '';
