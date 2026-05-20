@@ -10,6 +10,7 @@
 <div class="bar-label"><span>✨ EXP</span><span>{{ data.user?.exp }}/{{ data.user?.exp_max }}</span></div>
 <div class="bar-track"><div class="bar-fill" :style="{width:expPct+'%'}"></div></div>
 </div>
+</div>
 <div class="card" v-if="activeStatuses.length">
 <div class="card-title">💫 当前状态</div>
 <div style="display:flex;flex-wrap:wrap;gap:6px;">
