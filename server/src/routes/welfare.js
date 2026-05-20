@@ -94,6 +94,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
 
     res.json({
       starterClaimed,
+      starter_claimed: starterClaimed, // 兼容前端snake_case
       loginDay,
       nextLoginKey,
       nextLoginClaimed,
@@ -101,6 +102,27 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       milestones,
       guide_step: user.guide_step
     });
+  } catch (err) { next(err); }
+});
+
+// 领取注册礼包（实际注册时已发放，幂等处理：已领取也返回成功）
+router.post('/claim-starter', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const user = await db.getOne('SELECT claimed_rewards FROM `user` WHERE `id` = ?', [uid]);
+
+    let claimed = [];
+    try { claimed = JSON.parse(user.claimed_rewards || '[]'); } catch (_) { claimed = []; }
+
+    if (claimed.includes('starter')) {
+      // 幂等：已领取返回成功，不报错
+      return res.json({ success: true, msg: '注册礼包已领取' });
+    }
+
+    await db.query('UPDATE `user` SET money = money + 5000, claimed_rewards = ? WHERE `id` = ?',
+      [JSON.stringify([...claimed, 'starter']), uid]);
+
+    res.json({ success: true, msg: '🎁 注册礼包：铜币+5000（物品已在注册时发放）' });
   } catch (err) { next(err); }
 });
 

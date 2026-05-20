@@ -3,7 +3,9 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const router = express.Router();
 
-function getSailMinutes(speed){return {1:10,2:6,3:3,5:1}[speed]||10;}
+function getSailMinutes(speed){return {1:3,2:2,3:1,5:0}[speed]||3;}
+// speed 5 = 0.5分钟（测试用极速），JS里0*60=0会导致除零，改用0.5
+function getSailDurationSec(speed){const m=getSailMinutes(speed);return (m===0?0.5:m)*60;}
 
 router.get('/status', authMiddleware, async (req, res, next) => {
   try {
@@ -45,7 +47,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     let isSailing = false, sailProgress = 0, sailRemain = 0, sailFromCity = '', sailToCity = '';
 
     if (user.sail_time > 0 && ship) {
-      const duration = getSailMinutes(ship.speed) * 60;
+      const duration = getSailDurationSec(ship.speed);
       const nowTs = Math.floor(Date.now()/1000);
       const elapsed = nowTs - user.sail_time;
 

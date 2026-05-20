@@ -39,7 +39,7 @@
 <button class="btn btn-primary btn-block" @click="depart" :disabled="!targetCityId">⛵ 出航！</button>
 <div v-if="!reachableCities.length" class="empty-state">没有可到达的城市</div>
 </div>
-<div class="card" style="border-color:#c9a758;">
+<div class="card" style="border-color:#c9a758;max-height:320px;overflow-y:auto;">
 <div class="card-title" style="color:#c9a758;">🏪 船只商店</div>
 <div v-for="s in allShips" :key="s.id" style="padding:8px 0;border-bottom:1px solid rgba(169,119,78,0.05);">
 <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -112,7 +112,7 @@ function stopPolling() {
 function syncPolling() {
   stopPolling();
   if (isSailing.value) {
-    pollTimer = setInterval(() => { load(false); }, 5000);
+    pollTimer = setInterval(() => { load(false); }, 2000);
   }
 }
 
@@ -184,6 +184,13 @@ async function load(resetTarget = true) {
 }
 
 async function buyShip(id) {
+  const s = allShips.value.find(x => x.id === id);
+  if (!s) return;
+  if (!ownedShips.value.includes(id) && money.value < s.price) {
+    msg.value = `铜币不足，需要 ${s.price} 铜币，你只有 ${money.value} 铜币`;
+    msgType.value = 'error';
+    return;
+  }
   try {
     const d = await Api.post('/sail/buy-ship', { ship_id: id });
     msg.value = d.msg || (d.switched ? '切换成功' : '购买成功');

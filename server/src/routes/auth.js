@@ -69,11 +69,11 @@ router.post('/register', async (req, res, next) => {
       accepted_at: now
     });
 
-    // 发放注册礼包（铁剑×1 + 小HP药×3 + 港口地图×1，铜币已在money中）
+    // 发放注册礼包（铁剑×1 + 钢铁护甲×1 + 小HP药×5，铜币已在money中）
     const starterPack = [
-      { id: 2,  qty: 1 },  // 铁剑
-      { id: 1,  qty: 3 },  // 小回复药
-      { id: 115, qty: 1 }  // 港口地图
+      { id: 2,   qty: 1 },  // 铁剑
+      { id: 301, qty: 1 },  // 钢铁护甲
+      { id: 1,   qty: 5 },  // 小回复药
     ];
     for (const item of starterPack) {
       const existing = await db.getOne(

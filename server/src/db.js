@@ -9,15 +9,15 @@ const pool = mysql.createPool(config.db);
 // 快捷方法
 const db = {
   async getOne(sql, params = []) {
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await pool.query(sql, params);
     return rows[0] || null;
   },
   async getAll(sql, params = []) {
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await pool.query(sql, params);
     return rows;
   },
   async getVar(sql, params = []) {
-    const [rows] = await pool.execute(sql, params);
+    const [rows] = await pool.query(sql, params);
     const row = rows[0];
     if (!row) return null;
     return Object.values(row)[0];

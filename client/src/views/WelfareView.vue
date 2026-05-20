@@ -176,6 +176,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { globalAlert } from '../composables/useConfirm';
 
 const loading = ref(true);
 const claiming = ref(false);
@@ -254,10 +255,10 @@ async function claimStarter() {
   claiming.value = true;
   try {
     const d = await Api.post('/welfare/claim-starter');
-    alert(d.msg);
+    await globalAlert(d.msg);
     await loadWelfare();
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   } finally {
     claiming.value = false;
   }
@@ -267,10 +268,10 @@ async function claimLogin() {
   claiming.value = true;
   try {
     const d = await Api.post('/welfare/claim-login');
-    alert(d.msg);
+    await globalAlert(d.msg);
     await loadWelfare();
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   } finally {
     claiming.value = false;
   }
@@ -280,10 +281,10 @@ async function claimMilestone(id) {
   claiming.value = true;
   try {
     const d = await Api.post('/welfare/claim-milestone', { milestone_id: id });
-    alert(d.msg);
+    await globalAlert(d.msg);
     await loadWelfare();
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   } finally {
     claiming.value = false;
   }
@@ -293,10 +294,10 @@ async function claimOnline() {
   claiming.value = true;
   try {
     const d = await Api.post('/welfare/claim-online');
-    alert(d.msg);
+    await globalAlert(d.msg);
     await loadOnline();
   } catch (e) {
-    alert(e.message);
+    await globalAlert(e.message);
   } finally {
     claiming.value = false;
   }

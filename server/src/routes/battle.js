@@ -498,9 +498,23 @@ async function monsterRetaliate(user, battle) {
 }
 
 async function handleMonsterKill(user, battle) {
-  const expGain = battle.monster_exp;
-  const moneyGain = randInt(battle.monster_money_min, battle.monster_money_max);
+  // 应用状态效果倍率（经验/金币/掉落）
+  const fx = battle.statusEffects || {};
+  const expMult = fx.expMult || 1.0;
+  const moneyMult = fx.moneyMult || 1.0;
+  const dropMult = fx.dropMult || 1.0;
+
+  const rawExp = battle.monster_exp;
+  const expGain = Math.floor(rawExp * expMult);
+  const rawMoneyMin = Math.floor(battle.monster_money_min * moneyMult);
+  const rawMoneyMax = Math.floor(battle.monster_money_max * moneyMult);
+  const moneyGain = randInt(rawMoneyMin, rawMoneyMax);
+
   battle.log.push({ type: 'info', text: `${battle.monster_name}被击败了！` });
+  const bonusParts = [];
+  if (expMult > 1.0) bonusParts.push(`经验×${expMult}`);
+  if (moneyMult > 1.0) bonusParts.push(`金币×${moneyMult}`);
+  if (bonusParts.length > 0) battle.log.push({ type: 'buff', text: `🎁 ${bonusParts.join(' ')}加成！` });
   battle.log.push({ type: 'info', text: `获得经验 +${expGain}，铜币 +${moneyGain}` });
 
   // Pet satiety deduction on kill round
@@ -600,10 +614,11 @@ async function handleMonsterKill(user, battle) {
     }
   }
 
-  // Handle item drops with quality roll
-  const drops = await db.getAll('SELECT md.item_id, md.quantity_min, md.quantity_max FROM `monster_drop` md WHERE md.monster_id = ?', [battle.monster_id]);
+  // Handle item drops with quality roll (apply dropMult from status effects)
+  const drops = await db.getAll('SELECT md.item_id, md.quantity_min, md.quantity_max, md.drop_rate FROM `monster_drop` md WHERE md.monster_id = ?', [battle.monster_id]);
   for (const drop of drops) {
-    if (randInt(1, 10000) <= drop.drop_rate) {
+    const effectiveRate = Math.floor(drop.drop_rate * (fx.dropMult || 1.0));
+    if (randInt(1, 10000) <= effectiveRate) {
       const qty = randInt(drop.quantity_min, drop.quantity_max);
       // Roll quality: white 60%, green 25%, blue 10%, purple 4%, orange 1%
       const roll = randInt(1, 100);

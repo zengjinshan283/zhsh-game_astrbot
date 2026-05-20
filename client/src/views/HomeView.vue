@@ -6,7 +6,45 @@
       <p class="subtitle">大航海时代的冒险</p>
       <p class="version">v2.0.0</p>
     </div>
-    <StatusBar :user="userStore.user" />
+    <!-- 状态概览条 -->
+    <div class="status-strip">
+      <div class="strip-item">
+        <div class="strip-label">❤️ HP</div>
+        <div class="strip-track"><div class="strip-fill" :style="{width: hpPct+'%'}"></div></div>
+        <div class="strip-value">{{ userStore.user?.hp }}/{{ userStore.user?.hp_max }}</div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">✨ EXP</div>
+        <div class="strip-track"><div class="strip-fill strip-exp" :style="{width: expPct+'%'}"></div></div>
+        <div class="strip-value">{{ userStore.user?.exp }}/{{ userStore.user?.exp_max }}</div>
+      </div>
+      <div class="strip-item strip-money">
+        <div class="strip-label">💰 铜币</div>
+        <div class="strip-value text-gold">{{ formatMoney(userStore.user?.money) }}</div>
+      </div>
+    </div>
+
+    <!-- 快捷入口 -->
+    <div class="quick-grid">
+      <router-link to="/equipment" class="quick-btn">
+        <span class="quick-icon">⚔️</span><span class="quick-label">装备</span>
+      </router-link>
+      <router-link to="/inventory" class="quick-btn">
+        <span class="quick-icon">🎒</span><span class="quick-label">背包</span>
+      </router-link>
+      <router-link to="/quest" class="quick-btn">
+        <span class="quick-icon">📋</span><span class="quick-label">任务</span>
+      </router-link>
+      <router-link to="/map" class="quick-btn" @click.prevent="navigateToSailing">
+        <span class="quick-icon">⛵</span><span class="quick-label">航海</span>
+      </router-link>
+      <router-link to="/welfare" class="quick-btn">
+        <span class="quick-icon">🎁</span><span class="quick-label">福利</span>
+      </router-link>
+      <router-link to="/daily" class="quick-btn">
+        <span class="quick-icon">📅</span><span class="quick-label">每日</span>
+      </router-link>
+    </div>
 
     <!-- 在线奖励 -->
     <div class="card" style="margin-top:12px;" v-if="onlineReward">
@@ -109,10 +147,27 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
 import { globalAlert } from '../composables/useConfirm';
-import StatusBar from '../components/StatusBar.vue';
 
 const userStore = useUserStore();
 const router = useRouter();
+
+const hpPct = computed(() => {
+  const u = userStore.user;
+  return u?.hp_max > 0 ? Math.round(u.hp / u.hp_max * 100) : 0;
+});
+const expPct = computed(() => {
+  const u = userStore.user;
+  return u?.exp_max > 0 ? Math.round(u.exp / u.exp_max * 100) : 0;
+});
+function formatMoney(n) {
+  if (!n) return '0';
+  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+  return n.toLocaleString();
+}
+async function navigateToSailing() {
+  router.push('/map');
+}
 const signLoading = ref(true);
 const signStatus = ref({ signed: false, consecutive_days: 0 });
 const rewards = ref([]);
@@ -190,3 +245,80 @@ async function doSign() {
 
 function logout() { userStore.logout(); router.push('/'); }
 </script>
+<style scoped>
+/* 状态概览条 */
+.status-strip {
+  display: flex;
+  gap: 8px;
+  margin: 10px 12px;
+  padding: 10px 12px;
+  background: rgba(26, 26, 46, 0.9);
+  border-radius: 10px;
+  border: 1px solid rgba(169, 119, 78, 0.25);
+}
+.strip-item {
+  flex: 1;
+  min-width: 0;
+}
+.strip-money {
+  flex: 0 0 auto;
+  text-align: center;
+}
+.strip-label {
+  font-size: 10px;
+  color: #8b784e;
+  margin-bottom: 3px;
+}
+.strip-track {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.strip-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c0392b, #e74c3c);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.strip-fill.strip-exp {
+  background: linear-gradient(90deg, #1a7a3a, #27ae60);
+}
+.strip-value {
+  font-size: 11px;
+  color: #f7efdb;
+  white-space: nowrap;
+}
+
+/* 快捷入口 */
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 10px 12px;
+}
+.quick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 6px;
+  background: rgba(26, 26, 46, 0.85);
+  border: 1px solid rgba(169, 119, 78, 0.3);
+  border-radius: 10px;
+  text-decoration: none;
+  color: #f7efdb;
+  transition: background 0.2s, border-color 0.2s;
+}
+.quick-btn:active {
+  background: rgba(169, 119, 78, 0.15);
+}
+.quick-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+.quick-label {
+  font-size: 12px;
+  color: #cfc19e;
+}
+</style>

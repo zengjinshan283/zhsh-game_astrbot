@@ -48,6 +48,10 @@
           <router-link to="/market" style="display:inline-block;background:rgba(169,119,78,0.15);border:1px solid rgba(169,119,78,0.3);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
 🏪 进入市场交易</router-link>
         </div>
+        <div v-if="scene.city && scene.city.type === 1" style="margin-top:8px;text-align:center;">
+          <router-link :to="'/citymap/' + scene.city.id" style="display:inline-block;background:rgba(95,74,49,0.25);border:1px solid rgba(201,167,88,0.4);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
+🏛️ 进入城市</router-link>
+        </div>
       </div>
 
       <!-- 怪物 + NPC 并排 -->

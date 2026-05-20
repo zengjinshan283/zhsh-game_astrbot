@@ -37,12 +37,14 @@ router.post('/generate', adminAuth, async (req, res, next) => {
     const endTime = now + (days_valid || 365) * 86400;
     const codes = [];
     for (let i = 0; i < (count || 10); i++) {
-      codes.push([genCode(prefix || 'KEY', 8), type, reward_type, reward_desc, 0, max_count || 1, 0, endTime, now]);
+      codes.push({ code: genCode(prefix || 'KEY', 8), type, reward_type, reward_desc, used_count: 0, max_count: max_count || 1, start_time: 0, end_time: endTime, created_at: now });
     }
-    for (const c of codes) {
-      await db.insert('cdkey', { code: c[0], type: c[1], reward_type: c[2], reward_desc: c[3], used_count: 0, max_count: c[5], start_time: 0, end_time: c[7], created_at: c[8] });
-    }
-    res.json({ success: true, count: codes.length, codes: codes.map(c => c[0]) });
+    // 批量插入
+    const fields = ['code', 'type', 'reward_type', 'reward_desc', 'used_count', 'max_count', 'start_time', 'end_time', 'created_at'];
+    const placeholders = codes.map(() => `(${fields.map(() => '?').join(', ')})`).join(', ');
+    const values = codes.flatMap(c => fields.map(f => c[f]));
+    await db.query(`INSERT INTO cdkey (${fields.join(', ')}) VALUES ${placeholders}`, values);
+    res.json({ success: true, count: codes.length, codes: codes.map(c => c.code) });
   } catch (err) { next(err); }
 });
 

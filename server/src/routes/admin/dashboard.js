@@ -126,21 +126,27 @@ router.get('/recent-logs', async (req, res) => {
 // 最近7天玩家增长趋势
 router.get('/playerTrend', async (req, res) => {
   try {
-    const days = [];
+    const now = new Date();
+    const result = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date();
+      const d = new Date(now);
       d.setDate(d.getDate() - i);
       d.setHours(0, 0, 0, 0);
       const start = Math.floor(d.getTime() / 1000);
       d.setHours(23, 59, 59, 999);
       const end = Math.floor(d.getTime() / 1000);
-      const label = `${d.getMonth() + 1}/${d.getDate()}`;
-      const count = await db.getVar(
-        'SELECT COUNT(*) FROM user WHERE regdate >= ? AND regdate <= ?',
-        [start, end]
-      );
-      days.push({ date: label, count: count || 0 });
+      result.push({ start, end, label: `${d.getMonth() + 1}/${d.getDate()}` });
     }
+    // 一次查完，不逐日循环
+    const placeholders = result.map(() => '(? <= regdate AND regdate <= ?)').join(' OR ');
+    const flat = result.flatMap(r => [r.start, r.end]);
+    const rows = await db.getAll(
+      `SELECT regdate, COUNT(*) as cnt FROM user WHERE ${placeholders} GROUP BY regdate`,
+      flat
+    );
+    const map = {};
+    for (const r of rows) map[r.regdate] = parseInt(r.cnt);
+    const days = result.map(r => ({ date: r.label, count: map[r.start] || 0 }));
     res.json({ code: 0, data: days, message: 'success' });
   } catch (err) {
     res.status(500).json({ code: 500, message: err.message });

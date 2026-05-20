@@ -158,8 +158,10 @@ function buildingHint(t) {
 
 function placeIcon(t) {
   if (t === 1) return '⚓';
-  if (t === 2) return '⛩️';
+  if (t === 2) return '🏛️';
   if (t === 3) return '🛃';
+  if (t === 4) return '🍺';
+  if (t === 5) return '🏪';
   return '🏠';
 }
 
