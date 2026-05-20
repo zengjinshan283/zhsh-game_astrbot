@@ -97,8 +97,38 @@
         </template>
       </div>
       <div class="modal-footer">
-        <button v-if="buildingModal.type === 1" class="modal-btn modal-btn-primary" @click="goSail" style="background:#2e5a3b;">⛵ 航海</button>
-        <button v-else class="modal-btn modal-btn-primary" @click="goto(buildingModal.id)">📍 前往</button>
+        <template v-if="buildingModal.type === 1">
+          <button class="modal-btn modal-btn-primary" @click="goSail" style="background:#2e5a3b;">⛵ 航海</button>
+        </template>
+        <template v-else-if="buildingModal.type === 2">
+          <!-- 广场：可接任务/看公告 -->
+          <button class="modal-btn modal-btn-primary" @click="goQuests">📜 任务</button>
+          <button class="modal-btn modal-btn-secondary" @click="goRank">🏆 排行</button>
+        </template>
+        <template v-else-if="buildingModal.type === 3">
+          <template v-if="buildingModal.name.includes('银行')">
+            <button class="modal-btn modal-btn-primary" @click="goBank">💰 银行</button>
+          </template>
+          <template v-else-if="buildingModal.name.includes('铁匠')">
+            <button class="modal-btn modal-btn-primary" @click="goSmith">⚒️ 强化</button>
+          </template>
+          <template v-else>
+            <button class="modal-btn modal-btn-primary" @click="goto(buildingModal.id)">📍 前往</button>
+          </template>
+        </template>
+        <template v-else-if="buildingModal.type === 4">
+          <!-- 酒馆：任务/酒馆小游戏 -->
+          <button class="modal-btn modal-btn-primary" @click="goQuests">📜 任务</button>
+          <button class="modal-btn modal-btn-secondary" @click="goDaily">📋 日常</button>
+        </template>
+        <template v-else-if="buildingModal.type === 5">
+          <!-- 商店 -->
+          <button class="modal-btn modal-btn-primary" @click="goShop">🛒 商城</button>
+          <button class="modal-btn modal-btn-secondary" @click="goMarket">🏪 市场</button>
+        </template>
+        <template v-else>
+          <button class="modal-btn modal-btn-primary" @click="goto(buildingModal.id)">📍 前往</button>
+        </template>
         <a href="javascript:void(0)" class="modal-btn modal-btn-close" @click.prevent="closeBuilding">关闭</a>
       </div>
     </div>
@@ -206,6 +236,13 @@ function goSail() {
   closeBuilding();
   router.push('/sail');
 }
+function goQuests() { closeBuilding(); router.push('/quest'); }
+function goRank() { closeBuilding(); router.push('/rank'); }
+function goBank() { closeBuilding(); router.push('/bank'); }
+function goSmith() { closeBuilding(); router.push('/smith'); }
+function goDaily() { closeBuilding(); router.push('/daily'); }
+function goShop() { closeBuilding(); router.push('/mall'); }
+function goMarket() { closeBuilding(); router.push('/market'); }
 
 onMounted(load);
 </script>
