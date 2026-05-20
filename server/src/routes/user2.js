@@ -11,12 +11,32 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     const place = await db.getOne("SELECT name FROM `place` WHERE `id` = ?", [user.place_id]);
     // Effective stats
     const equips = await db.getAll("SELECT i.*, inv.enhance_level FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1", [uid]);
-    let bonusAtk = 0, bonusDef = 0;
+    let bonusAtk = 0, bonusDef = 0, bonusHp = 0;
+    // Enhancement bonus
     equips.forEach(eq => {
       const mult = 1 + (eq.enhance_level||0) * 0.03;
       bonusAtk += Math.round((eq.atk||0) * mult);
       bonusDef += Math.round((eq.def_val||0) * mult);
     });
+    // Set bonus: group by set_name
+    const setGroups = {};
+    equips.forEach(eq => {
+      if (eq.set_name) {
+        setGroups[eq.set_name] = (setGroups[eq.set_name] || 0) + 1;
+      }
+    });
+    for (const [setName, count] of Object.entries(setGroups)) {
+      if (count < 2) continue;
+      const setRows = await db.getAll(
+        "SELECT * FROM `item_set` WHERE `set_name` = ? AND `piece_count` <= ? ORDER BY `piece_count` DESC",
+        [setName, count]);
+      if (setRows.length > 0) {
+        const best = setRows[0];
+        bonusAtk += best.bonus_atk || 0;
+        bonusDef += best.bonus_def || 0;
+        bonusHp += best.bonus_hp || 0;
+      }
+    }
     // Battle stats
     const battleCount = await db.getVar("SELECT COUNT(*) FROM `battle_log` WHERE `user_id` = ?", [uid]);
     const winCount = await db.getVar("SELECT COUNT(*) FROM `battle_log` WHERE `user_id` = ? AND `result` = 1", [uid]);
@@ -40,7 +60,17 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     }
     // Consumables for shortcut picker
     const consumables = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, i.name, i.hp AS item_hp FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 0 AND i.type = 1 AND i.subtype IN ('consumable', 'navigation', 'buff', 'battle_item') ORDER BY i.hp", [uid]);
-    res.json({ user, place, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, bonusAtk, bonusDef }, equips, battleCount, winCount, pet, invCount, shortcuts, consumables });
+    // Active sets info
+    const activeSets = [];
+    for (const [setName, count] of Object.entries(setGroups)) {
+      if (count >= 2) {
+        const setRows = await db.getAll(
+          "SELECT * FROM `item_set` WHERE `set_name` = ? AND `piece_count` <= ? ORDER BY `piece_count` DESC",
+          [setName, count]);
+        if (setRows.length > 0) activeSets.push({ name: setName, count, bonus: setRows[0] });
+      }
+    }
+    res.json({ user, place, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, hp_max: user.hp_max, bonusAtk, bonusDef, bonusHp }, equips, activeSets, battleCount, winCount, pet, invCount, shortcuts, consumables });
   } catch(e){next(e);}
 });
 
@@ -76,13 +106,29 @@ router.get('/equipment', authMiddleware, async (req, res, next) => {
   try {
     const equipped = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, inv.enhance_level, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 ORDER BY i.subtype, i.id", [req.user.id]);
     const user = await db.getOne('SELECT atk_min, atk_max, def FROM `user` WHERE `id` = ?', [req.user.id]);
-    let totalBonusAtk = 0, totalBonusDef = 0;
+    let totalBonusAtk = 0, totalBonusDef = 0, totalBonusHp = 0;
+    const setGroups = {};
     equipped.forEach(eq => {
       const mult = 1 + (eq.enhance_level||0) * 0.03;
       totalBonusAtk += Math.round((eq.atk||0) * mult);
       totalBonusDef += Math.round((eq.def_val||0) * mult);
+      if (eq.set_name) setGroups[eq.set_name] = (setGroups[eq.set_name]||0) + 1;
     });
-    res.json({ equipped, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, bonusAtk: totalBonusAtk, bonusDef: totalBonusDef } });
+    const activeSets = [];
+    for (const [setName, count] of Object.entries(setGroups)) {
+      if (count < 2) continue;
+      const setRows = await db.getAll(
+        "SELECT * FROM `item_set` WHERE `set_name` = ? AND `piece_count` <= ? ORDER BY `piece_count` DESC",
+        [setName, count]);
+      if (setRows.length > 0) {
+        const best = setRows[0];
+        totalBonusAtk += best.bonus_atk || 0;
+        totalBonusDef += best.bonus_def || 0;
+        totalBonusHp += best.bonus_hp || 0;
+        activeSets.push({ name: setName, count, bonus: best });
+      }
+    }
+    res.json({ equipped, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp }, activeSets });
   } catch(e){next(e);}
 });
 

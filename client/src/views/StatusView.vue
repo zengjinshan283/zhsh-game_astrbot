@@ -29,6 +29,7 @@
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:12px;">
 <span style="color:#cfc19e;">⚔️ 攻击力</span><span style="text-align:right;">{{ data.stats?.atk_min }}-{{ data.stats?.atk_max }} <span v-if="data.stats?.bonusAtk>0" style="color:#2e5a3b;font-size:10px;">(+{{ data.stats.bonusAtk }})</span></span>
 <span style="color:#cfc19e;">🛡️ 防御力</span><span style="text-align:right;">{{ data.stats?.def }} <span v-if="data.stats?.bonusDef>0" style="color:#2e5a3b;font-size:10px;">(+{{ data.stats.bonusDef }})</span></span>
+<span style="color:#cfc19e;">❤️ 生命</span><span style="text-align:right;">{{ data.stats?.hp_max }} <span v-if="data.stats?.bonusHp>0" style="color:#2e5a3b;font-size:10px;">(+{{ data.stats.bonusHp }})</span></span>
 <span style="color:#cfc19e;">💨 敏捷</span><span style="text-align:right;">{{ data.user?.agility }}</span>
 <span style="color:#cfc19e;">🚚 铜币</span><span style="text-align:right;" class="text-gold">{{ formatMoney(data.user?.money) }}</span>
 <span style="color:#cfc19e;">🏦 存款</span><span style="text-align:right;color:#2e5a3b;">{{ formatMoney(data.user?.bank_money) }}</span>
@@ -38,8 +39,11 @@
 <div v-if="data.equips?.length" class="card">
 <div class="card-title">⚔️ 已装备</div>
 <div v-for="eq in data.equips" :key="eq.inv_id" class="compact-row">
-<span class="item-name">{{ eq.name }}<span v-if="eq.enhance_level>0" style="color:#c9a758;">+{{ eq.enhance_level }}</span></span>
+<span class="item-name">{{ eq.name }}<span v-if="eq.enhance_level>0" style="color:#c9a758;">+{{ eq.enhance_level }}</span><span v-if="eq.set_name" style="color:#8b6914;font-size:10px;margin-left:4px;">[{{ eq.set_name }}]</span></span>
 <span class="text-green" style="font-size:11px;">{{ eq.atk>0?'攻+'+Math.round(eq.atk*(1+eq.enhance_level*0.03)):'' }}{{ eq.def_val>0?' 防+'+Math.round(eq.def_val*(1+eq.enhance_level*0.03)):'' }}</span>
+</div>
+<div v-if="data.activeSets?.length" style="margin-top:6px;padding:4px 8px;background:rgba(139,105,20,0.12);border-radius:6px;font-size:11px;">
+  <span v-for="s in data.activeSets" :key="s.name" style="display:block;color:#c9a758;">✨ {{ s.name }} {{ s.count }}件 → {{ s.bonus.description }}</span>
 </div>
 </div>
 <div class="card">

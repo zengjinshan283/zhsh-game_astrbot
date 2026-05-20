@@ -6,12 +6,16 @@
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:12px;">
 <span style="color:#cfc19e;">⚔️ 攻击力</span><span style="text-align:right;">{{ stats.atk_min }}-{{ stats.atk_max }} <span v-if="stats.bonusAtk>0" style="color:#2e5a3b;font-size:10px;">(+{{ stats.bonusAtk }})</span></span>
 <span style="color:#cfc19e;">🛡️ 防御力</span><span style="text-align:right;">{{ stats.def }} <span v-if="stats.bonusDef>0" style="color:#2e5a3b;font-size:10px;">(+{{ stats.bonusDef }})</span></span>
+<span style="color:#cfc19e;">❤️ 生命</span><span style="text-align:right;">{{ stats.hp_max||0 }} <span v-if="stats.bonusHp>0" style="color:#2e5a3b;font-size:10px;">(+{{ stats.bonusHp }})</span></span>
 </div>
+</div>
+<div v-if="activeSets.length" style="margin:6px 0;padding:4px 8px;background:rgba(139,105,20,0.12);border-radius:6px;font-size:11px;">
+  <span v-for="s in activeSets" :key="s.name" style="display:block;color:#c9a758;">✨ {{ s.name }} {{ s.count }}件 → {{ s.bonus.description }}</span>
 </div>
 <div v-if="!equipped.length" class="card"><div class="empty-state">没有装备任何物品</div></div>
 <div v-for="eq in equipped" :key="eq.inv_id" class="card" style="padding:4px 8px;">
 <div style="display:flex;justify-content:space-between;align-items:center;">
-<span class="item-name">{{ eq.subtype==='weapon'?'🗡️':'🛡️' }} {{ eq.name }}<span v-if="eq.enhance_level>0" style="color:#c9a758;font-weight:bold;">+{{ eq.enhance_level }}</span></span>
+<span class="item-name">{{ eq.subtype==='weapon'?'🗡️':'🛡️' }} {{ eq.name }}<span v-if="eq.enhance_level>0" style="color:#c9a758;font-weight:bold;">+{{ eq.enhance_level }}</span><span v-if="eq.set_name" style="color:#8b6914;font-size:10px;margin-left:4px;">[{{ eq.set_name }}]</span></span>
 <a href="javascript:void(0)" class="btn btn-danger btn-small" @click="unequip(eq.inv_id)" style="font-size:10px;">卸下</a>
 </div>
 <div class="item-desc" style="margin-top:2px;">
@@ -31,8 +35,8 @@ import { ref, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
 const userStore=useUserStore();
-const equipped=ref([]);const stats=ref({atk_min:0,atk_max:0,def:0,bonusAtk:0,bonusDef:0});
-async function load(){try{const d=await Api.get('/user/equipment');equipped.value=d.equipped||[];stats.value=d.stats||{};}catch(e){}}
+const equipped=ref([]);const stats=ref({atk_min:0,atk_max:0,def:0,bonusAtk:0,bonusDef:0,bonusHp:0,hp_max:0});const activeSets=ref([]);
+async function load(){try{const d=await Api.get('/user/equipment');equipped.value=d.equipped||[];stats.value=d.stats||{};activeSets.value=d.activeSets||[];}catch(e){}}
 async function unequip(invId){if(!(await globalConfirm('确认卸下?')))return;try{await Api.post('/user/equip',{inventory_id:invId});const me=await Api.get('/auth/me');userStore.updateUser(me.user);await load();}catch(e){}}
 onMounted(load);
 </script>
