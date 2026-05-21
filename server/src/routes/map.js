@@ -203,10 +203,19 @@ async function buildScene(placeId, userId) {
     }
   } else {
     // ── Fallback：旧逻辑，按 monster.place_id / npc.place_id ──
-    monsters = await db.getAll(
-      'SELECT * FROM `monster` WHERE `place_id` = ? OR `place_id` = 0 ORDER BY `id`',
-      [placeId]
-    );
+    // place_id=0 的全局怪物只在野外地图（type>=3 且非室内）显示，不在城内/室内
+    const isOutdoor = place.type >= 3 && place.type !== 4;
+    if (isOutdoor) {
+      monsters = await db.getAll(
+        'SELECT * FROM `monster` WHERE `place_id` = ? OR `place_id` = 0 ORDER BY `id`',
+        [placeId]
+      );
+    } else {
+      monsters = await db.getAll(
+        'SELECT * FROM `monster` WHERE `place_id` = ? ORDER BY `id`',
+        [placeId]
+      );
+    }
     npcs = await db.getAll('SELECT * FROM `npc` WHERE `place_id` = ? ORDER BY `id`', [placeId]);
   }
   const npcsPlain = npcs.map(n => Object.assign({}, n));

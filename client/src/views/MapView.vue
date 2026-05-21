@@ -48,10 +48,6 @@
           <router-link to="/market" style="display:inline-block;background:rgba(169,119,78,0.15);border:1px solid rgba(169,119,78,0.3);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
 🏪 进入市场交易</router-link>
         </div>
-        <div v-if="scene.city && scene.city.type === 1" style="margin-top:8px;text-align:center;">
-          <router-link :to="'/citymap/' + scene.city.id" style="display:inline-block;background:rgba(95,74,49,0.25);border:1px solid rgba(201,167,88,0.4);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
-🏛️ 进入城市</router-link>
-        </div>
         <div v-if="scene.place && scene.place.type === 1" style="margin-top:8px;text-align:center;">
           <router-link to="/sail" style="display:inline-block;background:rgba(46,90,59,0.25);border:1px solid rgba(63,106,74,0.5);color:#5f8a6f;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
 ⛵ 航海</router-link>
@@ -102,6 +98,10 @@
 
   <!-- 方向十字导航 -->
   <div class="dir-card">
+    <!-- 右上角：进入城市 -->
+    <router-link v-if="scene.city && scene.city.type === 1" :to="'/citymap/' + scene.city.id" class="dir-city-btn">
+      🏛️ 进入城市
+    </router-link>
     <div class="dir-cross">
       <div class="dir-n">
         <a v-if="scene.exits.n" href="javascript:void(0)" class="dir-btn" @click.prevent="move('n')">⬆️北<span class="dir-sub">{{ scene.exits.n.name }}</span></a>

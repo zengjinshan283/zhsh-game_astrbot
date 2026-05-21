@@ -1096,7 +1096,8 @@ table td {
 .chip-name { font-size:11px; color:#ddd0b6; }
 .chip-lv { font-size:9px; color:#8b784e; }
 
-.dir-card { background:#0e1811e6; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid #9e895c; border-radius:18px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.33), 0 2px 3px rgba(0,0,0,0.2); padding:6px; margin-top:auto; flex-shrink:0; }
+.dir-card { position:relative; background:#0e1811e6; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid #9e895c; border-radius:18px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.33), 0 2px 3px rgba(0,0,0,0.2); padding:6px; margin-top:auto; flex-shrink:0; }
+.dir-city-btn { position:absolute; top:8px; right:8px; background:rgba(95,74,49,0.25); border:1px solid rgba(201,167,88,0.4); color:#c9a758; padding:5px 12px; border-radius:6px; font-size:12px; font-weight:600; text-decoration:none; z-index:2; }
 .dir-cross { display:grid; grid-template-areas:". n ." "w c e" ". s ."; grid-template-columns:1fr 1fr 1fr; gap:4px; max-width:280px; margin:0 auto; }
 .dir-cross .dir-n { grid-area:n; }
 .dir-cross .dir-w { grid-area:w; }

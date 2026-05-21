@@ -37,6 +37,22 @@ router.get('/status', authMiddleware, async (req, res, next) => {
         bonusHp += best.bonus_hp || 0;
       }
     }
+    // Set overview: all defined sets with user's owned piece count (equipped + backpack)
+    const allSets = await db.getAll("SELECT * FROM `item_set` ORDER BY set_name, piece_count");
+    const backpackItems = await db.getAll("SELECT i.set_name FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND i.set_name IS NOT NULL AND i.set_name != ''", [uid]);
+    const backpackSetGroups = {};
+    backpackItems.forEach(bi => { if (bi.set_name) backpackSetGroups[bi.set_name] = (backpackSetGroups[bi.set_name] || 0) + 1; });
+    // Merge equipped + backpack for total owned per set
+    const ownedSetGroups = {};
+    for (const [sn, cnt] of Object.entries(setGroups)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
+    for (const [sn, cnt] of Object.entries(backpackSetGroups)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
+    // Group allSets by set_name for easy rendering
+    const setOverviewMap = {};
+    allSets.forEach(row => {
+      if (!setOverviewMap[row.set_name]) setOverviewMap[row.set_name] = { name: row.set_name, owned: ownedSetGroups[row.set_name] || 0, tiers: [] };
+      setOverviewMap[row.set_name].tiers.push({ piece_count: row.piece_count, bonus_atk: row.bonus_atk, bonus_def: row.bonus_def, bonus_hp: row.bonus_hp, description: row.description || '' });
+    });
+    const setOverview = Object.values(setOverviewMap);
     // Battle stats
     const battleCount = await db.getVar("SELECT COUNT(*) FROM `battle_log` WHERE `user_id` = ?", [uid]);
     const winCount = await db.getVar("SELECT COUNT(*) FROM `battle_log` WHERE `user_id` = ? AND `result` = 1", [uid]);
@@ -70,7 +86,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
         if (setRows.length > 0) activeSets.push({ name: setName, count, bonus: setRows[0] });
       }
     }
-    res.json({ user, place, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, hp_max: user.hp_max, bonusAtk, bonusDef, bonusHp }, equips, activeSets, battleCount, winCount, pet, invCount, shortcuts, consumables });
+    res.json({ user, place, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, hp_max: user.hp_max, bonusAtk, bonusDef, bonusHp }, equips, activeSets, setOverview, battleCount, winCount, pet, invCount, shortcuts, consumables });
   } catch(e){next(e);}
 });
 
@@ -104,8 +120,9 @@ router.post('/shortcut', authMiddleware, async (req, res, next) => {
 // Equipment page
 router.get('/equipment', authMiddleware, async (req, res, next) => {
   try {
-    const equipped = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, inv.enhance_level, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 ORDER BY i.subtype, i.id", [req.user.id]);
-    const user = await db.getOne('SELECT atk_min, atk_max, def FROM `user` WHERE `id` = ?', [req.user.id]);
+    const uid = req.user.id;
+    const equipped = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, inv.enhance_level, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1 ORDER BY i.subtype, i.id", [uid]);
+    const user = await db.getOne('SELECT atk_min, atk_max, def FROM `user` WHERE `id` = ?', [uid]);
     let totalBonusAtk = 0, totalBonusDef = 0, totalBonusHp = 0;
     const setGroups = {};
     equipped.forEach(eq => {
@@ -128,7 +145,21 @@ router.get('/equipment', authMiddleware, async (req, res, next) => {
         activeSets.push({ name: setName, count, bonus: best });
       }
     }
-    res.json({ equipped, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp }, activeSets });
+    // Set overview: all defined sets with user's owned piece count (equipped + backpack)
+    const allSets = await db.getAll("SELECT * FROM `item_set` ORDER BY set_name, piece_count");
+    const backpackItems = await db.getAll("SELECT i.set_name FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND i.set_name IS NOT NULL AND i.set_name != ''", [uid]);
+    const backpackSetGroups = {};
+    backpackItems.forEach(bi => { if (bi.set_name) backpackSetGroups[bi.set_name] = (backpackSetGroups[bi.set_name] || 0) + 1; });
+    const ownedSetGroups = {};
+    for (const [sn, cnt] of Object.entries(setGroups)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
+    for (const [sn, cnt] of Object.entries(backpackSetGroups)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
+    const setOverviewMap = {};
+    allSets.forEach(row => {
+      if (!setOverviewMap[row.set_name]) setOverviewMap[row.set_name] = { name: row.set_name, owned: ownedSetGroups[row.set_name] || 0, tiers: [] };
+      setOverviewMap[row.set_name].tiers.push({ piece_count: row.piece_count, bonus_atk: row.bonus_atk, bonus_def: row.bonus_def, bonus_hp: row.bonus_hp, description: row.description || '' });
+    });
+    const setOverview = Object.values(setOverviewMap);
+    res.json({ equipped, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp }, activeSets, setOverview });
   } catch(e){next(e);}
 });
 
