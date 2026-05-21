@@ -75,7 +75,7 @@
 </div>
 </div>
 <div v-if="activeSets.length" style="margin:6px 0;padding:4px 8px;background:rgba(139,105,20,0.12);border-radius:6px;font-size:11px;">
-  <span v-for="s in activeSets" :key="s.name" style="display:block;color:#c9a758;">✨ {{ s.name }} {{ s.count }}件 → {{ s.bonus.description }}</span>
+  <span v-for="s in activeSets" :key="s.name" style="display:block;color:#c9a758;cursor:pointer;" @click="openSetDetail(s)">✨ {{ s.name }} {{ s.count }}件 → {{ s.bonus.description }}</span>
 </div>
 <div v-if="!equipped.length" class="card"><div class="empty-state">没有装备任何物品</div></div>
 <div v-for="eq in equipped" :key="eq.inv_id" class="card" style="padding:4px 8px;">
