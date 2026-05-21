@@ -7,10 +7,14 @@ const router = express.Router();
 router.get('/status', authMiddleware, async (req, res, next) => {
   try {
     const uid = req.user.id;
-    const user = await db.getOne('SELECT id, username, sex, level, exp, exp_max, hp, hp_max, atk_min, atk_max, def, agility, money, gold, bank_money, place_id, pet_id, pet_name, pet_level, shortcut_slot_1, shortcut_slot_2, shortcut_slot_3 FROM `user` WHERE `id` = ?', [uid]);
-    const place = await db.getOne("SELECT name FROM `place` WHERE `id` = ?", [user.place_id]);
-    // Effective stats
-    const equips = await db.getAll("SELECT i.*, inv.enhance_level FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1", [uid]);
+    // Single query: user + place in one
+    const user = await db.getOne(
+      'SELECT u.id, u.username, u.sex, u.level, u.exp, u.exp_max, u.hp, u.hp_max, u.atk_min, u.atk_max, u.def, u.agility, u.money, u.gold, u.bank_money, u.place_id, u.pet_id, u.pet_name, u.pet_level, u.shortcut_slot_1, u.shortcut_slot_2, u.shortcut_slot_3, p.name AS place_name ' +
+      'FROM `user` u LEFT JOIN `place` p ON p.id = u.place_id WHERE u.id = ?', [uid]);
+    // Single query: equipped items with set info
+    const equips = await db.getAll(
+      "SELECT i.*, inv.enhance_level, inv.id AS inv_id FROM `inventory` inv " +
+      "JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 1", [uid]);
     let bonusAtk = 0, bonusDef = 0, bonusHp = 0;
     // Enhancement bonus
     equips.forEach(eq => {
@@ -18,23 +22,29 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       bonusAtk += Math.round((eq.atk||0) * mult);
       bonusDef += Math.round((eq.def_val||0) * mult);
     });
-    // Set bonus: group by set_name
-    const setGroups = {};
-    equips.forEach(eq => {
-      if (eq.set_name) {
-        setGroups[eq.set_name] = (setGroups[eq.set_name] || 0) + 1;
-      }
-    });
-    for (const [setName, count] of Object.entries(setGroups)) {
-      if (count < 2) continue;
-      const setRows = await db.getAll(
-        "SELECT * FROM `item_set` WHERE `set_name` = ? AND `piece_count` <= ? ORDER BY `piece_count` DESC",
-        [setName, count]);
-      if (setRows.length > 0) {
-        const best = setRows[0];
-        bonusAtk += best.bonus_atk || 0;
-        bonusDef += best.bonus_def || 0;
-        bonusHp += best.bonus_hp || 0;
+    // Set bonus: collect all set_names, do ONE query for all
+    const setNames = [...new Set(equips.filter(eq => eq.set_name).map(eq => eq.set_name))];
+    const setCounts = {};
+    equips.forEach(eq => { if (eq.set_name) setCounts[eq.set_name] = (setCounts[eq.set_name] || 0) + 1; });
+    const bestSets = {};
+    if (setNames.length > 0) {
+      const validSets = setNames.filter(sn => setCounts[sn] >= 2);
+      if (validSets.length > 0) {
+        const placeholders = validSets.map(() => '?').join(',');
+        const allSets = await db.getAll(
+          `SELECT * FROM \`item_set\` WHERE \`set_name\` IN (${placeholders}) ORDER BY set_name, piece_count DESC`,
+          validSets);
+        allSets.forEach(row => {
+          const cnt = setCounts[row.set_name] || 0;
+          if (row.piece_count <= cnt && (!bestSets[row.set_name] || row.piece_count > bestSets[row.set_name].piece_count)) {
+            bestSets[row.set_name] = row;
+          }
+        });
+        Object.values(bestSets).forEach(s => {
+          bonusAtk += s.bonus_atk || 0;
+          bonusDef += s.bonus_def || 0;
+          bonusHp += s.bonus_hp || 0;
+        });
       }
     }
     // Set overview: all defined sets with user's owned piece count (equipped + backpack)
@@ -44,7 +54,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     backpackItems.forEach(bi => { if (bi.set_name) backpackSetGroups[bi.set_name] = (backpackSetGroups[bi.set_name] || 0) + 1; });
     // Merge equipped + backpack for total owned per set
     const ownedSetGroups = {};
-    for (const [sn, cnt] of Object.entries(setGroups)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
+    for (const [sn, cnt] of Object.entries(setCounts)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
     for (const [sn, cnt] of Object.entries(backpackSetGroups)) ownedSetGroups[sn] = (ownedSetGroups[sn] || 0) + cnt;
     // Group allSets by set_name for easy rendering
     const setOverviewMap = {};
@@ -77,16 +87,9 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     // Consumables for shortcut picker
     const consumables = await db.getAll("SELECT inv.id AS inv_id, inv.quantity, i.name, i.hp AS item_hp FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 0 AND i.type = 1 AND i.subtype IN ('consumable', 'navigation', 'buff', 'battle_item') ORDER BY i.hp", [uid]);
     // Active sets info
-    const activeSets = [];
-    for (const [setName, count] of Object.entries(setGroups)) {
-      if (count >= 2) {
-        const setRows = await db.getAll(
-          "SELECT * FROM `item_set` WHERE `set_name` = ? AND `piece_count` <= ? ORDER BY `piece_count` DESC",
-          [setName, count]);
-        if (setRows.length > 0) activeSets.push({ name: setName, count, bonus: setRows[0] });
-      }
-    }
-    res.json({ user, place, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, hp_max: user.hp_max, bonusAtk, bonusDef, bonusHp }, equips, activeSets, setOverview, battleCount, winCount, pet, invCount, shortcuts, consumables });
+    // Active sets info (reuse bestSets computed above)
+    const activeSets = Object.entries(bestSets || {}).map(([name, s]) => ({ name, count: setCounts[name], bonus: s }));
+    res.json({ user, place_name: user.place_name, stats: { atk_min: user.atk_min, atk_max: user.atk_max, def: user.def, hp_max: user.hp_max, bonusAtk, bonusDef, bonusHp }, equips, activeSets, setOverview, battleCount, winCount, pet, invCount, shortcuts, consumables });
   } catch(e){next(e);}
 });
 
