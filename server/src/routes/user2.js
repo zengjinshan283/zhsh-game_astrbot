@@ -163,6 +163,34 @@ router.get('/equipment', authMiddleware, async (req, res, next) => {
   } catch(e){next(e);}
 });
 
+// Set detail: all pieces of a specific set with equipped/backpack status
+router.get('/set-detail/:setName', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const setName = decodeURIComponent(req.params.setName);
+    // Get tiers for this set
+    const tiers = await db.getAll("SELECT * FROM `item_set` WHERE `set_name` = ? ORDER BY piece_count", [setName]);
+    if (!tiers.length) return res.status(404).json({ error: '套装不存在' });
+    // Get items belonging to this set
+    const setItems = await db.getAll("SELECT id, name, subtype, set_name, atk, def_val FROM `item` WHERE `set_name` = ?", [setName]);
+    // Get equipped pieces
+    const equipped = await db.getAll(
+      "SELECT inv.id AS inv_id, inv.enhance_level, i.id AS item_id, i.name, i.subtype, i.set_name, i.atk, i.def_val, 1 AS equipped " +
+      "FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id " +
+      "WHERE inv.user_id = ? AND i.set_name = ? AND inv.equipped = 1", [uid, setName]);
+    // Get backpack pieces
+    const backpack = await db.getAll(
+      "SELECT inv.id AS inv_id, inv.enhance_level, i.id AS item_id, i.name, i.subtype, i.set_name, i.atk, i.def_val, 0 AS equipped " +
+      "FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id " +
+      "WHERE inv.user_id = ? AND i.set_name = ? AND inv.equipped = 0", [uid, setName]);
+    const pieces = [...equipped, ...backpack];
+    const equippedCount = equipped.length;
+    const backpackCount = backpack.length;
+    const owned = equippedCount + backpackCount;
+    res.json({ name: setName, tiers, pieces, equippedCount, backpackCount, owned });
+  } catch(e){next(e);}
+});
+
 // View other player
 router.get('/view/:id', authMiddleware, async (req, res, next) => {
   try {
