@@ -7,10 +7,45 @@ const { authMiddleware } = require('../middleware/auth');
 const config = require('../config').game;
 
 const router = express.Router();
-function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
-
-// 10 silver = 10000 copper (temporary)
 const SILVER_TO_COPPER = 1000;
+function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
+function getCST() { const d = new Date(); const cst = new Date(d.getTime() + (8 - d.getTimezoneOffset() / 60) * 3600000); return cst; }
+function getDailyDate() { const cst = getCST(); return new Date(cst.getFullYear(), cst.getMonth(), cst.getDate()); }
+function getWeeklyDate() { const d = getDailyDate(); const day = d.getDay() || 7; return new Date(d.getTime() - (day - 1) * 86400000); }
+
+async function getDungeonLimit(db, dungeonName) {
+  let key = '';
+  if (dungeonName.includes('牛头山')) key = 'niutou';
+  else if (dungeonName.includes('四象')) key = 'sixiang';
+  else return { daily: 999, weekly: 9999 };
+  const rows = await db.query(
+    'SELECT config_key, config_value FROM game_config WHERE category=? AND config_key IN (?, ?)',
+    ['dungeon', key + '_daily_limit', key + '_weekly_limit']
+  );
+  const map = {};
+  rows.forEach(r => { map[r.config_key] = parseInt(r.config_value); });
+  return { daily: map[key + '_daily_limit'] || 3, weekly: map[key + '_weekly_limit'] || 15 };
+}
+
+async function getDungeonCounts(db, uid, dungeonName) {
+  const today = getDailyDate().toISOString().slice(0, 10);
+  const weekStart = getWeeklyDate().toISOString().slice(0, 10);
+  const rows = await db.query(
+    'SELECT daily_count, weekly_count FROM user_dungeon_count WHERE user_id=? AND dungeon_name=? AND daily_date=? AND weekly_date=?',
+    [uid, dungeonName, today, weekStart]
+  );
+  return rows[0] || { daily_count: 0, weekly_count: 0 };
+}
+
+async function incrementDungeonCount(db, uid, dungeonName) {
+  const today = getDailyDate().toISOString().slice(0, 10);
+  const weekStart = getWeeklyDate().toISOString().slice(0, 10);
+  await db.query(
+    'INSERT INTO user_dungeon_count (user_id, dungeon_name, daily_date, weekly_date, daily_count, weekly_count) VALUES (?, ?, ?, ?, 1, 1) ' +
+    'ON DUPLICATE KEY UPDATE daily_count=daily_count+1, weekly_count=weekly_count+1',
+    [uid, dungeonName, today, weekStart]
+  );
+}
 
 // In-memory dungeon session per user (keyed by userId)
 // Structure: { dungeonId, dungeonName, currentFloor, maxFloor, enteredAt, inProgress }
@@ -34,25 +69,33 @@ router.get('/list', authMiddleware, async (req, res, next) => {
       ORDER BY d.place_id
     `);
 
-    const result = dungeons.map(d => {
+    const result = [];
+    for (const d of dungeons) {
       const totalFloors = d.max_floor;
-      // Entry fee: entry_fee stores silver, convert to copper for comparison
       const entryFeeCopper = Number(d.entry_fee || 0) * SILVER_TO_COPPER;
-      return {
+      const limit = await getDungeonLimit(db, d.name);
+      const counts = await getDungeonCounts(db, req.user.id, d.name);
+      result.push({
         name: d.name,
         place_id: d.place_id,
         min_floor: d.min_floor,
         max_floor: totalFloors,
         level_req: d.level_req,
-        entry_fee: d.entry_fee, // silver
-        entry_fee_copper: entryFeeCopper, // copper for comparison
+        entry_fee: d.entry_fee,
+        entry_fee_copper: entryFeeCopper,
         monster_id: d.monster_id,
         description: d.description,
         can_enter: user.level >= d.level_req,
         has_enough_money: user.money >= entryFeeCopper,
-        is_free: entryFeeCopper === 0
-      };
-    });
+        is_free: entryFeeCopper === 0,
+        daily_limit: limit.daily,
+        weekly_limit: limit.weekly,
+        daily_count: counts.daily_count || 0,
+        weekly_count: counts.weekly_count || 0,
+        daily_remaining: Math.max(0, limit.daily - (counts.daily_count || 0)),
+        weekly_remaining: Math.max(0, limit.weekly - (counts.weekly_count || 0))
+      });
+    }
 
     res.json({ dungeons: result });
   } catch (err) { next(err); }
@@ -88,6 +131,9 @@ router.get('/:id/floors', authMiddleware, async (req, res, next) => {
       for (let f = 1; f < session.currentFloor; f++) clearedFloors.add(f);
     }
 
+    const limit = await getDungeonLimit(db, dungeonName);
+    const counts = await getDungeonCounts(db, req.user.id, dungeonName);
+
     res.json({
       dungeon: {
         name: dungeon.name,
@@ -96,7 +142,13 @@ router.get('/:id/floors', authMiddleware, async (req, res, next) => {
         entry_fee: dungeon.entry_fee,
         entry_fee_copper: Number(dungeon.entry_fee || 0) * SILVER_TO_COPPER,
         current_floor: session?.dungeonId === dungeonName ? session.currentFloor : null,
-        in_progress: session?.dungeonId === dungeonName
+        in_progress: session?.dungeonId === dungeonName,
+        daily_limit: limit.daily,
+        weekly_limit: limit.weekly,
+        daily_count: counts.daily_count || 0,
+        weekly_count: counts.weekly_count || 0,
+        daily_remaining: Math.max(0, limit.daily - (counts.daily_count || 0)),
+        weekly_remaining: Math.max(0, limit.weekly - (counts.weekly_count || 0))
       },
       floors: floors.map(f => ({
         floor: f.floor,
@@ -142,10 +194,23 @@ router.post('/:id/enter', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: `入场费不足，需要 ${dungeon.entry_fee} 银币（约${entryFeeCopper}铜币）` });
     }
 
+    // Check daily/weekly limits
+    const limit = await getDungeonLimit(db, dungeonName);
+    const counts = await getDungeonCounts(db, req.user.id, dungeonName);
+    if (counts.daily_count >= limit.daily) {
+      return res.status(400).json({ error: `今日已进入 ${counts.daily_count} 次，已达每日上限 ${limit.daily} 次（可花费银币重置）` });
+    }
+    if (counts.weekly_count >= limit.weekly) {
+      return res.status(400).json({ error: `本周已进入 ${counts.weekly_count} 次，已达每周上限 ${limit.weekly} 次` });
+    }
+
     // Deduct entry fee
     if (entryFeeCopper > 0) {
       await db.query('UPDATE `user` SET money = money - ? WHERE `id` = ?', [entryFeeCopper, req.user.id]);
     }
+
+    // Increment dungeon count
+    await incrementDungeonCount(db, req.user.id, dungeonName);
 
     // Create session - start from floor 1 (or furthest cleared + 1)
     const session = {
@@ -396,6 +461,46 @@ router.post('/exit', authMiddleware, async (req, res, next) => {
     dungeonBattlesMap.delete(req.user.id);
     dungeonSessions.delete(req.user.id);
     res.json({ ok: 1, msg: '已退出副本' });
+  } catch (err) { next(err); }
+});
+
+// ===== POST /api/dungeon/:id/reset - 重置副本次数 =====
+router.post('/:id/reset', authMiddleware, async (req, res, next) => {
+  try {
+    const dungeonName = req.params.id;
+    const { type } = req.body; // 'daily' or 'weekly'
+    if (!['daily', 'weekly'].includes(type)) return res.status(400).json({ error: 'type 必须是 daily 或 weekly' });
+
+    const user = await db.getOne('SELECT id, silver FROM `user` WHERE `id` = ?', [req.user.id]);
+    if (!user) return res.status(404).json({ error: '角色不存在' });
+
+    // Get reset cost from config (silver amount)
+    const cfg = await db.query("SELECT config_value FROM game_config WHERE category='dungeon' AND config_key='reset_cost'");
+    const resetCostSilver = parseInt(cfg?.config_value || 5);
+    if (user.silver < resetCostSilver) {
+      return res.status(400).json({ error: `银币不足，需要 ${resetCostSilver} 银币` });
+    }
+
+    const today = getDailyDate().toISOString().slice(0, 10);
+    const weekStart = getWeeklyDate().toISOString().slice(0, 10);
+
+    // Reset count
+    if (type === 'daily') {
+      await db.query(
+        'UPDATE user_dungeon_count SET daily_count=0 WHERE user_id=? AND dungeon_name=? AND daily_date=?',
+        [req.user.id, dungeonName, today]
+      );
+    } else {
+      await db.query(
+        'UPDATE user_dungeon_count SET weekly_count=0 WHERE user_id=? AND dungeon_name=? AND weekly_date=?',
+        [req.user.id, dungeonName, weekStart]
+      );
+    }
+
+    // Deduct silver
+    await db.query('UPDATE `user` SET silver=silver-? WHERE `id`=?', [resetCostSilver, req.user.id]);
+
+    res.json({ ok: 1, msg: `${type === 'daily' ? '每日' : '每周'}次数已重置，消耗 ${resetCostSilver} 银币` });
   } catch (err) { next(err); }
 });
 
