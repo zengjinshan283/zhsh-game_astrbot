@@ -37,6 +37,46 @@
     加载中...
   </div>
 
+  <!-- 奖励面板 -->
+  <div v-else-if="activeTab === 'rewards'">
+    <div v-if="!rewards.length" class="empty-state">暂无奖励</div>
+    <div v-else class="rewards-list">
+      <div class="rewards-progress-bar">
+        <span>当前收集：{{ codexCount }} 件</span>
+        <span>下一档：{{ nextReward ? nextReward.require_count + '件' : '已满级' }}</span>
+      </div>
+      <div
+        v-for="r in rewards"
+        :key="r.id"
+        class="reward-card"
+        :class="{
+          'reward-claimed': r.is_claimed,
+          'reward-available': r.can_claim,
+          'reward-locked': !r.can_claim && !r.is_claimed
+        }"
+      >
+        <div class="reward-info">
+          <div class="reward-title">{{ r.title }}</div>
+          <div class="reward-desc">{{ r.description }}</div>
+          <div class="reward-items">
+            <span v-if="r.reward_money">💰 {{ r.reward_money }}铜币</span>
+            <span v-if="r.reward_exp">✨ {{ r.reward_exp }}经验</span>
+            <span v-if="r.reward_item_id">🎁 航海者头盔×1</span>
+          </div>
+        </div>
+        <div class="reward-action">
+          <div v-if="r.is_claimed" class="claimed-badge">✅ 已领取</div>
+          <div v-else-if="r.can_claim">
+            <button class="claim-btn" @click="claimReward(r)">领取</button>
+          </div>
+          <div v-else class="locked-badge">
+            {{ r.current_count }}/{{ r.require_count }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 空状态 -->
   <div v-else-if="!filteredItems.length" class="empty-state">
     暂无{{ activeTab === 'all' ? '' : tabs.find(t => t.value === activeTab)?.label }}装备
@@ -91,24 +131,8 @@
               <span class="stat-name">🛡️ 防御力</span>
               <span class="stat-value">{{ selectedItem.def_val }}</span>
             </div>
-            <div v-if="selectedItem.magic_atk > 0" class="stat-row">
-              <span class="stat-name">✨ 魔法攻击</span>
-              <span class="stat-value">{{ selectedItem.magic_atk }}</span>
-            </div>
-            <div v-if="selectedItem.magic_def > 0" class="stat-row">
-              <span class="stat-name">🔮 魔法防御</span>
-              <span class="stat-value">{{ selectedItem.magic_def }}</span>
-            </div>
-            <div v-if="selectedItem.hp > 0" class="stat-row">
-              <span class="stat-name">❤️ 生命值</span>
-              <span class="stat-value">+{{ selectedItem.hp }}</span>
-            </div>
-            <div v-if="selectedItem.mp > 0" class="stat-row">
-              <span class="stat-name">💧 魔法值</span>
-              <span class="stat-value">+{{ selectedItem.mp }}</span>
-            </div>
-            <div v-if="!selectedItem.atk && !selectedItem.def_val && !selectedItem.magic_atk && !selectedItem.magic_def && !selectedItem.hp && !selectedItem.mp" class="stat-row">
-              <span class="stat-name" style="color:#888;">无额外属性</span>
+            <div v-if="!selectedItem.atk && !selectedItem.def_val" class="stat-row">
+              <span class="stat-name" style="color:#888;">无战斗属性</span>
             </div>
           </div>
         </div>
@@ -118,11 +142,11 @@
         </div>
         <div class="detail-section">
           <div class="detail-label">来源</div>
-          <div class="detail-source">{{ selectedItem.source || '未知' }}</div>
+          <div class="detail-source">{{ selectedItem.source || '击败怪物/商店购买/任务奖励' }}</div>
         </div>
         <div v-if="selectedItem.unlocked" class="detail-section unlock-info">
           <div class="unlocked-badge">✅ 已收录图鉴</div>
-          <div class="unlock-time">{{ formatTime(selectedItem.unlocked_at) }} 解锁</div>
+          <div class="unlock-time" v-if="selectedItem.unlocked_at">{{ formatTime(selectedItem.unlocked_at) }} 解锁</div>
         </div>
         <div v-else class="detail-section">
           <div class="locked-badge">❓ 尚未获得</div>
@@ -137,18 +161,24 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { globalAlert } from '../composables/useAlert';
 
 const loading = ref(true);
 const items = ref([]);
 const activeTab = ref('all');
 const showModal = ref(false);
 const selectedItem = ref(null);
+const rewards = ref([]);
+const codexCount = ref(0);
 
 const tabs = [
   { label: '全部', value: 'all', icon: '📦' },
   { label: '武器', value: '1', icon: '🗡️' },
   { label: '防具', value: '2', icon: '🛡️' },
-  { label: '饰品', value: '3', icon: '💍' }
+  { label: '饰品', value: '3', icon: '💍' },
+  { label: '消耗品', value: '4', icon: '🧪' },
+  { label: '材料', value: '5', icon: '💎' },
+  { label: '奖励', value: 'rewards', icon: '🎁' }
 ];
 
 const total = computed(() => items.value.length);
@@ -157,19 +187,20 @@ const filteredItems = computed(() => {
   if (activeTab.value === 'all') return items.value;
   return items.value.filter(i => String(i.type) === activeTab.value);
 });
+const nextReward = computed(() => rewards.value.find(r => !r.is_claimed));
 
 function getItemIcon(item) {
   if (item.type == 1) return '🗡️';
   if (item.type == 2) return '🛡️';
   if (item.type == 3) return '💍';
+  if (item.type == 4) return '🧪';
+  if (item.type == 5) return '💎';
   return '📦';
 }
 
 function getTypeLabel(type) {
-  if (type == 1) return '武器';
-  if (type == 2) return '防具';
-  if (type == 3) return '饰品';
-  return '其他';
+  const map = { 1: '武器', 2: '防具', 3: '饰品', 4: '消耗品', 5: '材料' };
+  return map[type] || '其他';
 }
 
 function getQualityLabel(quality) {
@@ -196,9 +227,36 @@ async function load() {
   }
 }
 
+async function loadRewards() {
+  try {
+    loading.value = true;
+    const d = await Api.get('/codex/rewards');
+    rewards.value = d.rewards || [];
+    codexCount.value = d.current_count || 0;
+  } catch (e) {
+    console.error('加载奖励失败', e);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function claimReward(r) {
+  try {
+    const d = await Api.post(`/codex/rewards/${r.id}/claim`);
+    globalAlert(d.msg || '领取成功');
+    await loadRewards();
+  } catch (e) {
+    globalAlert(e.message || '领取失败', 'error');
+  }
+}
+
 function switchTab(tab) {
   activeTab.value = tab;
-  load();
+  if (tab === 'rewards') {
+    loadRewards();
+  } else {
+    load();
+  }
 }
 
 function showDetail(item) {
@@ -230,14 +288,8 @@ onMounted(load);
   font-size: 12px;
 }
 
-.progress-label {
-  color: #8b9dc3;
-}
-
-.progress-value {
-  color: #c9a758;
-  font-weight: bold;
-}
+.progress-label { color: #8b9dc3; }
+.progress-value { color: #c9a758; font-weight: bold; }
 
 .progress-bar-wrap {
   height: 8px;
@@ -295,9 +347,7 @@ onMounted(load);
   margin: 0 auto 8px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .empty-state {
   text-align: center;
@@ -347,10 +397,7 @@ onMounted(load);
   margin-bottom: 4px;
 }
 
-.locked-icon {
-  font-size: 24px;
-  opacity: 0.5;
-}
+.locked-icon { font-size: 24px; opacity: 0.5; }
 
 .item-name {
   font-size: 11px;
@@ -361,14 +408,101 @@ onMounted(load);
   text-overflow: ellipsis;
 }
 
-.item-name.locked-name {
-  color: #555;
+.item-name.locked-name { color: #555; }
+.item-type { font-size: 10px; color: #666; margin-top: 2px; }
+
+/* 奖励面板 */
+.rewards-list { display: flex; flex-direction: column; gap: 10px; }
+
+.rewards-progress-bar {
+  display: flex;
+  justify-content: space-between;
+  background: #1a1a2e;
+  border: 1px solid #2a3a5a;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #8b9dc3;
+  margin-bottom: 4px;
 }
 
-.item-type {
-  font-size: 10px;
-  color: #666;
-  margin-top: 2px;
+.reward-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1a1a2e;
+  border: 1px solid #2a3a5a;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.reward-card.reward-available {
+  border-color: #c9a758;
+  background: linear-gradient(135deg, #1a1a2e, #2a2510);
+}
+
+.reward-card.reward-claimed {
+  opacity: 0.6;
+  border-color: #2a3a5a;
+}
+
+.reward-card.reward-locked {
+  opacity: 0.5;
+}
+
+.reward-info { flex: 1; }
+
+.reward-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e8d5a3;
+  margin-bottom: 4px;
+}
+
+.reward-desc {
+  font-size: 12px;
+  color: #8b9dc3;
+  margin-bottom: 6px;
+}
+
+.reward-items {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #c9a758;
+}
+
+.reward-action { text-align: center; }
+
+.claimed-badge {
+  color: #4ade80;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.locked-badge {
+  color: #555;
+  font-size: 12px;
+  padding: 6px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+}
+
+.claim-btn {
+  background: linear-gradient(135deg, #c9a758 0%, #a08040 100%);
+  border: none;
+  border-radius: 6px;
+  color: #1a1a2e;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.claim-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(201, 167, 88, 0.4);
 }
 
 /* 弹窗 */
@@ -401,25 +535,10 @@ onMounted(load);
   gap: 12px;
 }
 
-.modal-icon {
-  font-size: 36px;
-}
-
-.modal-title {
-  flex: 1;
-}
-
-.modal-item-name {
-  font-size: 16px;
-  color: #e8d5a3;
-  font-weight: bold;
-}
-
-.modal-item-type {
-  font-size: 12px;
-  color: #8b9dc3;
-  margin-top: 2px;
-}
+.modal-icon { font-size: 36px; }
+.modal-title { flex: 1; }
+.modal-item-name { font-size: 16px; color: #e8d5a3; font-weight: bold; }
+.modal-item-type { font-size: 12px; color: #8b9dc3; margin-top: 2px; }
 
 .modal-close {
   background: none;
@@ -430,13 +549,8 @@ onMounted(load);
   padding: 4px;
 }
 
-.modal-body {
-  padding: 16px;
-}
-
-.detail-section {
-  margin-bottom: 16px;
-}
+.modal-body { padding: 16px; }
+.detail-section { margin-bottom: 16px; }
 
 .detail-label {
   font-size: 11px;
@@ -459,14 +573,8 @@ onMounted(load);
   font-size: 13px;
 }
 
-.stat-name {
-  color: #8b9dc3;
-}
-
-.stat-value {
-  color: #c9a758;
-  font-weight: bold;
-}
+.stat-name { color: #8b9dc3; }
+.stat-value { color: #c9a758; font-weight: bold; }
 
 .detail-desc {
   font-size: 13px;
@@ -485,38 +593,19 @@ onMounted(load);
   padding: 8px 12px;
 }
 
-.unlock-info {
-  text-align: center;
-}
-
-.unlocked-badge {
-  color: #4ade80;
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.unlock-time {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-}
+.unlock-info { text-align: center; }
+.unlocked-badge { color: #4ade80; font-size: 14px; font-weight: bold; }
+.unlock-time { font-size: 12px; color: #666; margin-top: 4px; }
 
 .locked-badge {
-  color: #f87171;
+  color: #f97316;
   font-size: 14px;
   font-weight: bold;
-  text-align: center;
+  margin-bottom: 4px;
 }
 
 .lock-tip {
   font-size: 12px;
   color: #666;
-  text-align: center;
-  margin-top: 4px;
-}
-
-.unlock-count {
-  color: #c9a758;
-  font-weight: bold;
 }
 </style>
