@@ -69,10 +69,14 @@ router.post('/register', async (req, res, next) => {
       accepted_at: now
     });
 
-    // 发放注册礼包（铁剑×1 + 钢铁护甲×1 + 小HP药×5，铜币已在money中）
+    // 发放航海者新手套装（6件，1级绿装套）+ 小回复药×5
     const starterPack = [
-      { id: 2,   qty: 1 },  // 铁剑
-      { id: 301, qty: 1 },  // 钢铁护甲
+      { id: 1152, qty: 1 },  // 航海者短剑
+      { id: 1153, qty: 1 },  // 航海者皮甲
+      { id: 1154, qty: 1 },  // 航海者圆盾
+      { id: 1155, qty: 1 },  // 航海者皮靴
+      { id: 1156, qty: 1 },  // 航海者皮帽
+      { id: 1157, qty: 1 },  // 航海者护腿
       { id: 1,   qty: 5 },  // 小回复药
     ];
     for (const item of starterPack) {
