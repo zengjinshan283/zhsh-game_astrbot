@@ -9,7 +9,7 @@ router.get('/status', authMiddleware, async (req, res, next) => {
     const uid = req.user.id;
     // Single query: user + place in one
     const user = await db.getOne(
-      'SELECT u.id, u.username, u.sex, u.level, u.exp, u.exp_max, u.hp, u.hp_max, u.atk_min, u.atk_max, u.def, u.agility, u.money, u.gold, u.bank_money, u.place_id, u.pet_id, u.pet_name, u.pet_level, u.shortcut_slot_1, u.shortcut_slot_2, u.shortcut_slot_3, p.name AS place_name ' +
+      'SELECT u.id, u.username, u.sex, u.level, u.exp, u.exp_max, u.hp, u.hp_max, u.atk_min, u.atk_max, u.def, u.agility, u.money, u.gold, u.talent_points, u.bank_money, u.place_id, u.pet_id, u.pet_name, u.pet_level, u.shortcut_slot_1, u.shortcut_slot_2, u.shortcut_slot_3, p.name AS place_name ' +
       'FROM `user` u LEFT JOIN `place` p ON p.id = u.place_id WHERE u.id = ?', [uid]);
     // Single query: equipped items with set info
     const equips = await db.getAll(

@@ -33,6 +33,7 @@ app.use('/api/sail', require('./routes/sail'));
 app.use('/api/ship', require('./routes/ship'));
 app.use('/api/casino', require('./routes/casino'));
 app.use('/api/rank', require('./routes/rank'));
+app.use('/api/talent', require('./routes/talent').router);
 app.use('/api/friend', require('./routes/friend'));
 app.use('/api/sign', require('./routes/sign'));
 app.use('/api/daily', require('./routes/daily'));

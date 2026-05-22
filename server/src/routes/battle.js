@@ -564,8 +564,8 @@ async function handleMonsterKill(user, battle) {
     battle.log.push({ type: 'info', text: `🎉 恭喜升级！你现在 Lv.${newLevel} 了！` });
   }
 
-  await db.query('UPDATE `user` SET level=?, exp=?, exp_max=?, hp_max=?, atk_min=?, atk_max=?, def=?, money=money+? WHERE id=?',
-    [newLevel, newExp, newExpMax, newHpMax, newAtkMin, newAtkMax, newDef, moneyGain, user.id]);
+  await db.query('UPDATE `user` SET level=?, exp=?, exp_max=?, hp_max=?, atk_min=?, atk_max=?, def=?, money=money+?, talent_points=talent_points+? WHERE id=?',
+    [newLevel, newExp, newExpMax, newHpMax, newAtkMin, newAtkMax, newDef, moneyGain, newLevel - Number(user.level), user.id]);
   user.level = newLevel; user.exp = newExp; user.exp_max = newExpMax;
   user.hp_max = newHpMax; user.money = Number(user.money) + moneyGain;
 
