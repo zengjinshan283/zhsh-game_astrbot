@@ -182,6 +182,19 @@ router.post('/use', authMiddleware, async (req, res, next) => {
       return res.json({ success: true, msg: `${inv.name}解除了 ${cleared.length > 0 ? debuffId : '异常'}状态！`, cleared: debuffId });
     }
 
+    // 航海立即完成
+    if (inv.effect_key === 'complete_sail') {
+      const u = await db.getOne('SELECT sail_time, sail_to FROM `user` WHERE `id` = ?', [req.user.id]);
+      if (!u || u.sail_time <= 0) return res.status(400).json({ error: '当前没有正在进行的航海' });
+      if (u.sail_paused) return res.status(400).json({ error: '遭遇海盗时无法使用航海令' });
+      // 找到目的地码头
+      const dockPlace = await db.getOne('SELECT * FROM `place` WHERE `city_id` = ? AND `type` = 1 LIMIT 1', [u.sail_to]);
+      const newPlaceId = dockPlace ? dockPlace.id : u.place_id;
+      await consumeOne(inventory_id, inv, req.user.id);
+      await db.query('UPDATE `user` SET place_id=?, sail_time=0, sail_from=0, sail_to=0, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [newPlaceId, req.user.id]);
+      return res.json({ success: true, msg: '⏭️ 航海令生效，瞬间抵达目的地！', arrived: true, place_id: newPlaceId });
+    }
+
     // Regular consumables (HP healing, stamina, ship repair)
     let healAmount = 0;
     let msg = '';
