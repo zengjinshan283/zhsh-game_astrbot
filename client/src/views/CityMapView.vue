@@ -2,75 +2,28 @@
 <div class="citymap-page">
   <div class="location-bar">
     <div class="location-name">🗺️ {{ cityName }}</div>
-    <div class="location-path">{{ places.length }}个地点 · 点击前往</div>
+    <div class="location-path">{{ gridPlaces.length }}个地点 · 5×5网格</div>
   </div>
 
-  <!-- 棋盘网格 -->
-  <div class="place-grid" v-if="places.length">
-    <!-- 左上：北门 -->
-    <div v-if="gates.n" class="place-cell place-gate" @click="goTo(placesById[gates.n])">
-      <div class="cell-icon">⬆️</div>
-      <div class="cell-name">北门</div>
-      <div class="cell-sub">{{ placesById[gates.n]?.name }}</div>
-    </div>
-    <div v-else class="place-cell place-empty"></div>
-
-    <!-- 上排中间地点（北方） -->
-    <div v-for="p in placesByDir.n" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
-      <div class="cell-icon">{{ placeIcon(p) }}</div>
-      <div class="cell-name">{{ p.name }}</div>
-    </div>
-
-    <!-- 右上：东门 -->
-    <div v-if="gates.e" class="place-cell place-gate" @click="goTo(placesById[gates.e])">
-      <div class="cell-icon">➡️</div>
-      <div class="cell-name">东门</div>
-      <div class="cell-sub">{{ placesById[gates.e]?.name }}</div>
-    </div>
-    <div v-else class="place-cell place-empty"></div>
-
-    <!-- 左列（西） -->
-    <div v-for="p in placesByDir.w" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
-      <div class="cell-icon">{{ placeIcon(p) }}</div>
-      <div class="cell-name">{{ p.name }}</div>
-    </div>
-
-    <!-- 中间：城市名 -->
-    <div class="place-cell place-center">
-      <div class="cell-icon">🏛️</div>
-      <div class="cell-name">{{ cityName }}</div>
-    </div>
-
-    <!-- 右列（东） -->
-    <div v-for="p in placesByDir.e" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
-      <div class="cell-icon">{{ placeIcon(p) }}</div>
-      <div class="cell-name">{{ p.name }}</div>
-    </div>
-
-    <!-- 左下：西门 -->
-    <div v-if="gates.w" class="place-cell place-gate" @click="goTo(placesById[gates.w])">
-      <div class="cell-icon">⬅️</div>
-      <div class="cell-name">西门</div>
-      <div class="cell-sub">{{ placesById[gates.w]?.name }}</div>
-    </div>
-    <div v-else class="place-cell place-empty"></div>
-
-    <!-- 下排中间地点（南方） -->
-    <div v-for="p in placesByDir.s" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
-      <div class="cell-icon">{{ placeIcon(p) }}</div>
-      <div class="cell-name">{{ p.name }}</div>
-    </div>
-
-    <!-- 右下：南门 -->
-    <div v-if="gates.s" class="place-cell place-gate" @click="goTo(placesById[gates.s])">
-      <div class="cell-icon">⬇️</div>
-      <div class="cell-name">南门</div>
-      <div class="cell-sub">{{ placesById[gates.s]?.name }}</div>
-    </div>
-    <div v-else class="place-cell place-empty"></div>
+  <!-- 棋盘网格：7x7，城门四角，核心地点填中间 -->
+  <div class="place-grid" v-if="gridPlaces.length">
+    <template v-for="row in 7" :key="row">
+      <template v-for="col in 7" :key="col">
+        <div
+          v-if="getCell(row-1, col-1)"
+          class="place-cell"
+          :class="[getCell(row-1, col-1).type === 5 ? 'place-gate' : '', current(getCell(row-1, col-1))]"
+          @click="goTo(getCell(row-1, col-1))"
+        >
+          <div class="cell-icon">{{ placeIcon(getCell(row-1, col-1)) }}</div>
+          <div class="cell-name">{{ shortName(getCell(row-1, col-1).name) }}</div>
+        </div>
+        <div v-else class="place-cell place-empty"></div>
+      </template>
+    </template>
   </div>
 
-  <div v-if="!places.length" class="card">
+  <div v-if="!gridPlaces.length" class="card">
     <div class="empty-state">该城市暂无地点数据</div>
   </div>
 
@@ -91,77 +44,57 @@ const cityName = ref('');
 const places = ref([]);
 const currentPlaceId = ref(0);
 
-// Gate keywords
-const GATE_KEYS = { n: ['北门','北城'], e: ['东门','东城'], s: ['南门','南城'], w: ['西门','西城'] };
+// 所有有坐标的地点
+const gridPlaces = computed(() => places.value.filter(p => p.pos_row != null && p.pos_col != null));
 
-function isGate(name) {
-  for (const v of Object.values(GATE_KEYS)) if (v.some(k => name.includes(k))) return true;
-  return false;
-}
-
-function gateDir(name) {
-  if (GATE_KEYS.n.some(k => name.includes(k))) return 'n';
-  if (GATE_KEYS.e.some(k => name.includes(k))) return 'e';
-  if (GATE_KEYS.s.some(k => name.includes(k))) return 's';
-  if (GATE_KEYS.w.some(k => name.includes(k))) return 'w';
-  return null;
-}
-
-// gates { n, e, s, w } by direction keyword
-const gates = computed(() => {
-  const g = { n: null, e: null, s: null, w: null };
-  places.value.forEach(p => {
-    if (isGate(p.name)) {
-      const d = gateDir(p.name);
-      if (d && !g[d]) g[d] = p.id;
-    }
-  });
-  return g;
-});
-
-// placesById for quick lookup
-const placesById = computed(() => {
+// 按坐标查找地点
+const placeMap = computed(() => {
   const m = {};
-  places.value.forEach(p => { m[p.id] = p; });
+  gridPlaces.value.forEach(p => {
+    m[`${p.pos_row},${p.pos_col}`] = p;
+  });
   return m;
 });
 
-// placesByDir: non-gate places grouped by inferred direction
-const placesByDir = computed(() => {
-  // Infer from each place's n/s/e/w connections to gates
-  const result = { n: [], e: [], s: [], w: [], center: [] };
-  const gateSet = new Set(Object.values(gates.value).filter(Boolean));
+function getCell(row, col) {
+  return placeMap.value[`${row},${col}`] || null;
+}
 
-  places.value.forEach(p => {
-    if (gateSet.has(p.id)) return; // skip gates
-    // Count how many connections point toward each direction
-    // A place with n>0 that connects to a gate is "north"
-    // Use the place's own n/s/e/w to classify
-    let placed = false;
-    if (p.n > 0 && gateSet.has(p.n)) { result.n.push(p); placed = true; }
-    else if (p.s > 0 && gateSet.has(p.s)) { result.s.push(p); placed = true; }
-    else if (p.e > 0 && gateSet.has(p.e)) { result.e.push(p); placed = true; }
-    else if (p.w > 0 && gateSet.has(p.w)) { result.w.push(p); placed = true; }
-    if (!placed) result.center.push(p);
-  });
-  return result;
-});
+function shortName(name) {
+  if (!name) return '';
+  // 去掉城市前缀
+  return name.replace(/^(威尼斯|雅典|杭州|京都|长安|马六甲|广州|泉州|扬州|奥斯陆|伦敦|汉堡|爱丁堡|新大陆港|荷姆兹|亚丁|孟买|锡兰|亚特兰蒂斯|达喀尔|圣乔治|开普敦|蒙巴萨|马达加斯加|莫桑比克|卢旺达|北海|伊斯坦布尔|拉古扎|突尼斯|阿尔及尔|马塞|南特|阿姆斯特丹|哥本哈根|大阪)\s*/, '');
+}
 
 function placeIcon(p) {
+  if (!p) return '📍';
   if (p.type === 1) return '⚓';
   if (p.type === 2) return '🏪';
   if (p.type === 3) return '⚒️';
   if (p.type === 4) return '🍷';
-  if (p.type === 5) return '🏪';
+  if (p.type === 5) {
+    // 城门根据位置显示方向
+    const r = p.pos_row, c = p.pos_col;
+    if (r === 0) return '⬆️';
+    if (r === 6) return '⬇️';
+    if (c === 0) return '⬅️';
+    if (c === 6) return '➡️';
+    return '🚪';
+  }
   return '📍';
 }
 
 function current(p) {
-  return p.id === currentPlaceId.value ? 'place-current' : '';
+  return p && p.id === currentPlaceId.value ? 'place-current' : '';
 }
 
 async function goTo(p) {
   if (!p || p.id === currentPlaceId.value) return;
+  // 城门(type=5)点击进入野外
+  if (p.type === 5) {
+    router.push(`/wild/${route.params.cityId}`);
+    return;
+  }
   try {
     await Api.post('/user/teleport', { place_id: p.id });
     userStore.updateUser({ ...userStore.user, place_id: p.id });
@@ -197,8 +130,8 @@ onMounted(load);
 
 .place-grid {
   display: grid;
-  grid-template-columns: 80px repeat(3, 1fr) 80px;
-  grid-template-rows: 56px repeat(3, 1fr) 56px;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 56px);
   gap: 4px;
   flex: 1;
 }
@@ -217,6 +150,7 @@ onMounted(load);
   padding: 4px;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 .place-cell:active:not(.place-center):not(.place-empty) {
   border-color: #c9a758;
@@ -228,11 +162,6 @@ onMounted(load);
   border: none;
   cursor: default;
 }
-.place-cell.place-center {
-  background: radial-gradient(ellipse at center, #1e2a3a 0%, #141e2a 100%);
-  border-color: #3a4a2a;
-  cursor: default;
-}
 .place-cell.place-gate {
   border-color: #3a5a2a;
   background: #1a2a1e;
@@ -241,7 +170,15 @@ onMounted(load);
   border-color: #c9a758 !important;
   background: #1f2a1e !important;
 }
-.cell-icon { font-size: 22px; line-height: 1; }
-.cell-name { font-size: 10px; color: #cfc19e; text-align: center; font-weight: 600; line-height: 1.2; }
-.cell-sub { font-size: 8px; color: #8b784e; text-align: center; }
+.cell-icon { font-size: 20px; line-height: 1; }
+.cell-name {
+  font-size: 10px;
+  color: #8b9a7c;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>
