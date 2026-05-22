@@ -82,20 +82,20 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
 
     let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0;
     if (user.pet_id > 0) {
-      const up = await db.getOne('SELECT up.id, up.level, up.satiety, up.nickname, p.atk, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
+      const up = await db.getOne('SELECT up.id, up.level, up.exp, up.satiety, up.hp, up.hp_max, up.atk, up.def_val, up.nickname, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
       if (up) {
         petUpId = up.id;
         petSatiety = up.satiety;
         petName = up.nickname || up.species_name || '';
         if (up.satiety > 0) {
-          petAtk = Math.round(up.atk * (1 + up.level * 0.15));
+          petAtk = up.atk;
         } else {
           petAtk = 0; // will show warning below
         }
       }
     }
 
-    const battle = {
+    let battle = {
       monster_id: pirate.id, monster_name: pirate.name,
       monster_hp: Number(pirate.hp), monster_hp_max: Number(pirate.hp),
       monster_atk_min: Number(pirate.atk_min), monster_atk_max: Number(pirate.atk_max), monster_def: Number(pirate.def),
@@ -133,19 +133,19 @@ router.post('/start', authMiddleware, async (req, res, next) => {
 
     let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0;
     if (user.pet_id > 0) {
-      const up = await db.getOne('SELECT up.id, up.level, up.satiety, up.nickname, p.atk, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
+      const up = await db.getOne('SELECT up.id, up.level, up.exp, up.satiety, up.hp, up.hp_max, up.atk, up.def_val, up.nickname, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
       if (up) {
         petUpId = up.id;
         petSatiety = up.satiety;
         petName = up.nickname || up.species_name || '';
         if (up.satiety > 0) {
-          petAtk = Math.round(up.atk * (1 + up.level * 0.15));
+          petAtk = up.atk;
         } else {
           petAtk = 0; // will show warning below
         }
       }
     }
-    const battle = {
+    let battle = {
       monster_id, monster_name: monster.name,
       monster_hp: Number(monster.hp), monster_hp_max: Number(monster.hp),
       monster_atk_min: Number(monster.atk_min), monster_atk_max: Number(monster.atk_max), monster_def: Number(monster.def),
@@ -526,9 +526,12 @@ async function handleMonsterKill(user, battle) {
 
   // Pet gains 50% of monster exp
   if (battle.pet_up_id) {
-    // Pet gains exp if equipped (even if satiety ran out mid-fight)
     const petExpGain = Math.floor(battle.monster_exp * 0.5);
-    const up = await db.getOne('SELECT level, exp FROM user_pet WHERE id = ?', [battle.pet_up_id]);
+    const up = await db.getOne(`
+      SELECT up.level, up.exp, up.hp_max, up.atk, up.def_val,
+             p.hp as base_hp, p.atk as base_atk, p.def_val as base_def
+      FROM user_pet up JOIN pet p ON up.pet_id = p.id
+      WHERE up.id = ?`, [battle.pet_up_id]);
     if (up) {
       let pNewExp = up.exp + petExpGain;
       let pNewLevel = up.level;
@@ -536,10 +539,20 @@ async function handleMonsterKill(user, battle) {
         pNewExp -= (100 + (pNewLevel - 1) * 50);
         pNewLevel++;
       }
-      await db.query('UPDATE user_pet SET level=?, exp=? WHERE id=?', [pNewLevel, pNewExp, battle.pet_up_id]);
+      // Recalculate pet stats on level up
+      const newHpMax = up.base_hp + (pNewLevel - 1) * 12;
+      const newAtk = Math.round(up.base_atk * (1 + pNewLevel * 0.15));
+      const newDef = up.base_def + Math.floor((pNewLevel - 1) * 1.5);
+      await db.query(
+        'UPDATE user_pet SET level=?, exp=?, hp_max=?, hp=?, atk=?, def_val=? WHERE id=?',
+        [pNewLevel, pNewExp, newHpMax, newHpMax, newAtk, newDef, battle.pet_up_id]
+      );
       await db.query('UPDATE user SET pet_level=?, pet_exp=? WHERE id=?', [pNewLevel, pNewExp, user.id]);
       if (pNewLevel > up.level) {
-        battle.log.push({ type: 'info', text: `🐶 ${battle.pet_name}升级到 Lv.${pNewLevel}！` });
+        const hpGain = newHpMax - up.hp_max;
+        const atkGain = newAtk - up.atk;
+        const defGain = newDef - up.def_val;
+        battle.log.push({ type: 'info', text: `🐶 ${battle.pet_name}升级到 Lv.${pNewLevel}！ 生命+${hpGain} 攻击+${atkGain} 防御+${defGain}` });
       }
     }
   }

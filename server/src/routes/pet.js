@@ -11,14 +11,14 @@ function petMult(level) { return 1 + level * 0.15; }
 router.get('/info', authMiddleware, async (req, res, next) => {
   try {
     const myPets = await db.getAll(
-      'SELECT up.*, p.name as species_name, p.type, p.atk, p.def_val, p.hp, p.skill_name, p.skill_desc, p.capture_rate FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? ORDER BY up.is_active DESC, up.id', [req.user.id]
+      'SELECT up.*, p.name as species_name, p.type, p.atk as base_pet_atk, p.def_val as base_pet_def, p.hp as base_pet_hp, p.skill_name, p.skill_desc, p.capture_rate FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? ORDER BY up.is_active DESC, up.id', [req.user.id]
     );
     let activePet = null;
     const enriched = [];
     for (const up of myPets) {
-      const mult = petMult(up.level);
       const expMax = petExpMax(up.level);
-      const obj = { ...up, species_name: up.species_name || up.nickname, effective_atk: Math.round(up.atk * mult), effective_hp: Math.round(up.hp * mult), effective_def: Math.round((up.def_val||0) * mult), exp_max: expMax, feed_cost: up.level * 200 };
+      // user_pet.atk/hp/def_val are already the scaled stats; effective_* = stored values
+      const obj = { ...up, species_name: up.species_name || up.nickname, effective_atk: up.atk, effective_hp: up.hp, effective_def: up.def_val, exp_max: expMax, feed_cost: up.level * 200 };
       enriched.push(obj);
       if (up.is_active) activePet = obj;
     }
@@ -47,7 +47,15 @@ router.post('/capture', authMiddleware, async (req, res, next) => {
       // Set as active if first pet
       const currentActive = await db.getVar('SELECT COUNT(*) FROM user_pet WHERE user_id = ? AND is_active = 1', [req.user.id]);
       const isActive = currentActive === 0 ? 1 : 0;
-      await db.insert('user_pet', { user_id: req.user.id, pet_id, nickname: target.name, level: 1, exp: 0, is_active: isActive, created_at: Math.floor(Date.now() / 1000) });
+      // Initialize pet stats (level 1 scaled values)
+      const initHp = target.hp;
+      const initAtk = Math.round(target.atk * (1 + 1 * 0.15));
+      const initDef = target.def_val;
+      await db.insert('user_pet', {
+        user_id: req.user.id, pet_id, nickname: target.name,
+        level: 1, exp: 0, is_active: isActive, created_at: Math.floor(Date.now() / 1000),
+        hp: initHp, hp_max: initHp, atk: initAtk, def_val: initDef
+      });
       // Sync user table for backward compat
       if (isActive) {
         await db.query('UPDATE user SET pet_id=?, pet_name=?, pet_level=1, pet_exp=0 WHERE id=?', [pet_id, target.name, req.user.id]);
