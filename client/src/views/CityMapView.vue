@@ -2,54 +2,79 @@
 <div class="citymap-page">
   <div class="location-bar">
     <div class="location-name">🗺️ {{ cityName }}</div>
-    <div class="location-path">点击城门直接前往</div>
+    <div class="location-path">{{ places.length }}个地点 · 点击前往</div>
   </div>
 
-  <!-- 城市地图区域 -->
-  <div class="city-map-wrap">
-    <!-- 北门（上方） -->
-    <div v-if="gatesByDir.n" class="gate gate-n" @click="goToGate(gatesByDir.n)">
-      <div class="gate-icon">⬆️</div>
-      <div class="gate-name">北门</div>
-      <div class="gate-target">{{ gatesByDir.n.name }}</div>
+  <!-- 棋盘网格 -->
+  <div class="place-grid" v-if="places.length">
+    <!-- 左上：北门 -->
+    <div v-if="gates.n" class="place-cell place-gate" @click="goTo(placesById[gates.n])">
+      <div class="cell-icon">⬆️</div>
+      <div class="cell-name">北门</div>
+      <div class="cell-sub">{{ placesById[gates.n]?.name }}</div>
+    </div>
+    <div v-else class="place-cell place-empty"></div>
+
+    <!-- 上排中间地点（北方） -->
+    <div v-for="p in placesByDir.n" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
+      <div class="cell-icon">{{ placeIcon(p) }}</div>
+      <div class="cell-name">{{ p.name }}</div>
     </div>
 
-    <!-- 城市主体 -->
-    <div class="city-center">
-      <div class="city-emblem">🏛️</div>
-      <div class="city-title">{{ cityName }}</div>
-      <div class="city-sub">点击下方城门离开城市</div>
-      <router-link to="/map" class="btn btn-secondary btn-block mt-10">← 返回地图</router-link>
+    <!-- 右上：东门 -->
+    <div v-if="gates.e" class="place-cell place-gate" @click="goTo(placesById[gates.e])">
+      <div class="cell-icon">➡️</div>
+      <div class="cell-name">东门</div>
+      <div class="cell-sub">{{ placesById[gates.e]?.name }}</div>
+    </div>
+    <div v-else class="place-cell place-empty"></div>
+
+    <!-- 左列（西） -->
+    <div v-for="p in placesByDir.w" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
+      <div class="cell-icon">{{ placeIcon(p) }}</div>
+      <div class="cell-name">{{ p.name }}</div>
     </div>
 
-    <!-- 左：西门  右：东门  下：南门 -->
-    <div class="gate gate-w" v-if="gatesByDir.w" @click="goToGate(gatesByDir.w)">
-      <div class="gate-icon">⬅️</div>
-      <div class="gate-name">西门</div>
-      <div class="gate-target">{{ gatesByDir.w.name }}</div>
+    <!-- 中间：城市名 -->
+    <div class="place-cell place-center">
+      <div class="cell-icon">🏛️</div>
+      <div class="cell-name">{{ cityName }}</div>
     </div>
 
-    <div class="city-body">
-      <!-- empty middle -->
+    <!-- 右列（东） -->
+    <div v-for="p in placesByDir.e" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
+      <div class="cell-icon">{{ placeIcon(p) }}</div>
+      <div class="cell-name">{{ p.name }}</div>
     </div>
 
-    <div class="gate gate-e" v-if="gatesByDir.e" @click="goToGate(gatesByDir.e)">
-      <div class="gate-icon">➡️</div>
-      <div class="gate-name">东门</div>
-      <div class="gate-target">{{ gatesByDir.e.name }}</div>
+    <!-- 左下：西门 -->
+    <div v-if="gates.w" class="place-cell place-gate" @click="goTo(placesById[gates.w])">
+      <div class="cell-icon">⬅️</div>
+      <div class="cell-name">西门</div>
+      <div class="cell-sub">{{ placesById[gates.w]?.name }}</div>
+    </div>
+    <div v-else class="place-cell place-empty"></div>
+
+    <!-- 下排中间地点（南方） -->
+    <div v-for="p in placesByDir.s" :key="p.id" class="place-cell" :class="current(p)" @click="goTo(p)">
+      <div class="cell-icon">{{ placeIcon(p) }}</div>
+      <div class="cell-name">{{ p.name }}</div>
     </div>
 
-    <!-- 南门（下方） -->
-    <div v-if="gatesByDir.s" class="gate gate-s" @click="goToGate(gatesByDir.s)">
-      <div class="gate-icon">⬇️</div>
-      <div class="gate-name">南门</div>
-      <div class="gate-target">{{ gatesByDir.s.name }}</div>
+    <!-- 右下：南门 -->
+    <div v-if="gates.s" class="place-cell place-gate" @click="goTo(placesById[gates.s])">
+      <div class="cell-icon">⬇️</div>
+      <div class="cell-name">南门</div>
+      <div class="cell-sub">{{ placesById[gates.s]?.name }}</div>
     </div>
+    <div v-else class="place-cell place-empty"></div>
   </div>
 
-  <div v-if="!gates.length" class="card" style="margin-top:12px;">
-    <div class="empty-state">该城市暂无关卡数据</div>
+  <div v-if="!places.length" class="card">
+    <div class="empty-state">该城市暂无地点数据</div>
   </div>
+
+  <router-link to="/map" class="btn btn-secondary btn-block mt-10">← 返回地图</router-link>
 </div>
 </template>
 
@@ -63,32 +88,83 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const cityName = ref('');
-const gates = ref([]);
+const places = ref([]);
+const currentPlaceId = ref(0);
 
-// Gate direction: match by name keyword
-const gatesByDir = computed(() => {
-  const result = { n: null, e: null, s: null, w: null };
-  gates.value.forEach(g => {
-    const n = g.name;
-    if (n.includes('北门') || n.includes('北城') || n.includes('北门')) result.n = g;
-    else if (n.includes('东门') || n.includes('东城')) result.e = g;
-    else if (n.includes('南门') || n.includes('南城')) result.s = g;
-    else if (n.includes('西城') || n.includes('西门')) result.w = g;
-    else {
-      // Fallback: 按出现顺序填充
-      if (!result.s) result.s = g;
-      else if (!result.w) result.w = g;
-      else if (!result.e) result.e = g;
-      else if (!result.n) result.n = g;
+// Gate keywords
+const GATE_KEYS = { n: ['北门','北城'], e: ['东门','东城'], s: ['南门','南城'], w: ['西门','西城'] };
+
+function isGate(name) {
+  for (const v of Object.values(GATE_KEYS)) if (v.some(k => name.includes(k))) return true;
+  return false;
+}
+
+function gateDir(name) {
+  if (GATE_KEYS.n.some(k => name.includes(k))) return 'n';
+  if (GATE_KEYS.e.some(k => name.includes(k))) return 'e';
+  if (GATE_KEYS.s.some(k => name.includes(k))) return 's';
+  if (GATE_KEYS.w.some(k => name.includes(k))) return 'w';
+  return null;
+}
+
+// gates { n, e, s, w } by direction keyword
+const gates = computed(() => {
+  const g = { n: null, e: null, s: null, w: null };
+  places.value.forEach(p => {
+    if (isGate(p.name)) {
+      const d = gateDir(p.name);
+      if (d && !g[d]) g[d] = p.id;
     }
+  });
+  return g;
+});
+
+// placesById for quick lookup
+const placesById = computed(() => {
+  const m = {};
+  places.value.forEach(p => { m[p.id] = p; });
+  return m;
+});
+
+// placesByDir: non-gate places grouped by inferred direction
+const placesByDir = computed(() => {
+  // Infer from each place's n/s/e/w connections to gates
+  const result = { n: [], e: [], s: [], w: [], center: [] };
+  const gateSet = new Set(Object.values(gates.value).filter(Boolean));
+
+  places.value.forEach(p => {
+    if (gateSet.has(p.id)) return; // skip gates
+    // Count how many connections point toward each direction
+    // A place with n>0 that connects to a gate is "north"
+    // Use the place's own n/s/e/w to classify
+    let placed = false;
+    if (p.n > 0 && gateSet.has(p.n)) { result.n.push(p); placed = true; }
+    else if (p.s > 0 && gateSet.has(p.s)) { result.s.push(p); placed = true; }
+    else if (p.e > 0 && gateSet.has(p.e)) { result.e.push(p); placed = true; }
+    else if (p.w > 0 && gateSet.has(p.w)) { result.w.push(p); placed = true; }
+    if (!placed) result.center.push(p);
   });
   return result;
 });
 
-async function goToGate(gate) {
+function placeIcon(p) {
+  if (p.type === 1) return '⚓';
+  if (p.type === 2) return '🏪';
+  if (p.type === 3) return '⚒️';
+  if (p.type === 4) return '🍷';
+  if (p.type === 5) return '🏪';
+  return '📍';
+}
+
+function current(p) {
+  return p.id === currentPlaceId.value ? 'place-current' : '';
+}
+
+async function goTo(p) {
+  if (!p || p.id === currentPlaceId.value) return;
   try {
-    await Api.post('/user/teleport', { place_id: gate.id });
-    userStore.updateUser({ ...userStore.user, place_id: gate.id });
+    await Api.post('/user/teleport', { place_id: p.id });
+    userStore.updateUser({ ...userStore.user, place_id: p.id });
     router.push('/map');
   } catch (e) {}
 }
@@ -97,8 +173,8 @@ async function load() {
   try {
     const d = await Api.get(`/user/citymap/${route.params.cityId || ''}`);
     cityName.value = d.city?.name || '城内地图';
-    // Filter places that look like gates: name contains 门 or 城
-    gates.value = (d.places || []).filter(p => p.name.includes('门') || p.name.includes('城'));
+    currentPlaceId.value = d.currentPlaceId || 0;
+    places.value = d.places || [];
   } catch (e) {}
 }
 
@@ -119,73 +195,53 @@ onMounted(load);
 .citymap-page::-webkit-scrollbar-track { background: transparent; }
 .citymap-page::-webkit-scrollbar-thumb { background: #3a4f2e; border-radius: 1px; }
 
-.city-map-wrap {
-  position: relative;
-  flex: 1;
-  min-height: 320px;
+.place-grid {
   display: grid;
-  grid-template-areas:
-    ". n ."
-    "w city e"
-    ". s .";
-  grid-template-columns: 60px 1fr 60px;
-  grid-template-rows: 56px 1fr 56px;
+  grid-template-columns: 80px repeat(3, 1fr) 80px;
+  grid-template-rows: 56px repeat(3, 1fr) 56px;
   gap: 4px;
+  flex: 1;
 }
 
-.gate {
+.place-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   background: #1a2230;
-  border: 2px solid #2a3a2a;
-  border-radius: 10px;
+  border: 1.5px solid #2a3a2a;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   gap: 2px;
-  padding: 6px 4px;
+  padding: 4px;
+  min-width: 0;
+  min-height: 0;
 }
-.gate:active {
+.place-cell:active:not(.place-center):not(.place-empty) {
   border-color: #c9a758;
   background: #1f2a1e;
   transform: scale(0.97);
 }
-.gate-n { grid-area: n; }
-.gate-s { grid-area: s; }
-.gate-e { grid-area: e; }
-.gate-w { grid-area: w; }
-
-.gate-icon { font-size: 24px; line-height: 1; }
-.gate-name { font-size: 11px; color: #c9a758; font-weight: bold; }
-.gate-target { font-size: 9px; color: #8b784e; text-align: center; }
-
-.city-center {
-  grid-area: city;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.place-cell.place-empty {
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+.place-cell.place-center {
   background: radial-gradient(ellipse at center, #1e2a3a 0%, #141e2a 100%);
-  border: 2px solid #2a3a2a;
-  border-radius: 16px;
-  padding: 12px;
-  gap: 4px;
+  border-color: #3a4a2a;
+  cursor: default;
 }
-.city-body {
-  grid-area: city;
+.place-cell.place-gate {
+  border-color: #3a5a2a;
+  background: #1a2a1e;
 }
-
-.city-emblem { font-size: 40px; line-height: 1; }
-.city-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #c9a758;
-  text-align: center;
+.place-cell.place-current {
+  border-color: #c9a758 !important;
+  background: #1f2a1e !important;
 }
-.city-sub {
-  font-size: 10px;
-  color: #8b784e;
-  text-align: center;
-}
+.cell-icon { font-size: 22px; line-height: 1; }
+.cell-name { font-size: 10px; color: #cfc19e; text-align: center; font-weight: 600; line-height: 1.2; }
+.cell-sub { font-size: 8px; color: #8b784e; text-align: center; }
 </style>
