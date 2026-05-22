@@ -19,9 +19,72 @@ const ARENA_CONFIG = {
   lose_reward_silver: 2,  // 失败参与奖银币
 };
 
+// 赛季配置：每2周一个赛季
+const SEASON_DURATION_SEC = 14 * 24 * 3600; // 14天
+const SEASON_START = 1700000000; // 参考起点（可调整为固定时间）
+
+// 段位配置：按排名百分比划分
+const TIERS = [
+  { name: 'bronze',  label: '青铜',   rank_pct: 100, season_silver: 50,  rank_reward_silver: 200  },
+  { name: 'silver',  label: '白银',   rank_pct: 75,  season_silver: 150, rank_reward_silver: 600  },
+  { name: 'gold',    label: '黄金',   rank_pct: 50,  season_silver: 300, rank_reward_silver: 1200 },
+  { name: 'diamond', label: '钻石',   rank_pct: 20,  season_silver: 500, rank_reward_silver: 2500 },
+  { name: 'king',    label: '王者',   rank_pct: 5,   season_silver: 1000, rank_reward_silver: 5000 },
+];
+
+// 获取当前赛季ID（从参考起点开始的周数）
+function getCurrentSeasonId() {
+  const now = Math.floor(Date.now() / 1000);
+  return Math.floor((now - SEASON_START) / SEASON_DURATION_SEC);
+}
+
+// 获取赛季结束时间戳
+function getSeasonEndTime(seasonId) {
+  return SEASON_START + (seasonId + 1) * SEASON_DURATION_SEC;
+}
+
+// 根据排名百分比计算段位
+async function calcTier(rank, totalPlayers) {
+  if (totalPlayers === 0) return TIERS[0];
+  const pct = (rank / totalPlayers) * 100;
+  for (const tier of TIERS) {
+    if (pct <= tier.rank_pct) return tier;
+  }
+  return TIERS[0];
+}
+
+// 获取总参赛人数
+async function getTotalPlayers() {
+  return await db.getVar('SELECT COUNT(*) FROM user_arena WHERE score > 0');
+}
+
+// 检查并处理赛季重置
+async function checkSeasonReset(ua) {
+  const currentSeason = getCurrentSeasonId();
+  if (ua.season_id < currentSeason) {
+    // 发放上赛季排名奖励
+    if (ua.season_id > 0 && ua.season_rewarded === 0 && ua.last_season_rank > 0) {
+      const total = await getTotalPlayers();
+      const tier = await calcTier(ua.last_season_rank, total);
+      const rewardSilver = tier.rank_reward_silver;
+      await db.query('UPDATE user SET money = money + ? * 100 WHERE id = ?', [rewardSilver, ua.user_id]);
+      ua.season_rewarded = 1; // 仅补偿一次（防止重入）
+    }
+    // 重置赛季数据
+    await db.query(
+      'UPDATE user_arena SET season_id=?, season_win_count=0, last_season_rank=rank, season_rewarded=0 WHERE user_id=?',
+      [currentSeason, ua.user_id]
+    );
+    ua.season_id = currentSeason;
+    ua.season_win_count = 0;
+  }
+  return ua;
+}
+
 // 初始化用户竞技场数据
 async function initUserArena(userId) {
   const record = await db.getOne('SELECT * FROM `user_arena` WHERE `user_id` = ?', [userId]);
+  const currentSeason = getCurrentSeasonId();
   if (!record) {
     await db.insert('user_arena', {
       user_id: userId,
@@ -30,11 +93,18 @@ async function initUserArena(userId) {
       win_count: 0,
       lose_count: 0,
       daily_challenge_count: 0,
-      last_challenge_at: 0
+      last_challenge_at: 0,
+      season_id: currentSeason,
+      tier: 'bronze',
+      season_win_count: 0,
+      last_season_rank: 0,
+      season_rewarded: 0
     });
     return {
       rank: 0, score: 1000, win_count: 0, lose_count: 0,
-      daily_challenge_count: 0, last_challenge_at: 0
+      daily_challenge_count: 0, last_challenge_at: 0,
+      season_id: currentSeason, tier: 'bronze', season_win_count: 0,
+      last_season_rank: 0, season_rewarded: 0
     };
   }
   return record;
@@ -48,6 +118,7 @@ async function checkAndResetDaily(ua) {
     await db.query('UPDATE `user_arena` SET `daily_challenge_count` = 0 WHERE `user_id` = ?', [ua.user_id]);
     ua.daily_challenge_count = 0;
   }
+  ua = await checkSeasonReset(ua);
   return ua;
 }
 
@@ -70,7 +141,13 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       lose_count: ua.lose_count,
       daily_challenge_count: ua.daily_challenge_count,
       daily_limit: ARENA_CONFIG.daily_challenges,
-      entry_fee: ARENA_CONFIG.entry_fee
+      entry_fee: ARENA_CONFIG.entry_fee,
+      season_id: ua.season_id,
+      tier: ua.tier,
+      tier_label: TIERS.find(t => t.name === ua.tier)?.label || '青铜',
+      season_win_count: ua.season_win_count,
+      season_end: getSeasonEndTime(ua.season_id),
+      last_season_rank: ua.last_season_rank
     });
   } catch (err) { next(err); }
 });
@@ -225,9 +302,18 @@ router.post('/challenge/:opponentId', authMiddleware, async (req, res, next) => 
       // 更新竞技场数据
       const scoreGain = 20 + Math.floor(opponent.level || 1) * 2;
       await db.query(
-        'UPDATE `user_arena` SET `win_count` = `win_count` + 1, `score` = `score` + ? WHERE `user_id` = ?',
+        'UPDATE `user_arena` SET `win_count` = `win_count` + 1, `score` = `score` + ?, `season_win_count` = `season_win_count` + 1 WHERE `user_id` = ?',
         [scoreGain, req.user.id]
       );
+      // 更新赛季段位
+      const newUa = await db.getOne('SELECT score, season_win_count FROM user_arena WHERE user_id = ?', [req.user.id]);
+      const total = await getTotalPlayers();
+      const myRank = await db.getVar('SELECT COUNT(*) + 1 FROM user_arena WHERE score > ?', [newUa.score]);
+      const newTier = await calcTier(myRank, total);
+      await db.query('UPDATE user_arena SET tier = ? WHERE user_id = ?', [newTier.name, req.user.id]);
+      if (newTier.name !== ua.tier) {
+        battle.log.push({ type: 'buff', text: `🏅 恭喜！你晋升为 ${newTier.label}！` });
+      }
     } else {
       // 失败
       reward.silver = ARENA_CONFIG.lose_reward_silver;
@@ -405,6 +491,27 @@ router.get('/my-rank-range', authMiddleware, async (req, res, next) => {
         lose_count: item.lose_count,
         is_me: item.id === req.user.id
       }))
+    });
+  } catch (err) { next(err); }
+});
+
+// 赛季信息
+router.get('/season', authMiddleware, async (req, res, next) => {
+  try {
+    const ua = await initUserArena(req.user.id);
+    await checkSeasonReset(ua);
+    const total = await getTotalPlayers();
+    const myRank = await db.getVar('SELECT COUNT(*) + 1 FROM user_arena WHERE score > ?', [ua.score]);
+    const tier = TIERS.find(t => t.name === ua.tier) || TIERS[0];
+    res.json({
+      season_id: ua.season_id,
+      season_end: getSeasonEndTime(ua.season_id),
+      tier: ua.tier,
+      tier_label: tier.label,
+      season_win_count: ua.season_win_count,
+      rank: myRank,
+      total_players: total,
+      tiers: TIERS.map(t => ({ name: t.name, label: t.label, rank_pct: t.rank_pct, season_silver: t.season_silver, rank_reward_silver: t.rank_reward_silver }))
     });
   } catch (err) { next(err); }
 });
