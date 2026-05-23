@@ -53,16 +53,11 @@ router.post('/go-wild', authMiddleware, async (req, res, next) => {
 
     const monsterId = monsterIds[Math.floor(Math.random() * monsterIds.length)];
 
-    // 找该城市的一个户外地点（type=0）作为传送点
-    const outdoorPlace = await db.getOne(
-      'SELECT id FROM place WHERE city_id = ? AND type = 0 ORDER BY RAND() LIMIT 1',
-      [wild.city_id]
-    );
+    // 使用 wild_map 中预设的 place_id
+    const targetPlaceId = wild.place_id || 0;
 
-    let targetPlaceId = 0;
-    if (outdoorPlace) {
-      targetPlaceId = outdoorPlace.id;
-      // 传送用户到户外地点
+    // 传送用户到户外地点
+    if (targetPlaceId > 0) {
       await db.query('UPDATE user SET place_id = ? WHERE id = ?', [targetPlaceId, userId]);
     }
 
