@@ -4,6 +4,35 @@
 <div v-if="msg" class="card" :style="{borderColor:msgType==='error'?'#73281c':'#2e5a3b'}">
 <p :style="{color:msgType==='error'?'#b85a3a':'#2e5a3b',margin:0}">{{ msg }}</p>
 </div>
+
+<!-- 海盗遭遇弹窗 -->
+<Teleport to="body">
+<div v-if="showPirateDialog" class="slot-picker-overlay">
+  <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:300;" @click="closePirateDialog"></div>
+  <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:rgba(26,26,46,0.97);border-radius:12px;padding:20px;z-index:301;border:1px solid rgba(220,80,80,0.4);">
+    <div style="text-align:center;font-size:36px;margin-bottom:8px;">🏴‍☠️</div>
+    <div style="text-align:center;font-size:16px;color:#f7efdb;margin-bottom:4px;">遭遇海盗！</div>
+    <div style="text-align:center;font-size:12px;color:#8b784e;margin-bottom:16px;">海盗盯上了你的货物<br>选择你的行动</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-secondary" style="flex:1;" @click="fleePirate">🏃 逃跑</button>
+      <button class="btn btn-primary" style="flex:1;background:#8b1a1a;" @click="fightPirate">⚔️ 迎战</button>
+    </div>
+  </div>
+</div>
+</Teleport>
+
+<!-- 宝藏弹窗 -->
+<Teleport to="body">
+<div v-if="showTreasureDialog" class="slot-picker-overlay">
+  <div style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:300;" @click="closeTreasureDialog"></div>
+  <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;background:rgba(26,26,46,0.97);border-radius:12px;padding:20px;z-index:301;border:1px solid rgba(201,165,88,0.4);">
+    <div style="text-align:center;font-size:36px;margin-bottom:8px;">📦</div>
+    <div style="text-align:center;font-size:16px;color:#f7efdb;margin-bottom:4px;">🎁 航行中发现宝箱！</div>
+    <div style="text-align:center;font-size:13px;color:#c9a758;margin-bottom:16px;">获得 {{ treasureAmount }} 铜币</div>
+    <button class="btn btn-primary btn-block" @click="closeTreasureDialog">✨ 收下</button>
+  </div>
+</div>
+</Teleport>
 <template v-if="isSailing">
 <div class="card" style="border-color:#3f6a4a;">
 <div class="card-title" style="color:#3f6a4a;">🌊 航行中...</div>
@@ -90,6 +119,9 @@ const ownedShips = ref([]);
 
 const msg = ref('');
 const msgType = ref('');
+const showPirateDialog = ref(false);
+const showTreasureDialog = ref(false);
+const treasureAmount = ref(0);
 
 const gameStore = useGameStore();
 const router = useRouter();
@@ -125,17 +157,11 @@ async function load(resetTarget = true) {
       msg.value = d.msg || '🌊 已到达目的地';
       msgType.value = (d.event && d.event.includes('pirate')) ? 'error' : 'success';
 
-      // Pirate mid-way event: auto start pirate battle overlay
+      // Pirate mid-way event: show dialog for user choice
       if (d.event === 'pirate_midway') {
-        try {
-          const b = await Api.post('/battle/start-pirate', {});
-          gameStore.setBattle(b);
-          router.push('/map');
-          return;
-        } catch (e) {
-          msg.value = e?.response?.data?.error || e.message || '海盗战斗启动失败';
-          msgType.value = 'error';
-        }
+        showPirateDialog.value = true;
+        syncPolling();
+        return;
       }
 
       try {
@@ -145,12 +171,22 @@ async function load(resetTarget = true) {
     }
 
     if (d?.arrived) {
+      const evt = d.event || '';
       msg.value = d.msg || '🌊 已到达目的地';
-      msgType.value = (d.event && d.event.includes('pirate')) ? 'error' : 'success';
+      msgType.value = evt === 'treasure' ? 'success' : 'normal';
+      if (evt === 'treasure') {
+        const match = (d.msg || '').match(/(\d+)/);
+        treasureAmount.value = match ? Number(match[1]) : 0;
+        showTreasureDialog.value = true;
+      } else {
+        showTreasureDialog.value = false;
+      }
       try {
         const latest = await Api.get('/sail/status');
         if (latest && !latest.arrived) d = latest;
       } catch (_) {}
+    } else {
+      showTreasureDialog.value = false;
     }
 
     isSailing.value = !!d?.isSailing;
@@ -211,6 +247,38 @@ async function depart() {
     await load(false);
   } catch (e) {
     msg.value = e?.response?.data?.error || e.message || '出航失败';
+    msgType.value = 'error';
+  }
+}
+
+function closePirateDialog() {
+  showPirateDialog.value = false;
+  load(false);
+}
+function closeTreasureDialog() {
+  showTreasureDialog.value = false;
+}
+async function fightPirate() {
+  showPirateDialog.value = false;
+  try {
+    const b = await Api.post('/battle/start-pirate', {});
+    gameStore.setBattle(b);
+    router.push('/map');
+  } catch (e) {
+    msg.value = e?.response?.data?.error || e.message || '海盗战斗启动失败';
+    msgType.value = 'error';
+  }
+}
+async function fleePirate() {
+  showPirateDialog.value = false;
+  // 逃跑：扣少量铜币，继续航行
+  try {
+    const d = await Api.post('/sail/flee-pirate', {});
+    msg.value = d.msg || '🏃 成功逃离海盗';
+    msgType.value = 'success';
+    await load(false);
+  } catch (e) {
+    msg.value = e?.response?.data?.error || e.message || '逃离失败';
     msgType.value = 'error';
   }
 }

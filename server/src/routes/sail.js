@@ -240,4 +240,21 @@ router.post('/depart', authMiddleware, async (req, res, next) => {
   } catch(e){next(e);}
 });
 
+// 逃离海盗
+router.post('/flee-pirate', authMiddleware, async (req, res, next) => {
+  try {
+    const user = await db.getOne('SELECT ship_id, money FROM `user` WHERE `id` = ?', [req.user.id]);
+    if (!user || !user.ship_id) return res.status(400).json({ error: '没有船只' });
+    if (!user.sail_paused) return res.status(400).json({ error: '当前没有海盗威胁' });
+
+    // 扣钱：船速越快，逃跑成功率越高，但费用也高
+    const ship = await db.getOne('SELECT speed FROM `ship` WHERE `id` = ?', [user.ship_id]);
+    const fleeCost = ship ? {1:200,2:150,3:100,5:50}[ship.speed] || 100 : 100;
+    if (Number(user.money) < fleeCost) return res.status(400).json({ error: `铜币不足，逃离需要 ${fleeCost} 铜币，你只有 ${user.money} 铜币` });
+
+    await db.query('UPDATE `user` SET money=money-?, sail_paused=0, sail_remaining_sec=0, sail_event_checked_at=? WHERE `id` = ?', [fleeCost, Math.floor(Date.now()/1000), req.user.id]);
+    res.json({ success: true, msg: `🏃 成功逃离海盗，消耗 ${fleeCost} 铜币` });
+  } catch(e){next(e);}
+});
+
 module.exports = router;
