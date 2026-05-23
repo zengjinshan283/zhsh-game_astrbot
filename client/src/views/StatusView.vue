@@ -100,7 +100,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
 const data=ref({user:{},stats:{},equips:[],battleCount:0,winCount:0,pet:null,invCount:0,shortcuts:[],consumables:[],place:{},statuses:[]});
-const activeStatuses=computed(()=>(data.value.statuses||[]).filter(s=>s.type===2));
+const activeStatuses=computed(()=>(data.value.statuses||[]).filter(s=>s.type===1||s.type===2));
 const shortcuts=ref([]);const consumables=ref([]);const showPicker=ref(false);const pickerSlot=ref(1);
 const timer=ref(null);
 const forceUpdate=ref(0);
