@@ -9,6 +9,10 @@
           <span class="stat-value text-gold">#{{ status.rank || '--' }}</span>
         </div>
         <div class="stat-item">
+          <span class="stat-label">段位</span>
+          <span class="stat-value" :style="{color: tierColor}">{{ status.tier_label || '青铜' }}</span>
+        </div>
+        <div class="stat-item">
           <span class="stat-label">积分</span>
           <span class="stat-value">{{ status.score || 1000 }}</span>
         </div>
@@ -22,6 +26,9 @@
             {{ (status.daily_limit || 5) - (status.daily_challenge_count || 0) }}/{{ status.daily_limit || 5 }}
           </span>
         </div>
+      </div>
+      <div class="season-bar">
+        <span style="font-size:10px;color:#8a7a5a;">赛季 {{ status.season_id }} · 结束于 {{ fmtSeasonEnd(status.season_end) }}</span>
       </div>
     </div>
 
@@ -171,7 +178,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { Api } from '../composables/useApi';
 import { globalAlert, globalConfirm } from '../composables/useConfirm';
 import { useUserStore } from '../stores/user';
@@ -191,12 +198,18 @@ const status = reactive({
   lose_count: 0,
   daily_challenge_count: 0,
   daily_limit: 5,
-  entry_fee: 100
+  entry_fee: 100,
+  tier_label: '青铜'
 });
 
 const arenaConfig = {
   first_win_silver: 50
 };
+
+const tierColor = computed(() => {
+  const map = { '青铜': '#cd7f32', '白银': '#c0c0c0', '黄金': '#e2b714', '钻石': '#b9f2ff', '王者': '#e040fb' };
+  return map[status.tier_label] || '#cd7f32';
+});
 
 const opponents = ref([]);
 const rankings = ref([]);
@@ -301,6 +314,11 @@ async function loadRankings(page = 1) {
 function closeBattleResult() {
   showBattleResult.value = false;
   battleResult.value = null;
+}
+function fmtSeasonEnd(ts) {
+  if (!ts) return '--';
+  const d = new Date(ts * 1000);
+  return `${d.getMonth()+1}/${d.getDate()}`;
 }
 </script>
 
