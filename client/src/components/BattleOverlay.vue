@@ -68,6 +68,12 @@
         <div class="divider"></div>
         <p>✨ 获得经验：<span class="text-gold">+{{ battle.exp_gained || 0 }}</span></p>
         <p>💰 获得铜币：<span class="text-gold">+{{ battle.money_gained || 0 }}</span></p>
+        <div v-if="battle.loot && battle.loot.length" style="margin-top:4px;">
+          <div v-for="l in battle.loot" :key="l.item_id" style="font-size:12px;">
+            <span :style="{color:l.quality>=2?'#9b59b6':l.quality===1?'#27ae60':'#aaa'}">💎</span>
+            {{ l.name }}×{{ l.qty }}
+          </div>
+        </div>
       </div>
 
       <!-- 捕获成功 -->

@@ -69,9 +69,9 @@
           <div class="quest-name">{{ item.name }} <span style="color:#888;font-size:10px;">Lv.{{ item.level_req || 1 }}</span></div>
           <div class="quest-desc">{{ item.description || '来自东方的珍贵饰品' }}</div>
           <div class="quest-reward">售价: {{ item.price_buy }} 铜币 | 回收: {{ item.price_sell }} 铜币</div>
-          <div style="display:flex;gap:6px;margin-top:4px;">
-            <button class="btn btn-primary btn-small" @click="buyItem(item)">购买</button>
-            <button class="btn btn-secondary btn-small" @click="sellItem(item)">出售</button>
+          <div style="display:flex;gap:6px;margin-top:4px;align-items:center;">
+            <input v-model.number="buyQty[item.id]" type="number" min="1" :max="999" style="width:50px;background:#0f1a0e;border:1px solid #2a3a2a;color:#d4c4a0;border-radius:4px;padding:2px 4px;font-size:12px;">
+            <button class="btn btn-primary btn-small" @click="buyItem(item, buyQty[item.id] || 1)">购买×{{ buyQty[item.id] || 1 }}</button>
           </div>
         </div>
       </div>
@@ -101,6 +101,7 @@ const activeQuests = ref([]);
 const completedTalkQuests = ref([]);
 const shopItems = ref([]);
 const showShop = ref(false);
+const buyQty = ref({});
 
 const npcIcon = computed(() => {
   if (!npc.value) return '👤';
@@ -156,6 +157,15 @@ async function claimQuest(q) {
     await load();
   } catch (e) {
     currentDialog.value = e.response?.data?.error || '提交失败';
+  }
+}
+
+async function buyItem(item, qty = 1) {
+  try {
+    const d = await Api.post('/npc/buy', { npc_id: props.npcId, item_id: item.id, quantity: qty });
+    currentDialog.value = `购买成功！花费 ${d.cost} 铜币`;
+  } catch (e) {
+    currentDialog.value = e.response?.data?.error || '购买失败';
   }
 }
 

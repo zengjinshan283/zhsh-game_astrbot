@@ -642,6 +642,7 @@ async function handleMonsterKill(user, battle) {
       else if (roll <= 99) quality = 3;   // purple
       else quality = 4;                    // orange
 
+      const itemRow = await db.getOne('SELECT name FROM `item` WHERE `id` = ?', [drop.item_id]);
       // Insert inventory item
       const invId = await db.insert('inventory', {
         user_id: user.id,
@@ -671,6 +672,9 @@ async function handleMonsterKill(user, battle) {
         }
         const qualityNames = ['', '绿色', '蓝色', '紫色', '橙色'];
         battle.log.push({ type: 'info', text: `💎 获得${qualityNames[quality]}装备！` });
+        // 收集到 loot 列表（battle.loot 由调用方保证是数组）
+        if (!battle.loot) battle.loot = [];
+        battle.loot.push({ item_id: drop.item_id, name: itemRow ? itemRow.name : '???', qty, quality });
       }
     }
   }
@@ -735,6 +739,7 @@ function buildBattleResponse(battle, user) {
     capture_rate: battle.capture_rate,
     exp_gained: battle.exp_gained || 0,
     money_gained: battle.money_gained || 0,
+    loot: battle.finished ? (battle.loot || []) : [],
     teleport: battle.teleported || false,
     log: battle.finished ? battle.log : battle.log.slice(-30),
   };
