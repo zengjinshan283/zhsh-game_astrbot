@@ -20,8 +20,14 @@
 <div><span style="color:#cfc19e;">⚔️攻击</span><br><span style="color:#73281c;font-weight:bold;">{{ activePet.effective_atk }}</span></div>
 <div><span style="color:#cfc19e;">❤️生命</span><br><span style="color:#2e5a3b;font-weight:bold;">{{ activePet.effective_hp }}</span></div>
 </div>
+<!-- Skill -->
+<div v-if="activePet.skill_name" style="margin-top:6px;padding:6px 8px;background:rgba(201,165,88,0.06);border-radius:6px;border:1px solid rgba(201,165,88,0.15);font-size:11px;">
+<span style="color:#c9a758;">⚡ {{ activePet.skill_name }}</span>
+<span style="color:#8b784e;margin-left:6px;">{{ activePet.skill_desc }}</span>
+</div>
 <!-- EXP bar -->
 <div class="status-bar bar-exp mt-4"><div class="bar-track"><div class="bar-fill" :style="{width:activePetExpPct+'%',background:petColors[activePet.type]||'#cfc19e'}"></div></div></div>
+<div style="font-size:10px;color:#8b784e;margin-top:2px;">{{ activePet.exp }}/{{ activePet.exp_max }} EXP<span v-if="activePet.exp < activePet.exp_max">，再获取 {{ activePet.exp_max - activePet.exp }} EXP 升级</span></div>
 <!-- Satiety bar -->
 <div style="margin-top:4px;font-size:10px;color:#cfc19e;">🍖 饱食度 {{ activePet.satiety || 0 }}/100</div>
 <div class="status-bar" style="margin-top:2px;"><div class="bar-track"><div class="bar-fill" :style="{width:(activePet.satiety||0)+'%',background:satColor}"></div></div></div>
@@ -70,7 +76,12 @@
 <div v-if="!activePet && allSpecies.length" class="card" style="border-color:#5f4a31;">
 <div class="card-title" style="color:#5f4a31;">🗺️ 野外探索（捕捉宠物）</div>
 <div v-for="p in allSpecies" :key="p.id" class="compact-row">
-<div><span style="font-size:14px;">{{ petEmojis[p.id]||'🐕' }}</span> <span :style="{color:petColors[p.type]}">{{ p.name }}</span> <span style="font-size:10px;color:#8b784e;">⚔️{{ p.atk }} ❤️{{ p.hp }}</span></div>
+<div style="flex:1;">
+<span style="font-size:14px;">{{ petEmojis[p.id]||'🐕' }}</span>
+<span :style="{color:petColors[p.type]}">{{ p.name }}</span>
+<span style="font-size:10px;color:#8b784e;">Lv.1 ⚔️{{ p.atk }} ❤️{{ p.hp }}</span>
+<span v-if="p.skill_name" style="font-size:10px;color:#c9a758;">⚡{{ p.skill_name }}</span>
+</div>
 <button class="btn btn-success btn-small" :disabled="hasPet(p.id)||pets.length>=MAX" @click="capture(p)" style="font-size:10px;" :style="hasPet(p.id)||pets.length>=MAX?'opacity:0.4;':''">{{ hasPet(p.id)?'已拥有':'捕捉('+p.capture_rate+'%)' }}</button>
 </div>
 </div>
