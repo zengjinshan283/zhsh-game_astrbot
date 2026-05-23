@@ -161,7 +161,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { Api } from '../composables/useApi';
-import { globalAlert } from '../composables/useAlert';
+import { globalAlert } from '../composables/useConfirm';
 
 const loading = ref(true);
 const items = ref([]);

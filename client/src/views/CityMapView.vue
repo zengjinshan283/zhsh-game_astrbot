@@ -88,11 +88,22 @@ function current(p) {
   return p && p.id === currentPlaceId.value ? 'place-current' : '';
 }
 
+function gateDirection(p) {
+  // 基于pos_row/pos_col判断城门朝向（相对于城市中心3,3）
+  const r = p.pos_row, c = p.pos_col;
+  if (r <= 0) return 'n';
+  if (r >= 6) return 's';
+  if (c <= 0) return 'w';
+  if (c >= 6) return 'e';
+  return 'e'; // 默认东
+}
+
 async function goTo(p) {
   if (!p || p.id === currentPlaceId.value) return;
   // 城门(type=5)点击进入野外
   if (p.type === 5) {
-    router.push(`/wild/${route.params.cityId}`);
+    const dir = gateDirection(p);
+    router.push(`/wild/${route.params.cityId}?dir=${dir}`);
     return;
   }
   try {

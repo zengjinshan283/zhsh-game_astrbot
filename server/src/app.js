@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const config = require('./config');
-const errorHandler = require('./middleware/errorHandler');
 const GameWsServer = require('./ws/WsServer');
 
 const app = express();
@@ -46,6 +45,7 @@ app.use('/api/arena', require('./routes/arena'));
 app.use('/api/vip', require('./routes/vip'));
 app.use('/api/invite', require('./routes/invite'));
 app.use('/api/codex', require('./routes/codex'));
+app.use('/api/wild', require('./routes/wild'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));
@@ -65,13 +65,14 @@ app.use('/api/admin/logs', require('./routes/admin/logs'));
 app.use('/api/admin/changelogs', require('./routes/admin/changelogs'));
 app.use('/api/admin/cdkey', require('./routes/admin/cdkey'));
 
+// ========== 错误处理 & 兜底路由 ==========
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
     res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+  } else {
+    res.status(404).json({ error: 'Not Found' });
   }
 });
-
-app.use(errorHandler);
 
 const server = app.listen(config.port, () => {
   console.log(`[HTTP] Server running on port ${config.port}`);
