@@ -20,7 +20,7 @@
     <span style="font-size:14px;">{{ s.icon }}</span>
     <div style="display:flex;flex-direction:column;">
       <span :style="s.type===2?'color:#e07070':'color:#70c070'">{{ s.name }}</span>
-      <span style="font-size:9px;color:#8b784e;">{{ s.type===2?'负面':'增益' }}</span>
+      <span style="font-size:9px;color:#8b784e;">{{ s.type===2?'负面':'增益' }}{{ s.end_time?' · '+fmtTime(s) :'' }}</span>
     </div>
   </div>
 </div>
@@ -97,17 +97,24 @@
 </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
 const data=ref({user:{},stats:{},equips:[],battleCount:0,winCount:0,pet:null,invCount:0,shortcuts:[],consumables:[],place:{},statuses:[]});
 const activeStatuses=computed(()=>(data.value.statuses||[]).filter(s=>s.type===2));
 const shortcuts=ref([]);const consumables=ref([]);const showPicker=ref(false);const pickerSlot=ref(1);
+const timer=ref(null);
+const forceUpdate=ref(0);
+const now=ref(Date.now());
 const hpPct=computed(()=>data.value.user?.hp_max>0?Math.round(data.value.user.hp/data.value.user.hp_max*100):0);
 const expPct=computed(()=>data.value.user?.exp_max>0?Math.round(data.value.user.exp/data.value.user.exp_max*100):0);
 function formatMoney(n){if(!n)return'0';if(n>=100000000)return(n/100000000).toFixed(1)+'亿';if(n>=10000)return(n/10000).toFixed(1)+'万';return n.toLocaleString();}
+function fmtTime(s){if(!s.end_time)return'';const sec=Math.max(0,Math.floor((new Date(s.end_time)-now.value)/1000));if(sec===0)return'已结束';const m=Math.floor(sec/60);const h=Math.floor(m/60);if(h>0)return`${h}时${m%60}分`;if(m>0)return`${m}分`;return`${sec}秒`;}
 async function load(){try{const d=await Api.get('/user/status');data.value=d;shortcuts.value=d.shortcuts||[];consumables.value=d.consumables||[];}catch(e){}}
 function openSlotPicker(i){pickerSlot.value=i;showPicker.value=true;}
 async function setSlot(slot,invId){try{await Api.post('/user/shortcut',{slot,inv_id:invId});showPicker.value=false;await load();}catch(e){}}
 async function clearSlot(slot){try{await Api.post('/user/shortcut',{slot,inv_id:0});await load();}catch(e){}}
-onMounted(load);
+onMounted(()=>{load();startTimer();});
+onUnmounted(()=>stopTimer());
+function startTimer(){timer.value=setInterval(()=>{now.value=Date.now();},1000);}
+function stopTimer(){if(timer.value){clearInterval(timer.value);timer.value=null;}}
 </script>
