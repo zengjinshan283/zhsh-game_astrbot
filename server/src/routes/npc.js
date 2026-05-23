@@ -7,6 +7,14 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
+// 按地点获取所有NPC（放在 /:id 前面，避免冲突）
+router.get('/place/:placeId', authMiddleware, async (req, res, next) => {
+  try {
+    const npcs = await db.getAll('SELECT * FROM `npc` WHERE `place_id` = ?', [req.params.placeId]);
+    res.json({ npcs });
+  } catch (err) { next(err); }
+});
+
 // 获取NPC信息
 router.get('/:id', authMiddleware, async (req, res, next) => {
   try {

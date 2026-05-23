@@ -36,10 +36,12 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Api } from '../composables/useApi';
 import { useUserStore } from '../stores/user';
+import { useGameStore } from '../stores/game';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const gameStore = useGameStore();
 const cityName = ref('');
 const places = ref([]);
 const currentPlaceId = ref(0);
@@ -106,6 +108,15 @@ async function goTo(p) {
     router.push(`/wild/${route.params.cityId}?dir=${dir}`);
     return;
   }
+  // 有NPC的地点弹出对话框
+  try {
+    const d = await Api.get(`/npc/place/${p.id}`);
+    if (d.npcs && d.npcs.length > 0) {
+      gameStore.showNpcDialog(d.npcs[0].id, p.name);
+      return;
+    }
+  } catch (e) {}
+  // 无NPC则传送
   try {
     await Api.post('/user/teleport', { place_id: p.id });
     userStore.updateUser({ ...userStore.user, place_id: p.id });
