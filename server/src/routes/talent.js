@@ -3,12 +3,12 @@ const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
-// 计算天赋对属性的加成
-function calcTalentBonuses(talents) {
+// 计算天赋对属性的加成（异步，需 await）
+async function calcTalentBonuses(talents) {
   const b = { atk_pct: 0, def_pct: 0, agi_pct: 0, hp_pct: 0, mp_pct: 0, crit_pct: 0, damage_reduce: 0, counter_pct: 0, sell_price: 0, buy_price: 0, tax_reduce: 0, trade_profit: 0, carry_capacity: 0, luxury_sell: 0, sail_speed: 0, treasure_rate: 0, pirate_avoid: 0, ocean_speed: 0, fish_rate: 0 };
   if (!talents || typeof talents !== 'object') return b;
   for (const [tid, level] of Object.entries(talents)) {
-    const rows = db.query('SELECT effect_type, effect_value, max_level FROM talent WHERE id = ?', [tid]);
+    const rows = await db.query('SELECT effect_type, effect_value, max_level FROM talent WHERE id = ?', [tid]);
     if (!rows || !rows.length) continue;
     const t = rows[0];
     const lv = Math.min(Number(level), Number(t.max_level));
@@ -28,7 +28,7 @@ router.get('/my', authMiddleware, async (req, res) => {
       const rows = await db.getAll('SELECT id, name, description, category, max_level, effect_type, effect_value, cost_points, icon FROM talent WHERE id = ?', [tid]);
       if (rows && rows.length) talents_with_level[tid] = { ...rows[0], level };
     }
-    res.json({ code: 0, data: { talent_points: user ? user.talent_points : 0, talents: talents_with_level, bonuses: calcTalentBonuses(talents) } });
+    res.json({ code: 0, data: { talent_points: user ? user.talent_points : 0, talents: talents_with_level, bonuses: await calcTalentBonuses(talents) } });
   } catch (err) {
     res.json({ code: 500, msg: err.message });
   }
@@ -70,7 +70,7 @@ router.post('/learn', authMiddleware, async (req, res) => {
     const new_talents = { ...talents, [talent_id]: new_level };
 
     // 重新计算属性加成
-    const b = calcTalentBonuses(new_talents);
+    const b = await calcTalentBonuses(new_talents);
     const rate = (pct) => 1 + pct / 100;
     const new_atk_min = Math.floor(Number(user.atk_min) * rate(b.atk_pct));
     const new_atk_max = Math.floor(Number(user.atk_max) * rate(b.atk_pct));
@@ -109,7 +109,7 @@ router.post('/reset', authMiddleware, async (req, res) => {
     }
 
     // 反推基础属性
-    const b = calcTalentBonuses(talents);
+    const b = await calcTalentBonuses(talents);
     const rate = (pct) => 1 + pct / 100;
     const base_atk_min = Math.floor(Number(user.atk_min) / rate(b.atk_pct));
     const base_atk_max = Math.floor(Number(user.atk_max) / rate(b.atk_pct));
