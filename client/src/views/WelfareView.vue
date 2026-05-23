@@ -34,45 +34,39 @@
 
       <!-- 7日登录 -->
       <div class="card" style="margin-bottom:12px;">
-        <div class="card-title">📅 7日登录礼包 · 连续 {{ status.login_days || 1 }} 天</div>
+        <div class="card-title">📅 7日登录礼包 · 第 {{ status.loginDay || 1 }} 天</div>
         <div class="sign-week" style="display:flex;gap:6px;justify-content:space-between;margin:12px 0;">
           <div
             v-for="d in 7"
             :key="d"
             :class="['sign-day', {
-              'signed': status.login_map && status.login_map[d],
-              'today': d === (status.login_days || 1) && !status.login_map?.[d],
-              'claimable': d === (status.login_days || 1) && !status.login_map?.[d],
-              'future': d > (status.login_days || 1)
+              'signed': claimedDays.includes(d),
+              'today': d === (status.loginDay || 1),
+              'claimable': d === (status.loginDay || 1) && !status.nextLoginClaimed,
+              'future': d > (status.loginDay || 1)
             }]"
             style="flex:1;text-align:center;padding:8px 2px;border-radius:6px;background:#1a1a2e;border:1px solid #333;font-size:11px;"
           >
             <div style="color:#888;font-size:10px;">第{{ d }}天</div>
             <div style="font-size:12px;margin:3px 0;">
-              <template v-if="d === 1">💰500</template>
-              <template v-else-if="d === 2">💰1000</template>
-              <template v-else-if="d === 3">💰1500</template>
-              <template v-else-if="d === 4">💰2000</template>
-              <template v-else-if="d === 5">💰3000</template>
-              <template v-else-if="d === 6">💰5000</template>
-              <template v-else>💰10000</template>
+              💰{{ loginMoney(d) }}
             </div>
             <div style="font-size:10px;color:#666;">
-              <template v-if="status.login_map && status.login_map[d]">✅</template>
-              <template v-else-if="d === (status.login_days || 1)">可领</template>
-              <template v-else-if="d > (status.login_days || 1)">🔒</template>
+              <template v-if="claimedDays.includes(d)">✅</template>
+              <template v-else-if="d === (status.loginDay || 1) && !status.nextLoginClaimed">可领</template>
+              <template v-else-if="d > (status.loginDay || 1)">🔒</template>
               <template v-else>-</template>
             </div>
           </div>
         </div>
         <button
-          v-if="status.login_map && !status.login_map[status.login_days || 1]"
+          v-if="status.loginDay && !status.nextLoginClaimed"
           @click="claimLogin"
           class="btn btn-primary btn-block"
           :disabled="claiming"
-        >{{ claiming ? '领取中...' : `领取第${status.login_days || 1}日奖励` }}</button>
-        <div v-else-if="(status.login_days || 1) > 7" style="text-align:center;color:#4fc3f7;padding:8px;">🎉 7日奖励已全部领取完毕！</div>
-        <div v-else style="text-align:center;color:#888;padding:8px;">明日再来领取第{{ (status.login_days || 1) + 1 }}天奖励</div>
+        >{{ claiming ? '领取中...' : `领取第${status.loginDay}日奖励` }}</button>
+        <div v-else-if="(status.loginDay || 1) > 7" style="text-align:center;color:#4fc3f7;padding:8px;">🎉 7日奖励已全部领取完毕！</div>
+        <div v-else style="text-align:center;color:#888;padding:8px;">明日再来领取第{{ Math.min((status.loginDay || 1) + 1, 7) }}天奖励</div>
       </div>
 
       <!-- 成长里程碑 -->
@@ -80,21 +74,22 @@
         <div class="card-title">🏆 成长里程碑</div>
         <div style="margin-top:12px;">
           <div
-            v-for="m in milestones"
-            :key="m.id"
-            :class="['milestone-item', { claimed: m.claimed, can_claim: m.can_claim }]"
+            v-for="m in status.milestones"
+            :key="m.level"
+            :class="['milestone-item', { claimed: m.claimed, can_claim: canClaimMilestone(m) }]"
             style="padding:12px;border-radius:8px;background:#1a1a2e;border:1px solid #333;margin-bottom:8px;"
           >
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <div style="font-size:14px;color:#ddd;">Lv.{{ m.level }} 里程碑</div>
                 <div style="font-size:12px;color:#888;margin-top:4px;">
-                  {{ milestoneRewards[m.id]?.desc }}
+                  💰{{ m.reward?.money || 0 }}铜币
+                  <template v-if="m.reward?.items?.length">+ {{ m.reward.items.map(i=>itemName(i.id)+'×'+i.qty).join('、') }}</template>
                 </div>
               </div>
               <button
-                v-if="m.can_claim"
-                @click="claimMilestone(m.id)"
+                v-if="canClaimMilestone(m)"
+                @click="claimMilestone(m.level)"
                 class="btn btn-primary"
                 style="padding:6px 16px;"
                 :disabled="claiming"
@@ -181,7 +176,6 @@ import { globalAlert } from '../composables/useConfirm';
 const loading = ref(true);
 const claiming = ref(false);
 const status = ref({});
-const milestones = ref([]);
 const activeTab = ref('welfare');
 
 // 在线奖励数据
@@ -209,13 +203,26 @@ const tabs = [
 let refreshTimer = null;
 let onlineTimer = null;
 
-const milestoneRewards = {
-  lv10: { desc: '铜币2000 + 经验500 + 长剑×1 + 中HP药×5' },
-  lv20: { desc: '铜币5000 + 经验1500 + 钢剑×1 + 中HP药×10' },
-  lv30: { desc: '铜币10000 + 经验3000 + 锋剑×1 + 大HP药×5' },
-  lv40: { desc: '铜币20000 + 经验5000 + 港口地图×1 + 船舶修复包×2' },
-  lv50: { desc: '铜币30000 + 经验8000' }
+// 7日登录每天铜币数（与后端 LOGIN_REWARDS 一致）
+const LOGIN_MONEY = { 1: 500, 2: 800, 3: 1200, 4: 1500, 5: 2000, 6: 2500, 7: 5000 };
+// 物品ID名字映射（用于显示里程碑奖励）
+const ITEM_NAMES = {
+  4: '长剑', 5: '钢剑', 6: '锋剑', 7: '精剑',
+  8: '宝石剑', 96: '小HP药', 97: '大HP药',
+  10: '地图', 12: '戒指', 13: '护符', 14: '项链',
+  101: '鉴定卷', 102: '强化石', 200: '藏宝图'
 };
+function loginMoney(d) { return LOGIN_MONEY[d] || 0; }
+function itemName(id) { return ITEM_NAMES[id] || `物品${id}`; }
+function canClaimMilestone(m) { return !m.claimed && (status.value.user_level || 0) >= m.level; }
+// 已领取的登录天数
+const claimedDays = computed(() => {
+  const day = status.value.loginDay || 1;
+  const claimed = [];
+  for (let d = 1; d < day; d++) claimed.push(d);
+  if (status.value.nextLoginClaimed) claimed.push(day);
+  return claimed;
+});
 
 function fmtTime(minutes) {
   if (typeof minutes !== 'number') return '0:00';
@@ -228,13 +235,6 @@ async function loadWelfare() {
   try {
     const d = await Api.get('/welfare/status');
     status.value = d;
-    milestones.value = (d.milestones || []).map((m, i) => ({
-      id: `lv${m.level}`,
-      level: m.level,
-      claimed: m.claimed,
-      can_claim: !m.claimed && d.user_level >= m.level,
-      reward: m.reward
-    }));
   } catch (e) {
     console.error(e);
   } finally {
@@ -277,10 +277,10 @@ async function claimLogin() {
   }
 }
 
-async function claimMilestone(id) {
+async function claimMilestone(level) {
   claiming.value = true;
   try {
-    const d = await Api.post('/welfare/claim-milestone', { milestone_id: id });
+    const d = await Api.post('/welfare/claim-milestone', { level });
     await globalAlert(d.msg);
     await loadWelfare();
   } catch (e) {

@@ -42,11 +42,11 @@ const LOGIN_REWARDS = {
 
 // 里程碑奖励（按 level 计）
 const MILESTONES = [
-  { level: 5,  money: 1000, items: [{ id: 1, qty: 5 }],   desc: '5级' },
-  { level: 10, money: 3000, items: [{ id: 12, qty: 1 }],  desc: '10级' },
-  { level: 15, money: 5000, items: [{ id: 13, qty: 1 }],  desc: '15级' },
-  { level: 20, money: 8000, items: [{ id: 14, qty: 1 }],  desc: '20级' },
-  { level: 30, money: 15000,items: [{ id: 102, qty: 1 }], desc: '30级' }
+  { level: 10, money: 2000, items: [{ id: 4, qty: 1 }, { id: 96, qty: 5 }],  desc: '10级', name: 'Lv.10' },
+  { level: 20, money: 5000, items: [{ id: 5, qty: 1 }, { id: 96, qty: 10 }], desc: '20级', name: 'Lv.20' },
+  { level: 30, money: 10000, items: [{ id: 6, qty: 1 }, { id: 96, qty: 15 }], desc: '30级', name: 'Lv.30' },
+  { level: 40, money: 20000, items: [{ id: 7, qty: 1 }, { id: 97, qty: 5 }], desc: '40级', name: 'Lv.40' },
+  { level: 50, money: 30000, items: [{ id: 8, qty: 1 }, { id: 97, qty: 10 }], desc: '50级', name: 'Lv.50' }
 ];
 
 // 在线奖励配置（每5分钟一档，60分钟循环）
@@ -100,7 +100,8 @@ router.get('/status', authMiddleware, async (req, res, next) => {
       nextLoginClaimed,
       loginRewards: LOGIN_REWARDS,
       milestones,
-      guide_step: user.guide_step
+      guide_step: user.guide_step,
+      user_level: user.level
     });
   } catch (err) { next(err); }
 });
@@ -158,9 +159,11 @@ router.post('/claim-login', authMiddleware, async (req, res, next) => {
 router.post('/claim-milestone', authMiddleware, async (req, res, next) => {
   try {
     const uid = req.user.id;
-    const { level } = req.body;
+    // 前端传 milestone_id 如 'lv10'，从中提取等级数字
+    const { milestone_id, level } = req.body;
+    const targetLevel = level || (milestone_id ? parseInt(milestone_id.replace('lv', '')) : 0);
 
-    const reward = MILESTONES.find(m => m.level === level);
+    const reward = MILESTONES.find(m => m.level === targetLevel);
     if (!reward) return res.status(400).json({ error: '无效的里程碑' });
 
     const user = await db.getOne('SELECT level, claimed_rewards FROM `user` WHERE `id` = ?', [uid]);
