@@ -90,6 +90,10 @@
 <router-link to="/inventory" class="btn btn-secondary" style="flex:1;">🎒 背包</router-link>
 <router-link to="/equipment" class="btn btn-secondary" style="flex:1;">⚔️ 装备</router-link>
 </div>
+<div style="display:flex;gap:4px;margin-top:4px;">
+<router-link to="/talent" class="btn btn-secondary" style="flex:1;font-size:12px;">⚡ 天赋</router-link>
+<router-link to="/arena" class="btn btn-secondary" style="flex:1;font-size:12px;">🏟️ 竞技</router-link>
+</div>
 </div>
 </template>
 <script setup>
