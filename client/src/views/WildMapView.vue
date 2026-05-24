@@ -1,72 +1,73 @@
 <template>
-<div class="page wild-page">
-  <!-- 顶部：城市名 + 返回 -->
-  <div class="location-bar">
-    <div class="location-name">🌿 {{ cityName }} - 野外探索</div>
-    <div class="back-btn" @click="router.push(`/citymap/${cityId}`)">← 城内</div>
-  </div>
+  <div class="wild-page">
+    <div class="wild-bg"></div>
 
-  <!-- 方向选择 tabs -->
-  <div class="dir-tabs">
-    <button
-      v-for="d in directions"
-      :key="d.key"
-      class="dir-btn"
-      :class="{ active: activeDir === d.key }"
-      @click="selectDir(d.key)"
-    >
-      {{ d.icon }} {{ d.label }}
-    </button>
-  </div>
-
-  <!-- 加载状态 -->
-  <div v-if="loading" class="loading-state">
-    <div class="loading-spinner"></div>
-    加载中...
-  </div>
-
-  <!-- 棋盘网格：3×1，每行一个区域，等级从低到高 -->
-  <div v-else-if="activeDir" class="wild-grid">
-    <div
-      v-for="(w, idx) in wildsByDir"
-      :key="w.id"
-      class="wild-cell"
-      :class="{
-        'wild-locked': userLevel < w.level_req,
-        'wild-near': w.level === 1,
-        'wild-mid': w.level === 2,
-        'wild-far': w.level === 3
-      }"
-    >
-      <div class="wild-cell-near-label">
-        {{ w.level === 1 ? '🌱 近' : w.level === 2 ? '🌲 中' : '🔥 深' }}
+    <!-- 顶部 HUD -->
+    <div class="top-hud">
+      <div class="hud-left">
+        <div class="hud-icon">🌿</div>
+        <div class="hud-title">{{ cityName }}</div>
       </div>
-      <div class="wild-cell-name">{{ w.name }}</div>
-      <div class="wild-cell-level">Lv.{{ w.level_req }}+</div>
-      <div class="wild-cell-monsters">{{ w.description || '有怪物出没' }}</div>
-      <button
-        v-if="userLevel >= w.level_req"
-        class="wild-enter-btn"
-        @click="goWild(w)"
-      >
-        进入探索
-      </button>
-      <div v-else class="wild-lock-info">🔒 需 Lv.{{ w.level_req }}</div>
+      <div class="hud-sub">野外探索</div>
     </div>
 
-    <!-- 没有区域时占位 -->
-    <template v-if="!wildsByDir.length">
-      <div class="wild-empty">此方向暂无野外区域</div>
-    </template>
-  </div>
+    <!-- 方向选择 tabs -->
+    <div class="dir-tabs">
+      <div
+        v-for="d in directions"
+        :key="d.key"
+        class="dir-btn"
+        :class="{ active: activeDir === d.key }"
+        @click="selectDir(d.key)"
+      >
+        <span class="dir-icon">{{ d.icon }}</span>
+        <span class="dir-label">{{ d.label }}</span>
+      </div>
+    </div>
 
-  <!-- 提示 -->
-  <div v-if="!activeDir && !loading" class="hint-state">
-    <div class="hint-icon">🧭</div>
-    <div class="hint-text">选择一个城门方向探索</div>
-    <div class="hint-sub">每个方向有3个等级的区域：近/中/深</div>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">加载中...</div>
+    </div>
+
+    <!-- 棋盘网格：3×1，每行一个区域 -->
+    <div class="wild-grid" v-else-if="activeDir">
+      <div
+        v-for="(w, idx) in wildsByDir"
+        :key="w.id"
+        class="wild-cell"
+        :class="{
+          'wild-locked': userLevel < w.level_req,
+          'wild-near': w.level === 1,
+          'wild-mid': w.level === 2,
+          'wild-far': w.level === 3
+        }"
+      >
+        <div class="wc-label">{{ w.level === 1 ? '🌱 近' : w.level === 2 ? '🌲 中' : '🔥 深' }}</div>
+        <div class="wc-name">{{ w.name }}</div>
+        <div class="wc-level">Lv.{{ w.level_req }}+</div>
+        <div class="wc-desc">{{ w.description || '有怪物出没' }}</div>
+        <button
+          v-if="userLevel >= w.level_req"
+          class="wc-enter-btn"
+          @click="goWild(w)"
+        >
+          进入探索
+        </button>
+        <div v-else class="wc-lock">🔒 需 Lv.{{ w.level_req }}</div>
+      </div>
+
+      <div v-if="!wildsByDir.length" class="wild-empty">此方向暂无野外区域</div>
+    </div>
+
+    <!-- 提示 -->
+    <div v-if="!activeDir && !loading" class="hint-card">
+      <div class="hint-icon">🧭</div>
+      <div class="hint-text">选择一个城门方向探索</div>
+      <div class="hint-sub">每个方向有3个等级的区域：近/中/深</div>
+    </div>
   </div>
-</div>
 </template>
 
 <script setup>
@@ -88,269 +89,202 @@ const wilds = ref({ n: [], s: [], e: [], w: [] });
 const activeDir = ref('');
 const userLevel = computed(() => userStore.user?.level || 1);
 
-// 从URL参数读取默认方向
 const urlDir = route.query.dir;
-if (['n','s','e','w'].includes(urlDir)) {
-  activeDir.value = urlDir;
-}
+if (['n', 's', 'e', 'w'].includes(urlDir)) { activeDir.value = urlDir; }
 
 const directions = [
   { key: 'n', label: '北', icon: '⬆️' },
   { key: 's', label: '南', icon: '⬇️' },
   { key: 'e', label: '东', icon: '➡️' },
-  { key: 'w', label: '西', icon: '⬅️' },
+  { key: 'w', label: '西', icon: '⬅️' }
 ];
 
-const wildsByDir = computed(() => {
-  if (!activeDir.value) return [];
-  return wilds.value[activeDir.value] || [];
-});
-
-function dirLabel(d) {
-  return { n: '北方', s: '南方', e: '东方', w: '西方' }[d] || d;
-}
-
-async function loadCity() {
-  cityId.value = parseInt(route.params.cityId) || 0;
-  if (!cityId.value) {
-    router.replace('/map');
-    return;
-  }
-  loading.value = true;
-  try {
-    const d = await Api.get(`/wild/list/${cityId.value}`);
-    cityName.value = d.city?.name || '野外';
-    wilds.value = d.wilds || { n: [], s: [], e: [], w: [] };
-  } catch (e) {
-    console.error('加载野外数据失败', e);
-    router.replace('/map');
-  } finally {
-    loading.value = false;
-  }
-}
+const wildsByDir = computed(() => wilds.value[activeDir.value] || []);
 
 function selectDir(dir) {
   activeDir.value = dir;
 }
 
 async function goWild(w) {
-  try {
-    // 通知后端进入野外，返回随机怪物ID
-    const d = await Api.post('/wild/go-wild', { wild_map_id: w.id });
-    if (!d.monster_id) {
-      alert('进入失败：未找到怪物');
-      return;
-    }
-    // 调用战斗接口获取战斗数据
-    const battleData = await Api.post('/battle/start', { monster_id: d.monster_id });
-    // 写入 gameStore 触发 BattleOverlay
-    gameStore.setBattle(battleData);
-    // 跳转到地图页（显示战斗浮层）
-    router.push('/map');
-  } catch (e) {
-    alert(e.message || '进入野外失败');
+  if (w.level === 1) {
+    router.push(`/map?wild=${w.id}`);
+  } else {
+    router.push(`/map?wild=${w.id}`);
   }
 }
 
-onMounted(loadCity);
+async function load() {
+  loading.value = true;
+  try {
+    cityId.value = parseInt(route.params.cityId) || 0;
+    const d = await Api.get(`/user/wild/${cityId.value}`);
+    cityName.value = d.cityName || '';
+    wilds.value = d.wilds || { n: [], s: [], e: [], w: [] };
+    if (activeDir.value && !wildsByDir.value.length) {
+      // auto switch to first available
+      for (const dir of directions) {
+        if (wilds.value[dir.key]?.length) { activeDir.value = dir.key; break; }
+      }
+    }
+  } catch (e) {}
+  loading.value = false;
+}
+
+onMounted(load);
 </script>
 
 <style scoped>
-.wild-page { padding: 8px; }
-
-.dir-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+.wild-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 10px;
+  min-height: 100%;
+  overflow-y: auto;
 }
 
+.wild-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(160deg, #0d1117 0%, #0a1a0a 50%, #0d1117 100%);
+  pointer-events: none;
+}
+
+.top-hud {
+  position: relative;
+  z-index: 2;
+  background: rgba(13, 17, 23, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hud-left { display: flex; align-items: center; gap: 8px; }
+.hud-icon { font-size: 20px; }
+.hud-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
+.hud-sub { font-size: 11px; color: #7f8c8d; background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 10px; }
+
+.dir-tabs {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
 .dir-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   padding: 10px 4px;
-  background: #1a1a2e;
-  border: 1px solid #2a3a5a;
-  border-radius: 8px;
-  color: #8b9dc3;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .dir-btn.active {
-  background: linear-gradient(135deg, #1a3a2a 0%, #1a2a1a 100%);
-  border-color: #4ade80;
-  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.3);
 }
+.dir-icon { font-size: 20px; }
+.dir-label { font-size: 11px; color: #7f8c8d; }
+.dir-btn.active .dir-label { color: #4ade80; }
 
-.loading-state {
-  text-align: center;
+.loading-card {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   padding: 40px;
-  color: #8b9dc3;
 }
-
 .loading-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid #2a3a5a;
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255,255,255,0.1);
   border-top-color: #4ade80;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 8px;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: #7f8c8d; }
 
-.wild-list { display: flex; flex-direction: column; gap: 10px; }
-
-.wild-card-title {
-  font-size: 13px;
-  color: #8b9dc3;
-  margin-bottom: 4px;
-}
-
-.wild-card {
-  background: #1a1a2e;
-  border: 1px solid #2a3a5a;
-  border-radius: 10px;
-  padding: 14px;
-  transition: all 0.2s;
-}
-
-.wild-card.wild-locked {
-  opacity: 0.5;
-}
-
-.wild-card.wild-near { border-left: 3px solid #4ade80; }
-.wild-card.wild-mid { border-left: 3px solid #fbbf24; }
-.wild-card.wild-far { border-left: 3px solid #ef4444; }
-
-.wild-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.wild-name {
-  font-size: 14px;
-  font-weight: bold;
-  color: #e8d5a3;
-}
-
-.wild-level {
-  font-size: 11px;
-  background: #2a3a5a;
-  color: #c9a758;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.wild-desc {
-  font-size: 12px;
-  color: #8b9dc3;
-  margin-bottom: 8px;
-  line-height: 1.4;
-}
-
-.wild-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.wild-tier { font-size: 12px; color: #8b9dc3; }
-
-.wild-enter-btn {
-  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
-  border: none;
-  border-radius: 6px;
-  color: #0a1a0a;
-  font-weight: bold;
-  font-size: 13px;
-  padding: 6px 20px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.wild-enter-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
-}
-
-.wild-lock-info {
-  font-size: 12px;
-  color: #ef4444;
-}
-
-.empty-state, .hint-state {
-  text-align: center;
-  padding: 40px;
-  color: #555;
-}
-
-.hint-icon { font-size: 48px; margin-bottom: 12px; }
-.hint-text { font-size: 16px; color: #8b9dc3; margin-bottom: 6px; }
-.hint-sub { font-size: 12px; color: #555; }
-
-/* 棋盘网格 */
 .wild-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-top: 4px;
 }
 
 .wild-cell {
-  background: #1a1a2e;
-  border: 1px solid #2a3a5a;
-  border-radius: 10px;
+  background: rgba(26, 26, 46, 0.9);
+  border: 1px solid rgba(42, 58, 90, 0.5);
+  border-top: 3px solid;
+  border-radius: 12px;
   padding: 14px 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: 6px;
-  transition: all 0.2s;
   min-height: 140px;
+  transition: all 0.2s;
 }
-
+.wild-cell:hover:not(.wild-locked) { transform: translateY(-2px); }
 .wild-cell.wild-locked { opacity: 0.5; }
-.wild-cell.wild-near { border-top: 3px solid #4ade80; }
-.wild-cell.wild-mid { border-top: 3px solid #fbbf24; }
-.wild-cell.wild-far { border-top: 3px solid #ef4444; }
+.wild-cell.wild-near { border-top-color: #4ade80; }
+.wild-cell.wild-mid { border-top-color: #fbbf24; }
+.wild-cell.wild-far { border-top-color: #ef4444; }
 
-.wild-cell-near-label { font-size: 11px; color: #8b9dc3; }
-.wild-cell-name { font-size: 14px; font-weight: bold; color: #e8d5a3; }
-.wild-cell-level { font-size: 11px; background: #2a3a5a; color: #c9a758; padding: 2px 8px; border-radius: 4px; }
-.wild-cell-monsters { font-size: 11px; color: #8b9dc3; flex: 1; }
+.wc-label { font-size: 10px; color: #8b9dc3; }
+.wc-name { font-size: 14px; font-weight: 700; color: #e8d5a3; }
+.wc-level { font-size: 10px; background: #2a3a5a; color: #c9a758; padding: 2px 8px; border-radius: 4px; }
+.wc-desc { font-size: 11px; color: #8b9dc3; flex: 1; }
 
-.back-btn {
-  font-size: 12px;
-  color: #4ade80;
-  cursor: pointer;
-  padding: 4px 8px;
-  background: #1a2a1a;
-  border: 1px solid #2a4a2a;
-  border-radius: 6px;
-}
-
-.wild-enter-btn {
-  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+.wc-enter-btn {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
   border: none;
   border-radius: 6px;
   color: #0a1a0a;
-  font-weight: bold;
-  font-size: 13px;
-  padding: 6px 20px;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 16px;
   cursor: pointer;
   transition: all 0.2s;
+  margin-top: auto;
+}
+.wc-enter-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4); }
+
+.wc-lock { font-size: 11px; color: #ef4444; margin-top: auto; }
+
+.wild-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 30px;
+  color: #555;
+  font-size: 13px;
 }
 
-.wild-enter-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.4);
+.hint-card {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 50px 30px;
+  text-align: center;
 }
-
-.wild-lock-info { font-size: 12px; color: #ef4444; }
-.wild-empty { grid-column: 1 / -1; text-align: center; padding: 30px; color: #555; }
+.hint-icon { font-size: 48px; }
+.hint-text { font-size: 16px; color: #8b9dc3; }
+.hint-sub { font-size: 12px; color: #555; }
 </style>
