@@ -128,11 +128,13 @@
     </div>
   </div>
 
-  <!-- 圆形罗盘导航 -->
+  <!-- 合并罗盘导航（方向 + 当前位置） -->
   <div class="compass-wrap">
     <div class="compass-rose">
       <div class="cr-center">
-        <div class="cr-dot"></div>
+        <div class="cr-pin">📍</div>
+        <div class="cr-loc" v-if="scene.place">{{ scene.place.name.substring(0,4) }}</div>
+        <router-link v-if="scene.city" :to="'/citymap/' + scene.city.id" class="cr-city-btn">🏛️ {{ scene.city.name }}</router-link>
       </div>
       <!-- 北 -->
       <div class="cr-dir cr-n">
@@ -170,34 +172,6 @@
       <div class="cr-refresh" @click="loadScene">🔄</div>
     </div>
     <div class="move-error-msg" v-if="moveError">⚠️ {{ moveError }}</div>
-  </div>
-
-  <!-- 右下角 Mini 小地图 -->
-  <div class="mini-map" v-if="scene.city">
-    <div class="mm-title">🏛️ {{ scene.city.name }}</div>
-    <div class="mm-grid">
-      <div class="mm-cell mm-n" @click.prevent="move('n')">
-        <span v-if="scene.exits.n" class="mm-dir">⬆️</span>
-        <span v-else class="mm-none">·</span>
-      </div>
-      <div class="mm-cell mm-w" @click.prevent="move('w')">
-        <span v-if="scene.exits.w" class="mm-dir">⬅️</span>
-        <span v-else class="mm-none">·</span>
-      </div>
-      <div class="mm-cell mm-center">
-        <div class="mm-pin">📍</div>
-        <div class="mm-here">{{ scene.place.name.substring(0,4) }}</div>
-      </div>
-      <div class="mm-cell mm-e" @click.prevent="move('e')">
-        <span v-if="scene.exits.e" class="mm-dir">➡️</span>
-        <span v-else class="mm-none">·</span>
-      </div>
-      <div class="mm-cell mm-s" @click.prevent="move('s')">
-        <span v-if="scene.exits.s" class="mm-dir">⬇️</span>
-        <span v-else class="mm-none">·</span>
-      </div>
-    </div>
-    <router-link v-if="scene.city" :to="'/citymap/' + scene.city.id" class="mm-city-btn">进城</router-link>
   </div>
 
   <!-- 城市入口按钮（右上角浮动） -->
@@ -1231,16 +1205,21 @@ watch(() => gameStore.inBattle, (val, oldVal) => {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 1px;
 }
-.cr-dot {
-  width: 8px;
-  height: 8px;
-  background: rgba(255,255,255,0.15);
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.2);
+.cr-pin { font-size: 14px; line-height: 1; }
+.cr-loc { font-size: 7px; color: #27ae60; text-align: center; line-height: 1.2; font-weight: 600; }
+.cr-city-btn {
+  font-size: 8px;
+  color: #27ae60;
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
 }
+.cr-city-btn:hover { opacity: 1; }
 .cr-dir { position: absolute; }
 .cr-n { top: 6px; left: 50%; transform: translateX(-50%); }
 .cr-s { bottom: 6px; left: 50%; transform: translateX(-50%); }
@@ -1271,60 +1250,6 @@ watch(() => gameStore.inBattle, (val, oldVal) => {
 }
 .cr-refresh:hover { opacity: 0.8; transform: translate(-50%, -50%) rotate(180deg); }
 .move-error-msg { font-size: 10px; color: #e74c3c; text-align: center; }
-
-/* ===== Mini 小地图 ===== */
-.mini-map {
-  position: relative;
-  z-index: 2;
-  float: right;
-  margin-top: 4px;
-  background: rgba(13,17,23,0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 90px;
-}
-.mm-title { font-size: 9px; color: #7f8c8d; font-weight: 600; text-align: center; }
-.mm-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 22px);
-  grid-template-rows: repeat(3, 22px);
-  gap: 2px;
-}
-.mm-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.04);
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.mm-cell:hover { background: rgba(255,255,255,0.1); }
-.mm-center { background: rgba(39,174,96,0.15); cursor: default; }
-.mm-pin { font-size: 14px; }
-.mm-here { font-size: 7px; color: #27ae60; text-align: center; line-height: 1.1; }
-.mm-dir { font-size: 11px; opacity: 0.7; }
-.mm-none { color: rgba(255,255,255,0.15); font-size: 10px; }
-.mm-city-btn {
-  background: rgba(39,174,96,0.12);
-  border: 1px solid rgba(39,174,96,0.25);
-  color: #27ae60;
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-.mm-city-btn:hover { background: rgba(39,174,96,0.2); }
 
 /* ===== 浮动城市入口 ===== */
 .float-city-btn {
