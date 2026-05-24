@@ -13,6 +13,58 @@ function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Nu
 // In-memory battle sessions (keyed by userId)
 const battleSessions = new Map();
 
+// ─── 装备加成计算（基础属性 + 鉴定词缀 + 套装）───────────────
+async function computeEquipBonus(userId) {
+  const equipped = await db.getAll(
+    `SELECT inv.id AS inv_id, inv.enhance_level, inv.is_identified, inv.identify_affixes,
+            i.atk, i.def_val, i.set_name
+     FROM inventory inv JOIN item i ON inv.item_id = i.id
+     WHERE inv.user_id = ? AND inv.equipped = 1 AND i.subtype IN ('weapon','armor')`,
+    [userId]
+  );
+  let bonusAtk = 0, bonusDef = 0, bonusHp = 0;
+  const setGroups = {};
+
+  for (const eq of equipped) {
+    // 强化加成 (atk/def_val × (1 + level × 3%))
+    const mult = 1 + (eq.enhance_level || 0) * 0.03;
+    bonusAtk += Math.round((eq.atk || 0) * mult);
+    bonusDef += Math.round((eq.def_val || 0) * mult);
+
+    // 鉴定词缀加成
+    if (eq.is_identified && eq.identify_affixes) {
+      try {
+        const affixes = typeof eq.identify_affixes === 'string'
+          ? JSON.parse(eq.identify_affixes) : eq.identify_affixes;
+        for (const a of affixes) {
+          if (a.stat_key === 'atk') bonusAtk += a.value;
+          if (a.stat_key === 'def') bonusDef += a.value;
+          if (a.stat_key === 'hp') bonusHp += a.value;
+          if (a.stat_key === 'agility') {} // future
+        }
+      } catch (_) {}
+    }
+
+    // 套装分组
+    if (eq.set_name) setGroups[eq.set_name] = (setGroups[eq.set_name] || 0) + 1;
+  }
+
+  // 套装激活加成（取最高档）
+  for (const [setName, count] of Object.entries(setGroups)) {
+    if (count < 2) continue;
+    const rows = await db.getAll(
+      'SELECT * FROM item_set WHERE set_name = ? AND piece_count <= ? ORDER BY piece_count DESC LIMIT 1',
+      [setName, count]
+    );
+    if (rows.length) {
+      bonusAtk += rows[0].bonus_atk || 0;
+      bonusDef += rows[0].bonus_def || 0;
+      bonusHp += rows[0].bonus_hp || 0;
+    }
+  }
+  return { bonusAtk, bonusDef, bonusHp };
+}
+
 // Apply durability loss to an equipped item (weapon or armor), returns { broken, name }
 async function applyDurabilityLoss(userId, subtype, loss) {
   const inv = await db.getOne(
@@ -95,6 +147,11 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       }
     }
 
+    // Compute equip bonus (强化 + 鉴定词缀 + 套装)
+    const { bonusAtk, bonusDef, bonusHp } = await computeEquipBonus(req.user.id);
+    const eAtkMin = Math.max(1, Number(user.atk_min) + bonusAtk);
+    const eAtkMax = Math.max(1, Number(user.atk_max) + bonusAtk);
+
     let battle = {
       monster_id: pirate.id, monster_name: pirate.name,
       monster_hp: Number(pirate.hp), monster_hp_max: Number(pirate.hp),
@@ -106,6 +163,8 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       from_sail: true, sail_remaining_sec: Number(user.sail_remaining_sec || 0),
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
       log: [{ type: 'info', text: '🏴‍☠️ 海盗船逼近！战斗开始！' }],
+      equip_bonus: { bonusAtk, bonusDef, bonusHp },
+      e_atk_min: eAtkMin, e_atk_max: eAtkMax,
     };
     if (petAtk > 0) battle.log.push({ type: 'info', text: `🐾 ${petName} 在一旁准备战斗！` });
 
@@ -145,6 +204,11 @@ router.post('/start', authMiddleware, async (req, res, next) => {
         }
       }
     }
+    // Compute equip bonus (强化 + 鉴定词缀 + 套装)
+    const { bonusAtk, bonusDef, bonusHp } = await computeEquipBonus(req.user.id);
+    const eAtkMin = Math.max(1, Number(user.atk_min) + bonusAtk);
+    const eAtkMax = Math.max(1, Number(user.atk_max) + bonusAtk);
+
     let battle = {
       monster_id, monster_name: monster.name,
       monster_hp: Number(monster.hp), monster_hp_max: Number(monster.hp),
@@ -155,6 +219,8 @@ router.post('/start', authMiddleware, async (req, res, next) => {
       round: 1, result: null, finished: false,
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
       log: [{ type: 'info', text: `你遭遇了${monster.name}！` }],
+      equip_bonus: { bonusAtk, bonusDef, bonusHp },
+      e_atk_min: eAtkMin, e_atk_max: eAtkMax,
     };
     if (petAtk > 0) battle.log.push({ type: 'info', text: `🐾 ${petName} 在一旁准备战斗！` });
 
@@ -187,7 +253,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       // Apply atk multiplier from status
       const atkBoost = (battle.temp_atk_boost || 1) * (statusEffects.atkMult || 1.0);
       const defReduction = 1.0 - Math.max(0, (statusEffects.defMult || 1.0) - 1.0);
-      const pAtk = Math.floor(randInt(user.atk_min, user.atk_max) * atkBoost);
+      const pAtk = Math.floor(randInt(battle.e_atk_min, battle.e_atk_max) * atkBoost);
       const pDmg = Math.max(1, Math.floor((pAtk - battle.monster_def * (1 - defReduction))));
       battle.monster_hp -= pDmg;
       battle.log.push({ type: 'attack', text: `你挥剑攻击${battle.monster_name}，造成 ${pDmg} 点伤害！` });
@@ -318,7 +384,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         // Attack skill
         const hits = skill_id === 3 ? 2 : 1; // Skill 3 = Double Strike (2 hits)
         for (let h = 0; h < hits; h++) {
-          const pAtk = randInt(user.atk_min, user.atk_max);
+          const pAtk = randInt(battle.e_atk_min, battle.e_atk_max);
           const pDmg = Math.max(1, Math.floor((pAtk * Number(userSkill.atk_multiplier)) - battle.monster_def));
           battle.monster_hp -= pDmg;
           battle.log.push({ type: 'skill', text: `你施展了${userSkill.name}，造成 ${pDmg} 点伤害！` });
@@ -750,9 +816,10 @@ function buildBattleResponse(battle, user) {
     resp.player_exp = user.exp;
     resp.player_exp_max = user.exp_max;
     resp.player_money = user.money;
-    resp.player_atk_min = user.atk_min;
-    resp.player_atk_max = user.atk_max;
+    resp.player_atk_min = battle.e_atk_min;
+    resp.player_atk_max = battle.e_atk_max;
     resp.player_def = user.def;
+    resp.equip_bonus = battle.equip_bonus || { bonusAtk: 0, bonusDef: 0, bonusHp: 0 };
     resp.player_mp = user.mp || 0;
     resp.player_mp_max = user.mp_max || 100;
     resp.pet_name = battle.pet_name;
