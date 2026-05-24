@@ -72,10 +72,6 @@
         <div class="qb-icon">📋</div>
         <div class="qb-label">任务</div>
       </router-link>
-      <router-link to="/map" class="quick-btn">
-        <div class="qb-icon">⛵</div>
-        <div class="qb-label">航海</div>
-      </router-link>
       <router-link to="/welfare" class="quick-btn">
         <div class="qb-icon">🎁</div>
         <div class="qb-label">福利</div>
