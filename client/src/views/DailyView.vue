@@ -1,76 +1,89 @@
 <template>
-  <div class="page">
-    <div class="location-bar">
-      <div class="location-name">📅 每日活跃</div>
+  <div class="daily-page">
+    <div class="daily-bg"></div>
+
+    <!-- 顶部 HUD -->
+    <div class="top-hud">
+      <div class="hud-left">
+        <div class="hud-icon">📅</div>
+        <div class="hud-title">每日活跃</div>
+      </div>
+      <div class="hud-active">{{ status.total_active_point || 0 }}<span class="hud-unit">点</span></div>
     </div>
 
-    <div v-if="loading" class="card" style="text-align:center;color:#888;padding:20px;">加载中...</div>
-    <div v-else>
+    <div v-if="loading" class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">加载中...</div>
+    </div>
 
-      <!-- 活跃度进度条 -->
-      <div class="card" style="margin-bottom:12px;text-align:center;">
-        <div style="font-size:13px;color:#888;margin-bottom:8px;">今日活跃度</div>
-        <div style="font-size:28px;font-weight:bold;color:#e2b70a;">{{ status.total_active_point || 0 }}</div>
-        <div style="font-size:12px;color:#666;margin-bottom:10px;">/ 100 点</div>
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: Math.min((status.total_active_point || 0), 100) + '%' }"></div>
+    <div v-else class="card-area">
+
+      <!-- 活跃度进度 -->
+      <div class="active-card">
+        <div class="ac-top">
+          <div class="ac-label">今日活跃度</div>
+          <div class="ac-num">{{ status.total_active_point || 0 }}<span class="ac-total">/100</span></div>
         </div>
-        <div style="font-size:11px;color:#555;margin-top:6px;">
-          再获得 {{ Math.max(0, 100 - (status.total_active_point || 0)) }} 点即可领取全部宝箱
+        <div class="ac-bar-wrap">
+          <div class="ac-bar">
+            <div class="ac-fill" :style="{ width: Math.min((status.total_active_point || 0), 100) + '%' }"></div>
+          </div>
         </div>
+        <div class="ac-tip">再获得 {{ Math.max(0, 100 - (status.total_active_point || 0)) }} 点即可领取全部宝箱</div>
       </div>
 
       <!-- 任务列表 -->
-      <div class="card" style="margin-bottom:12px;">
-        <div class="card-title">📋 今日任务</div>
-        <div class="task-list">
+      <div class="tasks-card">
+        <div class="tasks-header">📋 今日任务</div>
+        <div class="tasks-list">
           <div
             v-for="task in status.tasks"
             :key="task.key"
-            :class="['task-item', { completed: task.completed }]"
+            class="task-item"
+            :class="{ completed: task.completed }"
           >
-            <div class="task-info">
-              <div class="task-name">{{ task.name }}</div>
-              <div class="task-desc">{{ task.description }}</div>
+            <div class="ti-info">
+              <div class="ti-name">{{ task.name }}</div>
+              <div class="ti-desc">{{ task.description }}</div>
             </div>
-            <div class="task-progress">
-              <span :class="{ 'text-success': task.completed, 'text-warning': !task.completed }">
+            <div class="ti-right">
+              <span class="ti-progress" :class="task.completed ? 'done' : 'pending'">
                 {{ task.completed ? '✓' : task.progress + '/' + task.target }}
               </span>
-              <span class="task-point">+{{ task.active_point }}</span>
+              <span class="ti-point">+{{ task.active_point }}</span>
             </div>
           </div>
         </div>
       </div>
 
       <!-- 宝箱奖励 -->
-      <div class="card" style="margin-bottom:12px;">
-        <div class="card-title">🎁 活跃宝箱</div>
-        <div class="reward-grid">
+      <div class="boxes-card">
+        <div class="boxes-header">🎁 活跃宝箱</div>
+        <div class="boxes-grid">
           <div
             v-for="box in status.reward_boxes"
             :key="box.id"
-            :class="['reward-box', {
+            class="reward-box"
+            :class="{
               'can-claim': box.can_claim,
               'claimed': box.claimed
-            }]"
+            }"
             @click="claimBox(box)"
           >
-            <div class="reward-icon">
+            <div class="rb-icon">
               <span v-if="box.claimed">✅</span>
               <span v-else-if="box.can_claim">🎁</span>
               <span v-else>🔒</span>
             </div>
-            <div class="reward-point">{{ box.active_point }}点</div>
-            <div class="reward-reward">{{ getRewardText(box) }}</div>
-            <div v-if="box.claimed" class="reward-status">已领取</div>
-            <div v-else-if="box.can_claim" class="reward-status can">可领取</div>
-            <div v-else class="reward-status locked">未达成</div>
+            <div class="rb-point">{{ box.active_point }}点</div>
+            <div class="rb-reward">{{ getRewardText(box) }}</div>
+            <div class="rb-status" :class="box.claimed ? 'status-claimed' : box.can_claim ? 'status-can' : 'status-locked'">
+              {{ box.claimed ? '已领取' : box.can_claim ? '可领取' : '未达成' }}
+            </div>
           </div>
         </div>
       </div>
 
-      <button @click="$router.back()" class="btn btn-secondary btn-block">返回</button>
     </div>
   </div>
 </template>
@@ -78,172 +91,139 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { globalAlert } from '../composables/useConfirm';
 
 const loading = ref(true);
 const status = ref({});
 let refreshTimer = null;
 
 async function load() {
-  try {
-    const d = await Api.get('/daily/status');
-    status.value = d;
-  } catch (e) {
-    console.error(e);
-  } finally {
-    loading.value = false;
-  }
+  try { const d = await Api.get('/daily/status'); status.value = d; }
+  catch (e) {} finally { loading.value = false; }
 }
 
 function getRewardText(box) {
-  if (box.reward_type === 'money') {
-    return `${box.quantity}铜币`;
-  }
-  const itemNames = {
-    3001: '千银矿石',
-    96: '体力宝',
-    94: '龙泉水',
-    2001: '月华密令',
-    2002: '龙门镖旗'
-  };
+  if (box.reward_type === 'money') return `${box.quantity}铜币`;
+  const itemNames = { 3001: '千银矿石', 96: '体力宝', 94: '龙泉水', 2001: '月华密令', 2002: '龙门镖旗' };
   return itemNames[box.reward_value] || `物品×${box.quantity}`;
 }
 
 async function claimBox(box) {
   if (box.claimed) return;
-  if (!box.can_claim) {
-    alert(`活跃度不足，需要${box.active_point}点`);
-    return;
-  }
+  if (!box.can_claim) { globalAlert(`活跃度不足，需要${box.active_point}点`); return; }
   try {
     const d = await Api.post(`/daily/claim/${box.id}`);
-    alert(d.msg);
+    globalAlert(d.msg);
     await load();
-  } catch (e) {
-    alert(e.message);
-  }
+  } catch (e) { globalAlert(e.message); }
 }
 
-onMounted(() => {
-  load();
-  // 每15秒刷新一次
-  refreshTimer = setInterval(load, 15000);
-});
-
-onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer);
-});
+onMounted(() => { load(); refreshTimer = setInterval(load, 15000); });
+onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
 </script>
 
 <style scoped>
-.progress-bar {
-  height: 12px;
-  background: #1a1a2e;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid #333;
-}
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #e2b70a, #f5d742);
-  border-radius: 6px;
-  transition: width 0.3s;
-}
-.task-list {
+.daily-page {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 12px;
-}
-.task-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  background: #1a1a2e;
-  border-radius: 8px;
-  border: 1px solid #333;
-}
-.task-item.completed {
-  border-color: #4caf50;
-  background: #1a2e1a;
-}
-.task-info {
-  flex: 1;
-}
-.task-name {
-  font-size: 14px;
-  color: #ddd;
-  font-weight: 500;
-}
-.task-desc {
-  font-size: 12px;
-  color: #666;
-  margin-top: 2px;
-}
-.task-progress {
-  text-align: right;
-  margin-left: 12px;
-}
-.task-progress .text-success { color: #4caf50; font-size: 14px; font-weight: bold; }
-.task-progress .text-warning { color: #e2b70a; font-size: 14px; }
-.task-point {
-  display: block;
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
-}
-.reward-grid {
-  display: flex;
-  flex-wrap: wrap;
   gap: 10px;
-  margin-top: 12px;
-  justify-content: space-between;
+  padding: 8px 10px;
+  min-height: 100%;
+  overflow-y: auto;
+}
+.daily-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: linear-gradient(160deg, #0d1117 0%, #1a1a00 50%, #0d1117 100%);
+  pointer-events: none;
+}
+.top-hud {
+  position: relative; z-index: 2;
+  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+  padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+}
+.hud-left { display: flex; align-items: center; gap: 8px; }
+.hud-icon { font-size: 20px; }
+.hud-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
+.hud-active { font-size: 20px; font-weight: 700; color: #e2b70a; }
+.hud-unit { font-size: 12px; color: #7f8c8d; margin-left: 2px; }
+.loading-card {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px;
+}
+.loading-spinner {
+  width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: #e2b70a; border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 13px; color: #7f8c8d; }
+.card-area { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 10px; }
+.active-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 16px; text-align: center;
+}
+.ac-top { display: flex; justify-content: center; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+.ac-label { font-size: 12px; color: #7f8c8d; }
+.ac-num { font-size: 28px; font-weight: 700; color: #e2b70a; }
+.ac-total { font-size: 14px; color: #555; }
+.ac-bar-wrap { margin-bottom: 8px; }
+.ac-bar {
+  height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden;
+}
+.ac-fill {
+  height: 100%; background: linear-gradient(90deg, #e2b70a, #f5d742);
+  border-radius: 5px; transition: width 0.3s;
+}
+.ac-tip { font-size: 11px; color: #555; }
+.tasks-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 14px 16px;
+}
+.tasks-header { font-size: 14px; font-weight: 700; color: #f0f0f0; margin-bottom: 10px; }
+.tasks-list { display: flex; flex-direction: column; gap: 8px; }
+.task-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  transition: all 0.2s;
+}
+.task-item.completed { border-color: rgba(39,174,96,0.3); background: rgba(39,174,96,0.05); }
+.ti-info { flex: 1; }
+.ti-name { font-size: 13px; color: #ddd; font-weight: 600; }
+.ti-desc { font-size: 11px; color: #555; margin-top: 2px; }
+.ti-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: 12px; }
+.ti-progress { font-size: 13px; font-weight: 700; }
+.ti-progress.done { color: #27ae60; }
+.ti-progress.pending { color: #e2b70a; }
+.ti-point { font-size: 11px; color: #555; }
+.boxes-card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 14px 16px;
+}
+.boxes-header { font-size: 14px; font-weight: 700; color: #f0f0f0; margin-bottom: 12px; }
+.boxes-grid {
+  display: flex; flex-wrap: wrap; gap: 8px;
 }
 .reward-box {
-  width: calc(33% - 8px);
-  min-width: 80px;
+  width: calc(33% - 6px);
+  min-width: 75px;
   padding: 10px 6px;
-  background: #1a1a2e;
-  border-radius: 8px;
-  border: 1px solid #333;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
 }
-.reward-box.can-claim {
-  border-color: #e2b70a;
-  background: #1f1a0e;
-}
-.reward-box.can-claim:active {
-  transform: scale(0.95);
-}
-.reward-box.claimed {
-  opacity: 0.5;
-  cursor: default;
-}
-.reward-icon {
-  font-size: 24px;
-  margin-bottom: 4px;
-}
-.reward-point {
-  font-size: 12px;
-  color: #e2b70a;
-  font-weight: bold;
-}
-.reward-reward {
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
-}
-.reward-status {
-  font-size: 10px;
-  color: #555;
-  margin-top: 4px;
-}
-.reward-status.can {
-  color: #4caf50;
-}
-.reward-status.locked {
-  color: #555;
-}
+.reward-box:hover:not(.claimed) { transform: translateY(-2px); }
+.reward-box.can-claim { border-color: rgba(226,183,10,0.4); background: rgba(226,183,10,0.05); }
+.reward-box.claimed { opacity: 0.5; cursor: default; }
+.rb-icon { font-size: 22px; margin-bottom: 4px; }
+.rb-point { font-size: 12px; color: #e2b70a; font-weight: 700; }
+.rb-reward { font-size: 10px; color: #7f8c8d; margin-top: 2px; }
+.rb-status { font-size: 10px; margin-top: 4px; }
+.status-claimed { color: #27ae60; }
+.status-can { color: #e2b70a; }
+.status-locked { color: #555; }
 </style>
