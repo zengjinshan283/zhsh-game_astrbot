@@ -1,126 +1,133 @@
 <template>
   <!-- 战斗进行中 -->
   <div class="battle-overlay" v-if="battle && !showResult" @click.self="preventClose">
-    <div class="battle-block-bar battle-block-top">⚔️ 战斗中</div>
-    <div class="battle-page-content">
-      <div class="location-bar" style="margin-bottom:4px;">
-        <div class="location-name">⚔️ 战斗中</div>
-        <div class="location-path">第 {{ battle.round }} 回合{{ battle.pet_name ? ' · 🐾'+battle.pet_name+' 伴战' : '' }}</div>
-      </div>
-      <div class="card" :style="{borderColor:monsterHpPct<30?'#ff5544':'#e74c3c',padding:'4px 8px'}">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span class="item-name" style="font-size:14px;">👾 {{ battle.monster_name }}</span>
-          <span style="font-size:12px;">❤️ {{ Math.max(0,battle.monster_hp) }}/{{ battle.monster_hp_max }}</span>
+    <div class="bo-header">
+      <div class="bo-status">⚔️ 战斗中</div>
+      <div class="bo-round">第 {{ battle.round }} 回合{{ battle.pet_name ? ' · 🐾' + battle.pet_name + ' 伴战' : '' }}</div>
+    </div>
+
+    <div class="bo-content">
+      <!-- 怪物状态 -->
+      <div class="entity-card monster-card" :style="{ borderColor: monsterHpPct < 30 ? '#ff5544' : 'rgba(231,76,60,0.4)' }">
+        <div class="ec-top">
+          <div class="ec-avatar">👾</div>
+          <div class="ec-info">
+            <div class="ec-name">{{ battle.monster_name }}</div>
+            <div class="ec-hp-text">❤️ {{ Math.max(0, battle.monster_hp) }}/{{ battle.monster_hp_max }}</div>
+          </div>
         </div>
-        <div class="status-bar bar-hp" :class="{'bar-low':monsterHpPct<30}" style="margin-top:3px;">
-          <div class="bar-track"><div class="bar-fill" :style="{width:monsterHpPct+'%'}"></div></div>
-        </div>
-      </div>
-      <div class="card" :style="{borderColor:playerHpPct<30?'#ff5544':'#3498db',padding:'4px 8px'}">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-size:13px;">{{ userStore.user?.sex===2?'♀':'♂' }} {{ userStore.username }}</span>
-          <span style="font-size:12px;">❤️ {{ battle.player_hp }}/{{ battle.player_hp_max }}</span>
-        </div>
-        <div class="status-bar bar-hp" :class="{'bar-low':playerHpPct<30}" style="margin-top:3px;">
-          <div class="bar-track"><div class="bar-fill" :style="{width:playerHpPct+'%'}"></div></div>
+        <div class="hp-bar">
+          <div class="hp-fill monster-fill" :class="{ low: monsterHpPct < 30 }" :style="{ width: monsterHpPct + '%' }"></div>
         </div>
       </div>
-      <div class="card battle-log-card">
-        <div class="card-title">📜 日志</div>
-        <div class="battle-log" ref="logBox">
-          <div v-for="(log,i) in displayLogs" :key="i" :class="'log-line log-'+log.type">{{ log.text }}</div>
+
+      <!-- 玩家状态 -->
+      <div class="entity-card player-card" :style="{ borderColor: playerHpPct < 30 ? '#ff5544' : 'rgba(52,152,219,0.4)' }">
+        <div class="ec-top">
+          <div class="ec-avatar">{{ userStore.user?.sex === 2 ? '♀' : '♂' }}</div>
+          <div class="ec-info">
+            <div class="ec-name">{{ userStore.username }}</div>
+            <div class="ec-hp-text">❤️ {{ battle.player_hp }}/{{ battle.player_hp_max }}</div>
+          </div>
+        </div>
+        <div class="hp-bar">
+          <div class="hp-fill player-fill" :class="{ low: playerHpPct < 30 }" :style="{ width: playerHpPct + '%' }"></div>
+        </div>
+      </div>
+
+      <!-- 战斗日志 -->
+      <div class="log-card">
+        <div class="log-header">📜 日志</div>
+        <div class="log-box" ref="logBox">
+          <div v-for="(log, i) in displayLogs" :key="i" :class="['log-line', 'log-' + log.type]">{{ log.text }}</div>
         </div>
       </div>
     </div>
-    <div class="battle-actions">
-      <div class="action-row">
-        <button class="btn btn-danger battle-action-btn" @click="doAction('attack')">⚔️ 攻击</button>
-        <button class="btn btn-secondary battle-action-btn" @click="tryFlee">🏃 逃跑</button>
-        <button v-if="battle.captureable" class="btn battle-action-btn" style="background:#f39c12;" @click="tryCapture">🦩 捕获 {{ currentCaptureRate }}%</button>
+
+    <!-- 操作区 -->
+    <div class="bo-actions">
+      <div class="action-row main-row">
+        <button class="action-btn attack-btn" @click="doAction('attack')">⚔️ 攻击</button>
+        <button class="action-btn flee-btn" @click="tryFlee">🏃 逃跑</button>
+        <button v-if="battle.captureable" class="action-btn capture-btn" @click="tryCapture">🦩 捕获 {{ currentCaptureRate }}%</button>
       </div>
       <div class="action-row shortcut-row">
         <template v-for="i in 3" :key="i">
-          <button v-if="shortcuts[i-1]" class="btn btn-success shortcut-btn" @click="useShortcut(i)">
+          <button v-if="shortcuts[i - 1]" class="shortcut-btn" @click="useShortcut(i)">
             <span class="sk-emoji">💊</span>
-            <span class="sk-name">{{ shortcuts[i-1].name }}</span>
-            <span class="sk-count">&times;{{ shortcuts[i-1].quantity }}</span>
+            <span class="sk-name">{{ shortcuts[i - 1].name }}</span>
+            <span class="sk-count">&times;{{ shortcuts[i - 1].quantity }}</span>
           </button>
-          <span v-else class="btn shortcut-empty">槽位{{ i }}</span>
+          <span v-else class="shortcut-empty">槽位{{ i }}</span>
         </template>
       </div>
     </div>
-    <div class="battle-block-bar battle-block-bottom"></div>
   </div>
 
   <!-- 战斗结算页面 -->
   <div class="battle-overlay" v-if="battle && showResult" @click.self="preventClose">
-    <div class="battle-block-bar battle-block-top">⚔️ 战斗结束</div>
-    <div class="battle-result-page">
-      <div class="location-bar">
-        <div class="location-name">⚔️ 战斗结束</div>
-        <div class="location-path">共 {{ battle.round }} 回合</div>
-      </div>
+    <div class="bo-header">
+      <div class="bo-status">⚔️ 战斗结束</div>
+      <div class="bo-round">共 {{ battle.round }} 回合</div>
+    </div>
 
+    <div class="result-content">
       <!-- 胜利 -->
-      <div v-if="battle.result === 'win'" class="card" style="border-color:#27ae60;">
-        <div class="card-title" style="color:#27ae60;">🏆 胜利！</div>
-        <p style="font-size:16px;">你成功击败了 <strong>{{ battle.monster_name }}</strong>！</p>
-        <div class="divider"></div>
-        <p>✨ 获得经验：<span class="text-gold">+{{ battle.exp_gained || 0 }}</span></p>
-        <p>💰 获得铜币：<span class="text-gold">+{{ battle.money_gained || 0 }}</span></p>
-        <div v-if="battle.loot && battle.loot.length" style="margin-top:4px;">
-          <div v-for="l in battle.loot" :key="l.item_id" style="font-size:12px;">
-            <span :style="{color:l.quality>=2?'#9b59b6':l.quality===1?'#27ae60':'#aaa'}">💎</span>
-            {{ l.name }}×{{ l.qty }}
+      <div v-if="battle.result === 'win'" class="result-card win-card">
+        <div class="result-title win-title">🏆 胜利！</div>
+        <div class="result-sub">你成功击败了 <strong>{{ battle.monster_name }}</strong>！</div>
+        <div class="result-divider"></div>
+        <div class="result-items">✨ 获得经验：<span class="gold">+{{ battle.exp_gained || 0 }}</span></div>
+        <div class="result-items">💰 获得铜币：<span class="gold">+{{ battle.money_gained || 0 }}</span></div>
+        <div v-if="battle.loot && battle.loot.length" class="loot-list">
+          <div v-for="l in battle.loot" :key="l.item_id" class="loot-item">
+            <span class="loot-icon" :style="{ color: l.quality >= 2 ? '#9b59b6' : l.quality === 1 ? '#27ae60' : '#aaa' }">💎</span>
+            {{ l.name }}&times;{{ l.qty }}
           </div>
         </div>
       </div>
 
       <!-- 捕获成功 -->
-      <div v-else-if="battle.result === 'capture'" class="card" style="border-color:#e2b714;">
-        <div class="card-title" style="color:#e2b714;">🎉 捕获成功</div>
-        <p style="font-size:16px;"><strong>{{ battle.monster_name }}</strong> 成为了你的伙伴！</p>
-        <div class="divider"></div>
-        <p>🐾 宠物等级：Lv.1</p>
+      <div v-else-if="battle.result === 'capture'" class="result-card capture-card">
+        <div class="result-title capture-title">🎉 捕获成功</div>
+        <div class="result-sub"><strong>{{ battle.monster_name }}</strong> 成为了你的伙伴！</div>
+        <div class="result-divider"></div>
+        <div class="result-items">🐾 宠物等级：Lv.1</div>
       </div>
 
       <!-- 失败 -->
-      <div v-else-if="battle.result === 'lose'" class="card" style="border-color:#e74c3c;">
-        <div class="card-title" style="color:#e74c3c;">💀 战败</div>
-        <p style="font-size:16px;">你被 <strong>{{ battle.monster_name }}</strong> 击败了……</p>
-        <div class="divider"></div>
-        <p>你被传送回了安全地点</p>
-        <p>当前体力：<span class="text-red">{{ battle.player_hp || 0 }}/{{ battle.player_hp_max }}</span></p>
-        <p v-if="battle.money_gained < 0">损失铜币：<span class="text-red">{{ Math.abs(battle.money_gained) }}</span></p>
+      <div v-else-if="battle.result === 'lose'" class="result-card lose-card">
+        <div class="result-title lose-title">💀 战败</div>
+        <div class="result-sub">你被 <strong>{{ battle.monster_name }}</strong> 击败了……</div>
+        <div class="result-divider"></div>
+        <div class="result-items">你被传送回了安全地点</div>
+        <div class="result-items">当前体力：<span class="hp-val">{{ battle.player_hp || 0 }}/{{ battle.player_hp_max }}</span></div>
+        <div v-if="battle.money_gained < 0" class="result-items">损失铜币：<span class="lose-val">{{ Math.abs(battle.money_gained) }}</span></div>
       </div>
 
       <!-- 逃跑成功 -->
-      <div v-else-if="battle.result === 'flee'" class="card" style="border-color:#f39c12;">
-        <div class="card-title" style="color:#f39c12;">🏃 逃跑成功</div>
-        <p style="font-size:16px;">你成功脱离了战斗！</p>
+      <div v-else-if="battle.result === 'flee'" class="result-card flee-card">
+        <div class="result-title flee-title">🏃 逃跑成功</div>
+        <div class="result-sub">你成功脱离了战斗！</div>
       </div>
 
       <!-- 战斗日志回顾 -->
-      <div class="card">
-        <div class="card-title">📜 战斗回顾</div>
-        <div class="battle-log battle-log-full">
-          <div v-for="(log,i) in battle.log" :key="i" :class="'log-line log-'+log.type">{{ log.text }}</div>
+      <div class="log-review-card">
+        <div class="log-header">📜 战斗回顾</div>
+        <div class="log-box log-full">
+          <div v-for="(log, i) in battle.log" :key="i" :class="['log-line', 'log-' + log.type]">{{ log.text }}</div>
         </div>
       </div>
 
       <!-- 操作按钮 -->
-      <div style="text-align:center;padding:16px 0;">
-        <div style="font-size:11px;color:#8a7a5a;margin-bottom:8px;" v-if="autoRedirectCountdown > 0">
-          {{ autoRedirectCountdown }}秒后自动返回地图…
-        </div>
+      <div class="result-actions">
+        <div class="countdown-hint" v-if="autoRedirectCountdown > 0">{{ autoRedirectCountdown }}秒后自动返回地图…</div>
         <template v-if="battle.result === 'win'">
-          <a href="javascript:void(0)" class="btn btn-danger" style="display:inline-block;padding:10px 28px;font-size:14px;border-radius:6px;text-decoration:none;color:#fff;" @click="continueBattle">⚔️ 继续战斗</a>
-          <br>
+          <button class="result-btn continue-btn" @click="continueBattle">⚔️ 继续战斗</button>
         </template>
-        <a href="javascript:void(0)" class="btn btn-secondary" style="display:inline-block;margin-top:8px;padding:10px 28px;font-size:14px;border-radius:6px;text-decoration:none;color:#f5e6c8;" @click="exitBattle">🗺️ 返回地图</a>
+        <button class="result-btn exit-btn" @click="exitBattle">🗺️ 返回地图</button>
       </div>
     </div>
-    <div class="battle-block-bar battle-block-bottom"></div>
   </div>
 </template>
 
@@ -170,11 +177,7 @@ watch(showResult, (val) => {
     if (countdownTimer) clearInterval(countdownTimer);
     countdownTimer = setInterval(() => {
       autoRedirectCountdown.value--;
-      if (autoRedirectCountdown.value <= 0) {
-        clearInterval(countdownTimer);
-        countdownTimer = null;
-        exitBattle();
-      }
+      if (autoRedirectCountdown.value <= 0) { clearInterval(countdownTimer); countdownTimer = null; exitBattle(); }
     }, 1000);
   } else {
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
@@ -182,100 +185,142 @@ watch(showResult, (val) => {
   }
 });
 
-onUnmounted(() => {
-  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-});
+onUnmounted(() => { if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; } });
 
 async function continueBattle() {
   const mid = battle.value?.monster_id;
   gameStore.clearBattle();
   if (!mid) return;
-  try {
-    const data = await Api.post('/battle/start', { monster_id: mid });
-    gameStore.setBattle(data);
-  } catch (e) { await globalAlert(e.message) }
+  try { const data = await Api.post('/battle/start', { monster_id: mid }); gameStore.setBattle(data); } catch (e) { await globalAlert(e.message); }
 }
 
-function exitBattle() {
-  gameStore.clearBattle();
-  router.push('/map');
-}
+function exitBattle() { gameStore.clearBattle(); router.push('/map'); }
 
 async function loadShortcuts() {
-  try {
-    const d = await Api.get('/user/status');
-    if (d.shortcuts) {
-      for (let i = 0; i < 3; i++) shortcuts[i] = d.shortcuts[i] || null;
-    }
-  } catch(e) {}
+  try { const d = await Api.get('/user/status'); if (d.shortcuts) { for (let i = 0; i < 3; i++) shortcuts[i] = d.shortcuts[i] || null; } } catch (e) {}
 }
 
-watch(() => battle.value?.log?.length, async () => {
-  await nextTick();
-  if (logBox.value) logBox.value.scrollTop = logBox.value.scrollHeight;
-});
-
+watch(() => battle.value?.log?.length, async () => { await nextTick(); if (logBox.value) logBox.value.scrollTop = logBox.value.scrollHeight; });
 watch(battle, (val) => { if (val) { loadShortcuts(); loadPetCount(); } }, { immediate: true });
 
-async function loadPetCount() {
-  try { const d = await Api.get('/pet/info'); petCount.value = (d.pets||[]).length; } catch(e) {}
-}
+async function loadPetCount() { try { const d = await Api.get('/pet/info'); petCount.value = (d.pets || []).length; } catch (e) {} }
 
 async function doAction(action) {
-  try {
-    const data = await Api.post('/battle/action', { action });
-    gameStore.setBattle(data);
-    const me = await Api.get('/auth/me');
-    userStore.updateUser(me.user);
-    if (data.finished) loadShortcuts();
-  } catch (e) { await globalAlert(e.message) }
+  try { const data = await Api.post('/battle/action', { action }); gameStore.setBattle(data); const me = await Api.get('/auth/me'); userStore.updateUser(me.user); if (data.finished) loadShortcuts(); }
+  catch (e) { await globalAlert(e.message); }
 }
 
 async function useShortcut(slot) {
-  try {
-    const data = await Api.post('/battle/action', { action: 'use_shortcut', slot });
-    gameStore.setBattle(data);
-    const me = await Api.get('/auth/me');
-    userStore.updateUser(me.user);
-    loadShortcuts();
-  } catch (e) { await globalAlert(e.message) }
+  try { const data = await Api.post('/battle/action', { action: 'use_shortcut', slot }); gameStore.setBattle(data); const me = await Api.get('/auth/me'); userStore.updateUser(me.user); loadShortcuts(); }
+  catch (e) { await globalAlert(e.message); }
 }
 
-async function tryFlee() { if (await globalConfirm('\u786e\u5b9a\u9003\u8dd1\uff1f(50%\u6210\u529f\u7387)')) doAction('flee'); }
-async function tryCapture() { if (await globalConfirm(`\u5c1d\u8bd5\u6355\u6349\uff1f(\u6210\u529f\u7387${currentCaptureRate.value}%)`)) doAction('capture'); }
+async function tryFlee() { if (await globalConfirm('确定逃跑？(50%成功率)')) doAction('flee'); }
+async function tryCapture() { if (await globalConfirm(`尝试捕捉？(成功率${currentCaptureRate.value}%)`)) doAction('capture'); }
 </script>
 
-<style>
+<style scoped>
 .battle-overlay {
-  max-width: 480px;
-  margin: 0 auto;
-  left: 0;
-  right: 0;
-  position: fixed;
-  inset: 0;
-  background: #0a0a1a;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  pointer-events: auto;
+  max-width: 480px; margin: 0 auto; left: 0; right: 0;
+  position: fixed; inset: 0;
+  background: linear-gradient(160deg, #0d1117 0%, #1a0a1a 40%, #0d1117 100%);
+  z-index: 9999; display: flex; flex-direction: column;
+  padding: 0; pointer-events: auto;
 }
-.battle-page-content { flex:1;display:flex;flex-direction:column;padding:4px 6px;gap:4px;min-height:0;overflow:hidden; }
-.battle-result-page { flex:1;overflow-y:auto;padding:4px 6px 60px; }
-.battle-log-card { flex:1;display:flex;flex-direction:column;min-height:0;padding:4px 6px !important; }
-.battle-log { flex:1;min-height:0;overflow-y:auto;background:#0f0f2e;border:1px solid #2a2a4e;border-radius:4px;padding:4px 6px;font-size:11px;line-height:1.4; }
-.battle-log-full { max-height:40vh;overflow-y:auto;background:#0f0f2e;border:1px solid #2a2a4e;border-radius:4px;padding:6px 8px;font-size:11px;line-height:1.4; }
-.battle-actions { flex-shrink:0;padding:6px 6px; }
-.action-row { display:flex;gap:4px;margin-bottom:4px; }
-.action-row:last-child { margin-bottom:0; }
-.battle-action-btn { flex:1;text-align:center;padding:10px 4px;font-size:13px;border-radius:6px;border:none;cursor:pointer; }
-.shortcut-row .shortcut-btn, .shortcut-row .shortcut-empty { flex:1;text-align:center;padding:7px 2px;font-size:11px;border-radius:6px;display:flex;flex-direction:column;align-items:center;gap:1px; }
-.shortcut-btn .sk-emoji { font-size:14px; }
-.shortcut-btn .sk-name { font-size:10px;line-height:1.1; }
-.shortcut-btn .sk-count { font-size:9px;color:#8a7a5a; }
-.shortcut-empty { color:#555;display:flex;align-items:center;justify-content:center;font-size:10px;cursor:default; }
-.battle-block-bar { flex-shrink:0;text-align:center;font-size:11px;color:#8a7a5a;padding:2px 0; }
-.text-gold { color:#e2b714; }
-.text-red { color:#e74c3c; }
-.divider { border:none;border-top:1px solid rgba(226,183,20,0.1);margin:8px 0; }
+.bo-header {
+  flex-shrink: 0; text-align: center;
+  padding: 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(13,17,23,0.8); backdrop-filter: blur(12px);
+}
+.bo-status { font-size: 13px; font-weight: 700; color: #f0f0f0; }
+.bo-round { font-size: 10px; color: #7f8c8d; margin-top: 2px; }
+.bo-content { flex: 1; display: flex; flex-direction: column; padding: 8px 10px; gap: 6px; min-height: 0; overflow-y: auto; }
+.entity-card {
+  background: rgba(255,255,255,0.03); border: 1px solid;
+  border-radius: 12px; padding: 10px 12px;
+}
+.monster-card { border-color: rgba(231,76,60,0.3); }
+.player-card { border-color: rgba(52,152,219,0.3); }
+.ec-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.ec-avatar { font-size: 28px; }
+.ec-info { flex: 1; }
+.ec-name { font-size: 14px; font-weight: 700; color: #f0f0f0; }
+.ec-hp-text { font-size: 11px; color: #7f8c8d; margin-top: 2px; }
+.hp-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.hp-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.monster-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+.monster-fill.low { background: linear-gradient(90deg, #8b0000, #ff5544); }
+.player-fill { background: linear-gradient(90deg, #2980b9, #3498db); }
+.player-fill.low { background: linear-gradient(90deg, #8b1a1a, #ff5544); }
+.log-card {
+  flex: 1; display: flex; flex-direction: column; min-height: 0;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px; padding: 8px 10px;
+}
+.log-header { font-size: 12px; font-weight: 700; color: #7f8c8d; margin-bottom: 6px; }
+.log-box { flex: 1; min-height: 0; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 6px 8px; }
+.log-line { font-size: 11px; color: #7f8c8d; padding: 2px 0; line-height: 1.4; }
+.log-damage { color: #e74c3c; }
+.log-heal { color: #27ae60; }
+.bo-actions { flex-shrink: 0; padding: 8px 10px; background: rgba(13,17,23,0.6); border-top: 1px solid rgba(255,255,255,0.06); }
+.action-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.action-row:last-child { margin-bottom: 0; }
+.action-btn {
+  flex: 1; text-align: center; padding: 12px 4px;
+  border-radius: 10px; border: none; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.attack-btn { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+.attack-btn:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(231,76,60,0.5); }
+.flee-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #7f8c8d; }
+.flee-btn:hover { background: rgba(255,255,255,0.1); color: #f0f0f0; }
+.capture-btn { background: linear-gradient(135deg, #e67e22, #f39c12); color: #fff; }
+.shortcut-btn {
+  flex: 1; text-align: center; padding: 8px 4px;
+  background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.2);
+  border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; transition: all 0.2s;
+}
+.shortcut-btn:hover { background: rgba(39,174,96,0.2); }
+.sk-emoji { font-size: 16px; }
+.sk-name { font-size: 10px; color: #ddd; line-height: 1.1; }
+.sk-count { font-size: 9px; color: #7f8c8d; }
+.shortcut-empty { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #444; }
+.result-content { flex: 1; overflow-y: auto; padding: 8px 10px 16px; display: flex; flex-direction: column; gap: 8px; }
+.result-card {
+  background: rgba(255,255,255,0.03); border: 1px solid; border-radius: 14px; padding: 16px;
+}
+.win-card { border-color: rgba(39,174,96,0.4); }
+.capture-card { border-color: rgba(226,183,20,0.4); }
+.lose-card { border-color: rgba(231,76,60,0.4); }
+.flee-card { border-color: rgba(243,156,18,0.4); }
+.result-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+.win-title { color: #f1c40f; }
+.capture-title { color: #f39c12; }
+.lose-title { color: #e74c3c; }
+.flee-title { color: #f39c12; }
+.result-sub { font-size: 14px; color: #7f8c8d; margin-bottom: 8px; }
+.result-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+.result-items { font-size: 13px; color: #ddd; margin-bottom: 4px; }
+.gold { color: #c9a758; font-weight: 700; }
+.hp-val { color: #e74c3c; font-weight: 700; }
+.lose-val { color: #e74c3c; font-weight: 700; }
+.loot-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.loot-item { font-size: 12px; color: #7f8c8d; display: flex; align-items: center; gap: 6px; }
+.loot-icon { font-size: 14px; }
+.log-review-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px; padding: 12px;
+}
+.log-full { max-height: 150px; }
+.result-actions { text-align: center; padding: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.countdown-hint { font-size: 11px; color: #555; margin-bottom: 4px; }
+.result-btn {
+  display: inline-block; padding: 12px 28px;
+  border-radius: 10px; font-size: 14px; font-weight: 700;
+  text-decoration: none; border: none; cursor: pointer; transition: all 0.2s;
+}
+.continue-btn { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+.exit-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #7f8c8d; }
+.result-btn:hover { transform: scale(1.05); }
 </style>
