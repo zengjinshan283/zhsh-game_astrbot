@@ -27,6 +27,125 @@ async function getDegradeLevel() {
   return row ? parseInt(row.config_value) : 7;
 }
 
+// ─── 装备鉴定 ────────────────────────────────────────────
+// 词缀表（随机属性池）
+// 鉴定费用 = 500 + item.level_req * 100 铜币
+// 普通装备=1条词缀, 精英装备=2条, BOSS装=3条
+
+async function getIdentifyCost(levelReq) {
+  return 500 + (parseInt(levelReq) || 1) * 100;
+}
+
+async function getAffixCountByQuality(quality) {
+  // 1白/2绿/3蓝/4紫/5橙
+  if (quality >= 5) return parseInt((await db.getOne("SELECT config_value FROM `game_config` WHERE config_key='boss_affix_count'"))?.config_value || '3');
+  if (quality >= 4) return parseInt((await db.getOne("SELECT config_value FROM `game_config` WHERE config_key='elite_affix_count'"))?.config_value || '2');
+  return parseInt((await db.getOne("SELECT config_value FROM `game_config` WHERE config_key='normal_affix_count'"))?.config_value || '1');
+}
+
+function rollAffixValue(affix) {
+  return Math.floor(Math.random() * (affix.stat_max - affix.stat_min + 1)) + affix.stat_min;
+}
+
+// GET /api/smith/identify-items   未鉴定装备列表
+router.get('/identify-items', authMiddleware, async (req, res, next) => {
+  try {
+    const items = await db.getAll(
+      `SELECT inv.id AS inv_id, inv.is_identified, inv.enhance_level,
+              i.id AS item_id, i.name, i.subtype, i.atk, i.def_val, i.level_req, i.quality, i.price_buy
+       FROM inventory inv
+       JOIN item i ON inv.item_id = i.id
+       WHERE inv.user_id = ? AND inv.equipped = 0 AND i.subtype IN ('weapon','armor')
+         AND (inv.is_identified IS NULL OR inv.is_identified = 0)
+       ORDER BY i.quality DESC, i.level_req DESC`,
+      [req.user.id]
+    );
+    res.json({ items });
+  } catch (e) { next(e); }
+});
+
+// POST /api/smith/identify   鉴定一件装备
+router.post('/identify', authMiddleware, async (req, res, next) => {
+  try {
+    const { inventory_id } = req.body;
+    const inv = await db.getOne(
+      `SELECT inv.id, inv.is_identified, inv.enhance_level, i.name, i.level_req, i.quality, i.atk, i.def_val
+       FROM inventory inv JOIN item i ON inv.item_id = i.id
+       WHERE inv.id = ? AND inv.user_id = ?`,
+      [inventory_id, req.user.id]
+    );
+    if (!inv) return res.status(400).json({ error: '物品不存在' });
+    if (inv.is_identified == 1) return res.status(400).json({ error: '该装备已鉴定过' });
+
+    const cost = await getIdentifyCost(inv.level_req);
+    const user = await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id]);
+    if (user.money < cost) return res.status(400).json({ error: `铜币不足！需要 ${cost}，你只有 ${user.money}` });
+
+    await db.query('UPDATE `user` SET money = money - ? WHERE `id` = ?', [cost, req.user.id]);
+
+    // 按品质决定词缀数量和稀有度权重
+    const affixCount = await getAffixCountByQuality(inv.quality);
+    const rollRarity = inv.quality >= 5 ? 3 : inv.quality >= 4 ? 2 : 1;
+
+    // 随机抽取词缀（优先同阶，溢出时降阶）
+    const pool = await db.getAll(
+      'SELECT * FROM item_affix WHERE level_req <= ? AND rarity <= ? ORDER BY rarity DESC',
+      [inv.level_req, rollRarity + 1]
+    );
+    if (!pool.length) return res.status(500).json({ error: '词缀库为空，请联系管理员' });
+
+    // 打乱顺序取前affixCount个（去重stat_key）
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    const selected = [];
+    const usedStats = new Set();
+    for (const a of shuffled) {
+      if (usedStats.has(a.stat_key)) continue;
+      usedStats.add(a.stat_key);
+      selected.push(a);
+      if (selected.length >= affixCount) break;
+    }
+
+    const affixes = selected.map(a => ({
+      name: a.affix_name,
+      stat_key: a.stat_key,
+      value: rollAffixValue(a)
+    }));
+
+    // 存储词缀JSON到inventory（后续扩展可新建item_affix_record表）
+    await db.query(
+      'UPDATE `inventory` SET is_identified = 1, identify_affixes = ? WHERE `id` = ?',
+      [JSON.stringify(affixes), inventory_id]
+    );
+
+    const totalAtk = affixes.filter(a => a.stat_key === 'atk').reduce((s, a) => s + a.value, 0);
+    const totalDef = affixes.filter(a => a.stat_key === 'def').reduce((s, a) => s + a.value, 0);
+    const bonusStats = affixes.map(a => `${a.stat_key}+${a.value}`).join(' ');
+
+    res.json({
+      success: true,
+      name: inv.name,
+      affixes,
+      bonusStats,
+      msg: `鉴定成功！${inv.name} 获得：${affixes.map(a => `${a.name}(${a.stat_key}+${a.value})`).join('、')}`
+    });
+  } catch (e) { next(e); }
+});
+
+// 获取已鉴定装备的词缀信息
+router.get('/identify/:invId', authMiddleware, async (req, res, next) => {
+  try {
+    const inv = await db.getOne(
+      `SELECT inv.id, inv.identify_affixes, inv.is_identified, i.name
+       FROM inventory inv JOIN item i ON inv.item_id = i.id
+       WHERE inv.id = ? AND inv.user_id = ?`,
+      [req.params.invId, req.user.id]
+    );
+    if (!inv) return res.status(400).json({ error: '物品不存在' });
+    const affixes = inv.identify_affixes ? JSON.parse(inv.identify_affixes) : [];
+    res.json({ name: inv.name, is_identified: inv.is_identified, affixes });
+  } catch (e) { next(e); }
+});
+
 // 获取强化材料道具ID（玄铁石）
 function getEnhanceMaterialItemId() {
   return 50; // 玄铁石
@@ -86,6 +205,24 @@ router.post('/enhance', authMiddleware, async (req, res, next) => {
       }
     }
   } catch(e){next(e);}
+});
+
+// GET /api/smith/repair-items  可修理装备列表
+router.get('/repair-items', authMiddleware, async (req, res, next) => {
+  try {
+    const user = await db.getOne('SELECT place_id FROM `user` WHERE `id` = ?', [req.user.id]);
+    const npc = await db.getOne('SELECT id FROM `npc` WHERE `place_id` = ? AND `type` = 2 LIMIT 1', [user.place_id]);
+    if (!npc) return res.status(400).json({ error: '这里没有铁匠' });
+    const items = await db.getAll(
+      `SELECT inv.id AS inv_id, inv.durability, inv.durability_max, inv.enhance_level,
+              i.name, i.subtype, i.atk, i.def_val, i.price_buy, i.level_req
+       FROM inventory inv JOIN item i ON inv.item_id = i.id
+       WHERE inv.user_id = ? AND i.subtype IN ('weapon','armor') AND inv.durability < inv.durability_max
+       ORDER BY inv.durability ASC`,
+      [req.user.id]
+    );
+    res.json({ items });
+  } catch (e) { next(e); }
 });
 
 // 修理装备耐久度
