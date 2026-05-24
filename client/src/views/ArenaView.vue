@@ -1,663 +1,345 @@
 <template>
-  <div class="arena-view">
-    <!-- 顶部状态栏 -->
-    <div class="arena-header">
-      <div class="header-title">⚔️ 竞技场</div>
-      <div class="header-stats">
-        <div class="stat-item">
-          <span class="stat-label">我的排名</span>
-          <span class="stat-value text-gold">#{{ status.rank || '--' }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">段位</span>
-          <span class="stat-value" :style="{color: tierColor}">{{ status.tier_label || '青铜' }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">积分</span>
-          <span class="stat-value">{{ status.score || 1000 }}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">胜/负</span>
-          <span class="stat-value text-win">{{ status.win_count || 0 }}胜 {{ status.lose_count || 0 }}负</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">剩余挑战</span>
-          <span class="stat-value" :class="status.daily_challenge_count >= status.daily_limit ? 'text-red' : 'text-win'">
-            {{ (status.daily_limit || 5) - (status.daily_challenge_count || 0) }}/{{ status.daily_limit || 5 }}
-          </span>
-        </div>
+  <div class="arena-page">
+    <div class="arena-bg"></div>
+
+    <!-- 顶部 HUD -->
+    <div class="top-hud">
+      <div class="hud-left">
+        <div class="hud-icon">⚔️</div>
+        <div class="hud-title">竞技场</div>
       </div>
-      <div class="season-bar">
-        <span style="font-size:10px;color:#8a7a5a;">赛季 {{ status.season_id }} · 结束于 {{ fmtSeasonEnd(status.season_end) }}</span>
+      <div class="hud-season">赛季 {{ status.season_id || 1 }}</div>
+    </div>
+
+    <!-- 状态概览 -->
+    <div class="stats-card">
+      <div class="stat-item">
+        <div class="stat-val gold">{{ status.rank || '--' }}</div>
+        <div class="stat-key">我的排名</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" :style="{ color: tierColor }">{{ status.tier_label || '青铜' }}</div>
+        <div class="stat-key">段位</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val">{{ status.score || 1000 }}</div>
+        <div class="stat-key">积分</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val win">{{ status.win_count || 0 }}胜</div>
+        <div class="stat-key">{{ status.lose_count || 0 }}负</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-val" :class="(status.daily_challenge_count || 0) >= (status.daily_limit || 5) ? 'lose' : 'win'">
+          {{ (status.daily_limit || 5) - (status.daily_challenge_count || 0) }}/{{ status.daily_limit || 5 }}
+        </div>
+        <div class="stat-key">剩余挑战</div>
       </div>
     </div>
 
+    <div class="season-hint">赛季结束于 {{ fmtSeasonEnd(status.season_end) }}</div>
+
     <!-- Tab 切换 -->
     <div class="tab-bar">
-      <button class="tab-btn" :class="{ active: activeTab === 'challenge' }" @click="activeTab = 'challenge'">
-        ⚔️ 挑战
-      </button>
-      <button class="tab-btn" :class="{ active: activeTab === 'rankings' }" @click="switchToRankings">
-        🏆 排行榜
-      </button>
+      <div :class="['tab-btn', { active: activeTab === 'challenge' }]" @click="activeTab = 'challenge'">⚔️ 挑战</div>
+      <div :class="['tab-btn', { active: activeTab === 'rankings' }]" @click="switchToRankings">🏆 排行榜</div>
     </div>
 
     <!-- 挑战列表 -->
     <div v-if="activeTab === 'challenge'" class="tab-content">
-      <div class="section-title">🎯 可挑战对手</div>
+      <div class="fee-hint">每次挑战消耗 <span class="gold">{{ status.entry_fee || 100 }}</span> 铜币</div>
 
-      <!-- 门票提示 -->
-      <div class="fee-hint">
-        每次挑战消耗 <span class="text-gold">{{ status.entry_fee || 100 }}</span> 铜币
-      </div>
-
-      <!-- 对手列表 -->
-      <div v-if="opponents.length > 0" class="opponent-list">
-        <div v-for="op in opponents" :key="op.opponent_id" class="opponent-card" :class="{ 'is-bot': op.is_bot }">
-          <div class="op-info">
-            <div class="op-name">
-              {{ op.is_bot ? '🤖' : '👤' }} {{ op.username }}
-              <span class="op-level">Lv.{{ op.level }}</span>
-              <span v-if="op.rank > 0" class="op-rank">#{{ op.rank }}</span>
-            </div>
-            <div class="op-stats">
-              <span>⚔️ {{ op.atk_min }}-{{ op.atk_max }}</span>
-              <span>🛡️ {{ op.def }}</span>
-              <span>💨 {{ op.agility }}</span>
+      <div v-if="opponents.length > 0" class="opponents-list">
+        <div v-for="op in opponents" :key="op.opponent_id" class="opponent-card" :class="{ bot: op.is_bot }">
+          <div class="oc-left">
+            <div class="oc-avatar">{{ op.is_bot ? '🤖' : '👤' }}</div>
+            <div class="oc-info">
+              <div class="oc-name">{{ op.username }}<span class="oc-lv">Lv.{{ op.level }}</span><span v-if="op.rank > 0" class="oc-rank">#{{ op.rank }}</span></div>
+              <div class="oc-stats">⚔️ {{ op.atk_min }}-{{ op.atk_max }} · 🛡️ {{ op.def }} · 💨 {{ op.agility }}</div>
             </div>
           </div>
-          <button class="btn btn-danger btn-sm" @click="showChallengeConfirm(op)">
-            挑战
-          </button>
+          <button class="oc-challenge-btn" @click="showChallengeConfirm(op)">挑战</button>
         </div>
       </div>
-
-      <div v-else-if="loading" class="loading-hint">加载中...</div>
-      <div v-else class="empty-hint">暂无可挑战对手</div>
+      <div v-else-if="loading" class="content-hint">加载中...</div>
+      <div v-else class="content-hint">暂无可挑战对手</div>
     </div>
 
     <!-- 排行榜 -->
     <div v-if="activeTab === 'rankings'" class="tab-content">
-      <div class="section-title">🏆 竞技场排行榜</div>
-
-      <div v-if="rankings.length > 0" class="rank-list">
-        <div v-for="(player, idx) in rankings" :key="player.user_id"
-             class="rank-card"
-             :class="{ 'is-me': player.is_me, 'rank-top': player.rank <= 3 }">
-          <div class="rank-num">
-            <span v-if="player.rank === 1" class="medal">🥇</span>
-            <span v-else-if="player.rank === 2" class="medal">🥈</span>
-            <span v-else-if="player.rank === 3" class="medal">🥉</span>
-            <span v-else class="rank-text">#{{ player.rank }}</span>
+      <div v-if="rankings.length > 0" class="rankings-list">
+        <div v-for="player in rankings" :key="player.user_id" :class="['rank-card', { me: player.is_me, top: player.rank <= 3 }]">
+          <div class="rc-medal">
+            <span v-if="player.rank === 1">🥇</span>
+            <span v-else-if="player.rank === 2">🥈</span>
+            <span v-else-if="player.rank === 3">🥉</span>
+            <span v-else class="rc-num">#{{ player.rank }}</span>
           </div>
-          <div class="rank-info">
-            <div class="rank-name">
-              {{ player.is_me ? '👑 ' : '' }}{{ player.username }}
-              <span class="rank-level">Lv.{{ player.level }}</span>
-            </div>
-            <div class="rank-detail">
-              <span>积分: {{ player.score }}</span>
-              <span>{{ player.win_count }}胜 {{ player.lose_count }}负</span>
-              <span>胜率: {{ player.win_rate }}%</span>
-            </div>
+          <div class="rc-info">
+            <div class="rc-name">{{ player.is_me ? '👑 ' : '' }}{{ player.username }}<span class="rc-lv">Lv.{{ player.level }}</span></div>
+            <div class="rc-detail">积分: {{ player.score }} · {{ player.win_count }}胜 {{ player.lose_count }}负 · 胜率: {{ player.win_rate }}%</div>
           </div>
         </div>
       </div>
-
-      <div v-else-if="loadingRank" class="loading-hint">加载中...</div>
-      <div v-else class="empty-hint">暂无排名数据</div>
+      <div v-else-if="loadingRank" class="content-hint">加载中...</div>
+      <div v-else class="content-hint">暂无排名数据</div>
 
       <!-- 分页 -->
       <div v-if="rankings.length > 0" class="pagination">
-        <button class="btn btn-secondary btn-sm" :disabled="rankPage <= 1" @click="loadRankings(rankPage - 1)">
-          ◀ 上一页
-        </button>
+        <button class="page-btn" :disabled="rankPage <= 1" @click="loadRankings(rankPage - 1)">◀ 上一页</button>
         <span class="page-info">{{ rankPage }}/{{ rankTotalPages || 1 }}</span>
-        <button class="btn btn-secondary btn-sm" :disabled="rankPage >= rankTotalPages" @click="loadRankings(rankPage + 1)">
-          下一页 ▶
-        </button>
+        <button class="page-btn" :disabled="rankPage >= rankTotalPages" @click="loadRankings(rankPage + 1)">下一页 ▶</button>
       </div>
     </div>
 
     <!-- 挑战确认弹窗 -->
-    <div v-if="showConfirm" class="modal-overlay" @click.self="showConfirm = false">
-      <div class="modal-box">
-        <div class="modal-title">⚔️ 发起挑战</div>
-        <div class="modal-body">
-          <p>你确定要挑战 <strong>{{ selectedOpponent?.username }}</strong> 吗？</p>
-          <p class="text-gold">消耗 {{ status.entry_fee || 100 }} 铜币作为门票</p>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showConfirm = false">取消</button>
-          <button class="btn btn-danger" :disabled="challenging" @click="doChallenge">
-            {{ challenging ? '挑战中...' : '确认挑战' }}
-          </button>
+    <Teleport to="body">
+      <div v-if="showConfirm" class="overlay" @click.self="showConfirm = false">
+        <div class="confirm-card">
+          <div class="cc-title">⚔️ 发起挑战</div>
+          <div class="cc-body">
+            <div class="cc-op">{{ selectedOpponent?.username }}</div>
+            <div class="cc-fee">消耗 <span class="gold">{{ status.entry_fee || 100 }}</span> 铜币作为门票</div>
+          </div>
+          <div class="cc-actions">
+            <button class="cc-cancel" @click="showConfirm = false">取消</button>
+            <button class="cc-confirm" :disabled="challenging" @click="doChallenge">{{ challenging ? '挑战中...' : '确认挑战' }}</button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 战斗结算 -->
-    <div v-if="showBattleResult" class="modal-overlay" @click.self="closeBattleResult">
-      <div class="modal-box battle-result-modal">
-        <div class="modal-title">⚔️ 战斗结束</div>
-        <div class="modal-body">
-          <!-- 胜利 -->
+    <Teleport to="body">
+      <div v-if="showBattleResult" class="overlay" @click.self="closeBattleResult">
+        <div class="result-card">
           <div v-if="battleResult.result === 'win'" class="result-win">
-            <div class="result-title text-win">🏆 胜利！</div>
-            <p>你击败了 <strong>{{ battleResult.opponent_name }}</strong>！</p>
-            <div class="divider"></div>
-            <p>✨ 积分 +20</p>
-            <p>💰 获得银币：<span class="text-gold">+{{ battleResult.reward?.silver || 0 }}</span></p>
-            <p v-if="battleResult.reward?.is_first_win" class="text-gold">🌟 首胜奖励：+{{ arenaConfig.first_win_silver }}银币！</p>
-            <p>⭐ 声望 +{{ battleResult.reward?.reputation || 0 }}</p>
+            <div class="result-title">🏆 胜利！</div>
+            <div class="result-sub">击败了 {{ battleResult.opponent_name }}！</div>
+            <div class="result-divider"></div>
+            <div class="result-items">✨ 积分 +20</div>
+            <div class="result-items">💰 获得银币：<span class="gold">+{{ battleResult.reward?.silver || 0 }}</span></div>
+            <div v-if="battleResult.reward?.is_first_win" class="result-items gold">🌟 首胜奖励：+{{ arenaConfig.first_win_silver }}银币！</div>
+            <div class="result-items">⭐ 声望 +{{ battleResult.reward?.reputation || 0 }}</div>
           </div>
-          <!-- 失败 -->
           <div v-else class="result-lose">
-            <div class="result-title text-red">💀 战败</div>
-            <p>你被 <strong>{{ battleResult.opponent_name }}</strong> 击败了...</p>
-            <div class="divider"></div>
-            <p>💰 参与奖励：<span class="text-gold">+{{ battleResult.reward?.silver || 0 }}</span> 银币</p>
+            <div class="result-title lose">💀 战败</div>
+            <div class="result-sub">被 {{ battleResult.opponent_name }} 击败了...</div>
+            <div class="result-divider"></div>
+            <div class="result-items">💰 参与奖励：<span class="gold">+{{ battleResult.reward?.silver || 0 }}</span> 银币</div>
           </div>
-
-          <!-- 战斗回顾 -->
-          <div class="battle-log-section">
-            <div class="log-title">📜 战斗回顾</div>
-            <div class="battle-log-box">
-              <div v-for="(log, i) in battleResult.log" :key="i" :class="'log-line log-' + log.type">
-                {{ log.text }}
-              </div>
+          <div class="battle-log">
+            <div class="bl-title">📜 战斗回顾</div>
+            <div class="bl-box">
+              <div v-for="(log, i) in battleResult.log" :key="i" :class="['bl-line', 'log-' + log.type]">{{ log.text }}</div>
             </div>
           </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-danger" @click="closeBattleResult">确定</button>
+          <button class="result-close" @click="closeBattleResult">确定</button>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Api } from '../composables/useApi';
-import { globalAlert, globalConfirm } from '../composables/useConfirm';
-import { useUserStore } from '../stores/user';
 import { useGameStore } from '../stores/game';
+import { useRouter } from 'vue-router';
 
-const userStore = useUserStore();
-const gameStore = useGameStore();
-
-const activeTab = ref('challenge');
-const loading = ref(false);
-const loadingRank = ref(false);
-
-const status = reactive({
-  rank: 0,
-  score: 1000,
-  win_count: 0,
-  lose_count: 0,
-  daily_challenge_count: 0,
-  daily_limit: 5,
-  entry_fee: 100,
-  tier_label: '青铜'
-});
-
-const arenaConfig = {
-  first_win_silver: 50
-};
-
-const tierColor = computed(() => {
-  const map = { '青铜': '#cd7f32', '白银': '#c0c0c0', '黄金': '#e2b714', '钻石': '#b9f2ff', '王者': '#e040fb' };
-  return map[status.tier_label] || '#cd7f32';
-});
-
+const status = ref({});
 const opponents = ref([]);
 const rankings = ref([]);
-const rankPage = ref(1);
-const rankTotalPages = ref(1);
-
+const activeTab = ref('challenge');
+const loading = ref(true);
+const loadingRank = ref(false);
 const showConfirm = ref(false);
 const selectedOpponent = ref(null);
 const challenging = ref(false);
-
 const showBattleResult = ref(false);
-const battleResult = ref(null);
+const battleResult = ref({});
+const rankPage = ref(1);
+const rankTotalPages = ref(1);
 
-onMounted(async () => {
-  await loadStatus();
-  await loadOpponents();
+const arenaConfig = { first_win_silver: 50 };
+const gameStore = useGameStore();
+const router = useRouter();
+
+const tierColor = computed(() => {
+  const t = status.value.tier_label || '青铜';
+  const m = { '青铜': '#8b6914', '白银': '#c0c0c0', '黄金': '#ffd700', '钻石': '#4fc3f7', '大师': '#9b59b6' };
+  return m[t] || '#8b6914';
 });
 
-async function loadStatus() {
-  try {
-    const data = await Api.get('/arena/status');
-    Object.assign(status, data);
-  } catch (e) {
-    console.error('加载竞技场状态失败', e);
-  }
-}
-
-async function loadOpponents() {
-  loading.value = true;
-  try {
-    const data = await Api.get('/arena/opponents');
-    opponents.value = data.opponents || [];
-  } catch (e) {
-    await globalAlert('加载对手列表失败');
-  } finally {
-    loading.value = false;
-  }
-}
-
-function showChallengeConfirm(op) {
-  selectedOpponent.value = op;
-  showConfirm.value = true;
-}
-
-async function doChallenge() {
-  if (!selectedOpponent.value) return;
-
-  if (status.daily_challenge_count >= status.daily_limit) {
-    await globalAlert('今日挑战次数已用完，请明天再来');
-    showConfirm.value = false;
-    return;
-  }
-
-  if (userStore.user?.money < status.entry_fee) {
-    await globalAlert(`铜币不足，需要${status.entry_fee}铜币作为门票`);
-    showConfirm.value = false;
-    return;
-  }
-
-  challenging.value = true;
-  showConfirm.value = false;
-
-  try {
-    const data = await Api.post(`/arena/challenge/${selectedOpponent.value.opponent_id}`);
-    battleResult.value = data;
-    showBattleResult.value = true;
-
-    // 刷新状态
-    await loadStatus();
-    await loadOpponents();
-
-    // 刷新用户数据
-    const me = await Api.get('/auth/me');
-    userStore.updateUser(me.user);
-  } catch (e) {
-    await globalAlert(e.message || '挑战失败');
-  } finally {
-    challenging.value = false;
-    selectedOpponent.value = null;
-  }
-}
-
-async function switchToRankings() {
-  activeTab.value = 'rankings';
-  await loadRankings(1);
-}
-
-async function loadRankings(page = 1) {
-  loadingRank.value = true;
-  rankPage.value = page;
-  try {
-    const data = await Api.get(`/arena/rankings?page=${page}&limit=10`);
-    rankings.value = data.list || [];
-    rankTotalPages.value = data.total_pages || 1;
-  } catch (e) {
-    await globalAlert('加载排行榜失败');
-  } finally {
-    loadingRank.value = false;
-  }
-}
-
-function closeBattleResult() {
-  showBattleResult.value = false;
-  battleResult.value = null;
-}
 function fmtSeasonEnd(ts) {
   if (!ts) return '--';
   const d = new Date(ts * 1000);
-  return `${d.getMonth()+1}/${d.getDate()}`;
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
+
+async function load() {
+  try { const d = await Api.get('/arena/status'); status.value = d; opponents.value = d.opponents || []; } catch (e) {} finally { loading.value = false; }
+}
+
+async function switchToRankings() { activeTab.value = 'rankings'; loadRankings(1); }
+
+async function loadRankings(page) {
+  loadingRank.value = true;
+  try { const d = await Api.get(`/arena/rankings?page=${page}`); rankings.value = d.list || []; rankPage.value = d.page || 1; rankTotalPages.value = d.total_pages || 1; }
+  catch (e) {} finally { loadingRank.value = false; }
+}
+
+function showChallengeConfirm(op) { selectedOpponent.value = op; showConfirm.value = true; }
+
+async function doChallenge() {
+  if (!selectedOpponent.value) return;
+  challenging.value = true;
+  showConfirm.value = false;
+  try {
+    const b = await Api.post('/arena/challenge', { opponent_id: selectedOpponent.value.opponent_id });
+    gameStore.setBattle(b);
+    router.push('/map');
+  } catch (e) {
+    if (e.message?.includes('挑战') || e.message?.includes('铜币') || e.message?.includes('次数')) {
+      battleResult.value = { result: 'lose', opponent_name: selectedOpponent.value.username, reward: { silver: 0 }, log: [] };
+      showBattleResult.value = true;
+    } else { globalAlert(e.message); }
+  } finally { challenging.value = false; }
+}
+
+function closeBattleResult() { showBattleResult.value = false; load(); }
+
+onMounted(load);
 </script>
 
 <style scoped>
-.arena-view {
-  max-width: 480px;
-  margin: 0 auto;
-  min-height: 100vh;
-  background: #0a0a1a;
-  color: #f5e6c8;
-  padding-bottom: 60px;
-}
-
-.arena-header {
-  background: linear-gradient(135deg, #1a1a3e 0%, #2d1f4e 100%);
-  padding: 12px;
-  border-bottom: 2px solid #3d2a6e;
-}
-
-.header-title {
-  font-size: 18px;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 10px;
-  color: #e2b714;
-}
-
-.header-stats {
-  display: flex;
-  justify-content: space-around;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.stat-item {
-  text-align: center;
-  min-width: 60px;
-}
-
-.stat-label {
-  display: block;
-  font-size: 10px;
-  color: #8a7a5a;
-}
-
-.stat-value {
-  font-size: 14px;
-  font-weight: bold;
-}
-
-.text-gold { color: #e2b714; }
-.text-win { color: #27ae60; }
-.text-red { color: #e74c3c; }
-
-.tab-bar {
-  display: flex;
-  background: #1a1a3e;
-  border-bottom: 1px solid #3d2a6e;
-}
-
-.tab-btn {
-  flex: 1;
-  padding: 12px;
-  background: transparent;
-  border: none;
-  color: #8a7a5a;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.tab-btn.active {
-  color: #e2b714;
-  border-bottom: 2px solid #e2b714;
-}
-
-.tab-content {
-  padding: 12px;
-}
-
-.section-title {
-  font-size: 14px;
-  color: #e2b714;
-  margin-bottom: 10px;
-  font-weight: bold;
-}
-
-.fee-hint {
-  text-align: center;
-  font-size: 12px;
-  color: #8a7a5a;
-  margin-bottom: 12px;
-}
-
-.opponent-list {
+.arena-page {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.opponent-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #1a1a3e;
-  border: 1px solid #3d2a6e;
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.opponent-card.is-bot {
-  border-color: #4a3a6e;
-}
-
-.op-name {
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.op-level {
-  font-size: 11px;
-  color: #8a7a5a;
-  margin-left: 6px;
-}
-
-.op-rank {
-  font-size: 11px;
-  color: #27ae60;
-  margin-left: 6px;
-}
-
-.op-stats {
-  font-size: 11px;
-  color: #8a7a5a;
-  display: flex;
-  gap: 8px;
-}
-
-.loading-hint, .empty-hint {
-  text-align: center;
-  padding: 30px;
-  color: #8a7a5a;
-  font-size: 13px;
-}
-
-.rank-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.rank-card {
-  display: flex;
-  align-items: center;
-  background: #1a1a3e;
-  border: 1px solid #3d2a6e;
-  border-radius: 8px;
+  gap: 10px;
   padding: 8px 10px;
-}
-
-.rank-card.is-me {
-  border-color: #e2b714;
-  background: #2a2a4e;
-}
-
-.rank-card.rank-top {
-  border-color: #e2b714;
-}
-
-.rank-num {
-  width: 40px;
-  text-align: center;
-  font-size: 14px;
-}
-
-.medal {
-  font-size: 18px;
-}
-
-.rank-text {
-  color: #8a7a5a;
-}
-
-.rank-info {
-  flex: 1;
-}
-
-.rank-name {
-  font-size: 13px;
-  margin-bottom: 2px;
-}
-
-.rank-level {
-  font-size: 10px;
-  color: #8a7a5a;
-  margin-left: 6px;
-}
-
-.rank-detail {
-  font-size: 10px;
-  color: #8a7a5a;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.page-info {
-  font-size: 12px;
-  color: #8a7a5a;
-}
-
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.btn-danger {
-  background: #c0392b;
-  color: #fff;
-}
-
-.btn-danger:disabled {
-  background: #7f2d2d;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: #3d2a6e;
-  color: #f5e6c8;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  padding: 20px;
-}
-
-.modal-box {
-  background: #1a1a3e;
-  border: 2px solid #3d2a6e;
-  border-radius: 12px;
-  padding: 20px;
-  width: 100%;
-  max-width: 360px;
-}
-
-.modal-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #e2b714;
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.modal-body {
-  margin-bottom: 16px;
-}
-
-.modal-body p {
-  margin-bottom: 8px;
-  font-size: 13px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-.battle-result-modal {
-  max-width: 400px;
-  max-height: 80vh;
+  min-height: 100%;
   overflow-y: auto;
 }
-
-.result-win, .result-lose {
-  text-align: center;
-  margin-bottom: 12px;
+.arena-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: linear-gradient(160deg, #0d1117 0%, #1a0a1a 50%, #0d1117 100%);
+  pointer-events: none;
 }
-
-.result-title {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 8px;
+.top-hud {
+  position: relative; z-index: 2;
+  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+  padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
 }
-
-.divider {
-  border: none;
-  border-top: 1px solid rgba(226, 183, 20, 0.2);
-  margin: 10px 0;
+.hud-left { display: flex; align-items: center; gap: 8px; }
+.hud-icon { font-size: 20px; }
+.hud-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
+.hud-season { font-size: 11px; color: #7f8c8d; background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 10px; }
+.stats-card {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 6px;
 }
-
-.battle-log-section {
-  margin-top: 12px;
+.stat-item {
+  background: rgba(255,255,255,0.04); border-radius: 10px; padding: 10px 6px; text-align: center;
 }
-
-.log-title {
-  font-size: 12px;
-  color: #8a7a5a;
-  margin-bottom: 6px;
+.stat-val { font-size: 16px; font-weight: 700; color: #f0f0f0; }
+.stat-val.gold { color: #c9a758; }
+.stat-val.win { color: #27ae60; }
+.stat-val.lose { color: #e74c3c; }
+.stat-key { font-size: 9px; color: #7f8c8d; margin-top: 2px; }
+.season-hint { position: relative; z-index: 2; font-size: 10px; color: #555; text-align: center; }
+.tab-bar { position: relative; z-index: 2; display: flex; gap: 6px; }
+.tab-btn {
+  flex: 1; text-align: center; padding: 8px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; font-size: 12px; color: #7f8c8d; cursor: pointer; transition: all 0.2s;
 }
-
-.battle-log-box {
-  background: #0f0f2e;
-  border: 1px solid #2a2a4e;
-  border-radius: 6px;
-  padding: 8px;
-  max-height: 150px;
-  overflow-y: auto;
-  font-size: 11px;
+.tab-btn.active { background: rgba(220,80,80,0.1); border-color: rgba(220,80,80,0.3); color: #e74c3c; }
+.tab-content { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+.fee-hint { font-size: 12px; color: #7f8c8d; text-align: center; padding: 8px; }
+.gold { color: #c9a758; font-weight: 700; }
+.opponents-list { display: flex; flex-direction: column; gap: 8px; }
+.opponent-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
 }
-
-.log-line {
-  margin-bottom: 4px;
-  line-height: 1.4;
+.opponent-card.bot { border-color: rgba(79,195,247,0.15); }
+.oc-left { display: flex; align-items: center; gap: 10px; }
+.oc-avatar { font-size: 28px; }
+.oc-info { display: flex; flex-direction: column; gap: 3px; }
+.oc-name { font-size: 14px; font-weight: 600; color: #ddd; }
+.oc-lv, .oc-rank { font-size: 10px; color: #7f8c8d; margin-left: 4px; }
+.oc-stats { font-size: 11px; color: #555; }
+.oc-challenge-btn {
+  background: linear-gradient(135deg, #8b1a1a, #b22222); border: none;
+  border-radius: 8px; color: #fff; font-size: 13px; font-weight: 700; padding: 8px 16px; cursor: pointer;
 }
-
-.log-info { color: #3498db; }
-.log-attack { color: #e74c3c; }
-.log-system { color: #8a7a5a; }
+.content-hint { text-align: center; color: #555; font-size: 13px; padding: 20px; }
+.rankings-list { display: flex; flex-direction: column; gap: 8px; }
+.rank-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+}
+.rank-card.me { border-color: rgba(201,168,76,0.3); background: rgba(201,168,76,0.05); }
+.rank-card.top { border-color: rgba(201,168,76,0.2); }
+.rc-medal { font-size: 20px; min-width: 36px; text-align: center; }
+.rc-num { font-size: 12px; color: #7f8c8d; }
+.rc-info { flex: 1; }
+.rc-name { font-size: 13px; font-weight: 600; color: #ddd; }
+.rc-lv { font-size: 10px; color: #7f8c8d; margin-left: 4px; }
+.rc-detail { font-size: 10px; color: #555; margin-top: 2px; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 8px 0; }
+.page-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; color: #7f8c8d; font-size: 12px; padding: 6px 12px; cursor: pointer;
+}
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-info { font-size: 12px; color: #7f8c8d; }
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; backdrop-filter: blur(4px);
+}
+.confirm-card {
+  background: rgba(13,17,23,0.97); border: 1px solid rgba(220,80,80,0.3);
+  border-radius: 16px; padding: 24px 20px; width: 280px;
+}
+.cc-title { font-size: 16px; font-weight: 700; color: #f0f0f0; margin-bottom: 12px; text-align: center; }
+.cc-body { text-align: center; margin-bottom: 16px; }
+.cc-op { font-size: 16px; color: #ddd; font-weight: 600; margin-bottom: 8px; }
+.cc-fee { font-size: 13px; color: #7f8c8d; }
+.cc-actions { display: flex; gap: 8px; }
+.cc-cancel {
+  flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; color: #7f8c8d; font-size: 14px; padding: 10px; cursor: pointer;
+}
+.cc-confirm {
+  flex: 1; background: linear-gradient(135deg, #8b1a1a, #b22222); border: none;
+  border-radius: 8px; color: #fff; font-size: 14px; font-weight: 700; padding: 10px; cursor: pointer;
+}
+.cc-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+.result-card {
+  background: rgba(13,17,23,0.97); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px; padding: 20px; width: 300px; max-height: 80vh; overflow-y: auto;
+}
+.result-win { text-align: center; }
+.result-title { font-size: 22px; font-weight: 700; color: #f1c40f; margin-bottom: 6px; }
+.result-title.lose { color: #e74c3c; }
+.result-sub { font-size: 14px; color: #7f8c8d; margin-bottom: 10px; }
+.result-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+.result-items { font-size: 13px; color: #ddd; margin-bottom: 6px; }
+.result-items.gold { color: #c9a758; }
+.result-lose { text-align: center; }
+.battle-log { margin-top: 12px; }
+.bl-title { font-size: 12px; color: #7f8c8d; margin-bottom: 6px; }
+.bl-box { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px; max-height: 150px; overflow-y: auto; }
+.bl-line { font-size: 11px; color: #7f8c8d; padding: 2px 0; }
+.log-damage { color: #e74c3c; }
+.result-close {
+  width: 100%; margin-top: 12px;
+  background: linear-gradient(135deg, #c9a84c, #8b6914); border: none;
+  border-radius: 8px; color: #fff; font-size: 14px; font-weight: 700; padding: 10px; cursor: pointer;
+}
 </style>
