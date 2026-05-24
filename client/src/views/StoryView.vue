@@ -1,27 +1,41 @@
 <template>
-<div class="page story-page">
-<div class="game-title" style="padding:16px 20px 8px;">
-<h1 style="font-size:20px;">{{ stories[step].title }}</h1>
-</div>
-<div style="margin:0 0 10px 0;">
-<div class="bar-track" style="height:5px;border-radius:3px;">
-<div class="bar-fill" :style="{ width: (step / 7 * 100) + '%', background: 'linear-gradient(90deg,#c9a758,#c9a758)', borderRadius: '3px' }"></div>
-</div>
-<p class="text-muted" style="font-size:11px;margin-top:3px;text-align:center;">{{ step }} / 7</p>
-</div>
-<div class="story-box">
-<p class="story-text">{{ stories[step].text }}</p>
-<p class="story-bg" v-if="stories[step].bg">{{ stories[step].bg }}</p>
-</div>
-<div style="display:flex;gap:8px;">
-<button v-if="step > 1" class="btn btn-secondary" style="flex:1;" @click="step--">← 上一页</button>
-<button class="btn btn-primary" :style="{flex:step>1?1:'unset'}" style="padding:12px 20px;width:100%;" @click="next">
-{{ step >= 7 ? '⚓ 进入游戏' : '继续 →' }}
-</button>
-</div>
-<a href="javascript:void(0)" @click.prevent="skip" style="display:block;text-align:center;margin-top:12px;color:#8b784e;font-size:12px;text-decoration:none;">跳过剧情 →</a>
+<div class="story-page">
+  <div class="story-bg-layer"></div>
+
+  <div class="story-content">
+    <!-- Top HUD -->
+    <div class="top-hud">
+      <h1 class="game-title">{{ stories[step].title }}</h1>
+      <div class="progress-info">STEP {{ step }} / 7</div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar">
+      <div class="progress-track">
+        <div class="progress-fill" :style="{ width: (step / 7 * 100) + '%' }"></div>
+      </div>
+    </div>
+
+    <!-- Story Box -->
+    <div class="story-box">
+      <p class="story-text">{{ stories[step].text }}</p>
+      <p class="story-bg" v-if="stories[step].bg">{{ stories[step].bg }}</p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="btn-group">
+      <button v-if="step > 1" class="btn btn-secondary" @click="step--">← 上一页</button>
+      <button class="btn btn-primary" :class="{ 'btn-full': step <= 1 }" @click="next">
+        {{ step >= 7 ? '⚓ 进入游戏' : '继续 →' }}
+      </button>
+    </div>
+
+    <!-- Skip Link -->
+    <a href="javascript:void(0)" @click.prevent="skip" class="skip-link">跳过剧情 →</a>
+  </div>
 </div>
 </template>
+
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -39,3 +53,149 @@ const stories = {
 function next(){ if(step.value>=7)router.push('/map');else step.value++; }
 function skip(){ router.push('/map'); }
 </script>
+
+<style scoped>
+.story-page {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.story-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(135deg, #0d1117 0%, #1a2a3a 100%);
+  backdrop-filter: blur(10px);
+}
+
+.story-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top-hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.game-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f0f0f0;
+  margin: 0;
+}
+
+.progress-info {
+  font-size: 12px;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.progress-bar {
+  width: 100%;
+}
+
+.progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1a4a2a, #27ae60);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.story-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(201, 167, 88, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.story-text {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #e0d8c8;
+  margin: 0 0 12px 0;
+}
+
+.story-bg {
+  font-size: 13px;
+  font-style: italic;
+  color: #95a5a6;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #1a4a2a, #27ae60);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #bdc3c7;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn-full {
+  flex: unset;
+  width: 100%;
+}
+
+.skip-link {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: #7f8c8d;
+  text-decoration: none;
+  padding: 4px 0;
+  transition: color 0.2s ease;
+}
+
+.skip-link:hover {
+  color: #bdc3c7;
+}
+</style>
