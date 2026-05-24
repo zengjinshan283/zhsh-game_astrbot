@@ -1,70 +1,119 @@
 <template>
-<div class="page">
-  <!-- 引导未完成时显示提示 -->
-  <div v-if="guideStep !== 99 && guideStep !== 0" class="card" style="text-align:center;padding:24px;background:linear-gradient(135deg,#1a1a2e,#16213e);">
-    <div style="font-size:36px;margin-bottom:10px;">🗺️</div>
-    <div style="color:#c9a758;font-size:14px;margin-bottom:8px;">新手引导未完成</div>
-    <div style="color:#888;font-size:12px;margin-bottom:14px;">请先完成引导任务，再查看所有任务</div>
-    <router-link to="/quest-guide" class="btn btn-primary">📜 前往引导任务</router-link>
+<div class="quest-page">
+  <div class="quest-bg"></div>
+
+  <!-- 引导提示 -->
+  <div v-if="guideStep !== 99 && guideStep !== 0" class="guide-block">
+    <div class="gb-emoji">🗺️</div>
+    <div class="gb-title">新手引导未完成</div>
+    <div class="gb-sub">请先完成引导任务，再查看所有任务</div>
+    <router-link to="/quest-guide" class="gb-btn">📜 前往引导任务</router-link>
   </div>
 
-  <div class="location-bar">
-    <div class="location-name">📋 任务面板</div>
-    <div class="location-path">进行中 {{ active.length }}</div>
+  <!-- 顶部 HUD -->
+  <div class="quest-hud" v-if="guideStep === 99">
+    <div class="qh-title">📋 任务面板</div>
+    <div class="qh-count">
+      <span class="qc-badge" :class="{active: active.length > 0}">{{ active.length }}</span>
+      进行中
+    </div>
   </div>
-  <div v-if="msg" class="card" :style="{borderColor:msgType==='error'?'#73281c':'#2e5a3b',padding:'3px 8px'}">
-    <p :style="{color:msgType==='error'?'#b85a3a':'#2e5a3b',fontSize:'11px',margin:0}">{{ msgType==='error'?'❌':'✅' }} {{ msg }}</p>
+
+  <div v-if="msg" class="quest-toast" :class="msgType === 'error' ? 'toast-err' : 'toast-ok'">
+    {{ msgType === 'error' ? '❌' : '✅' }} {{ msg }}
   </div>
-  <div class="tab-bar">
-    <a href="javascript:void(0)" :class="'btn '+(tab==='active'?'btn-primary':'btn-secondary')" @click="tab='active'">🔄 进行中</a>
-    <a href="javascript:void(0)" :class="'btn '+(tab==='available'?'btn-primary':'btn-secondary')" @click="tab='available'">📋 可接</a>
-    <a href="javascript:void(0)" :class="'btn '+(tab==='completed'?'btn-primary':'btn-secondary')" @click="tab='completed'">✅ 已完成</a>
+
+  <!-- Tab 栏 -->
+  <div class="quest-tabs" v-if="guideStep === 99">
+    <button v-for="t in tabs" :key="t.key" class="qt-btn" :class="{active: tab === t.key}" @click="tab = t.key">
+      <span class="qt-icon">{{ t.icon }}</span>
+      <span class="qt-label">{{ t.label }}</span>
+      <span v-if="t.key === 'active' && active.length" class="qt-count">{{ active.length }}</span>
+    </button>
   </div>
 
   <!-- 进行中 -->
-  <template v-if="tab==='active'">
-    <div v-if="!active.length" class="card"><div class="empty-state">没有进行中的任务</div></div>
-    <div v-for="q in active" :key="q.id" class="card" :style="{borderColor:q.status===1?'#2e5a3b':catColor(q.category),padding:'4px 8px'}">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span class="item-name" style="font-size:12px;">{{ q.status===1?'✅':'🔄' }} {{ catTag(q.category) }} {{ q.name }}</span>
-        <span style="font-size:11px;" :style="{color:q.status===1?'#2e5a3b':'#c9a758'}">{{ q.status===1?'已完成':q.progress+'/'+q.require_value }}</span>
-      </div>
-      <div class="item-desc" style="margin-top:2px;">{{ q.description }}</div>
-      <div class="item-desc">{{ questTypes[q.type]||'📋任务' }} · {{ q.npc_name||'未知' }} · Lv.{{ q.level_req }}</div>
-      <div v-if="q.status===0" class="mt-4">
-        <div style="height:6px;background:#080c08;border-radius:3px;overflow:hidden;margin:4px 0;">
-          <div :style="{height:'100%',width:Math.min(100,Math.round(q.progress/Math.max(1,q.require_value)*100))+'%',background:catColor(q.category)}"></div>
+  <template v-if="tab === 'active' && guideStep === 99">
+    <div v-if="!active.length" class="q-empty">没有进行中的任务</div>
+    <div v-for="q in active" :key="q.id" class="q-card" :class="{claimable: q.status === 1}">
+      <div class="qc-header">
+        <div class="qc-cat-tag" :style="{background: catColor(q.category)+'22', borderColor: catColor(q.category)+'55', color: catColor(q.category)}">
+          {{ catTag(q.category) }}
         </div>
-        <button class="btn btn-secondary btn-small" @click="abandon(q.id)" style="font-size:10px;">🗑️ 放弃</button>
+        <div class="qc-name">{{ q.status === 1 ? '✅' : '🔄' }} {{ q.name }}</div>
+        <div class="qc-status" :style="{color: q.status === 1 ? '#2ecc71' : '#f39c12'}">
+          {{ q.status === 1 ? '可领取' : q.progress + '/' + q.require_value }}
+        </div>
       </div>
-      <div v-else style="margin-top:3px;">
-        <button class="btn btn-primary btn-small" @click="claim(q.id)" style="font-size:10px;">🎁 领取奖励</button>
-        <span class="text-gold" style="font-size:10px;"> 经验+{{ q.reward_exp }} 铜+{{ q.reward_money }}{{ q.reward_gold?' 金+'+q.reward_gold:'' }}</span>
+      <div class="qc-body">
+        <div class="qc-desc">{{ q.description }}</div>
+        <div class="qc-meta">
+          <span>{{ questTypes[q.type] || '📋任务' }}</span>
+          <span>📍 {{ q.npc_name || '未知' }}</span>
+          <span>Lv.{{ q.level_req }}</span>
+        </div>
+        <div class="qc-progress" v-if="q.status === 0">
+          <div class="qp-bar">
+            <div class="qp-fill" :style="{width: Math.min(100, Math.round(q.progress/Math.max(1,q.require_value)*100))+'%', background: catColor(q.category)}"></div>
+          </div>
+          <div class="qp-pct">{{ Math.round(q.progress/Math.max(1,q.require_value)*100) }}%</div>
+        </div>
+      </div>
+      <div class="qc-actions">
+        <template v-if="q.status === 0">
+          <button class="q-btn q-btn-ghost" @click="abandon(q.id)">🗑️ 放弃</button>
+        </template>
+        <template v-else>
+          <div class="q-reward-info">
+            <span>✨ +{{ q.reward_exp }}</span>
+            <span>💰 +{{ q.reward_money }}</span>
+            <span v-if="q.reward_gold">🪙 +{{ q.reward_gold }}</span>
+          </div>
+          <button class="q-btn q-btn-primary" @click="claim(q.id)">🎁 领取</button>
+        </template>
       </div>
     </div>
   </template>
 
-  <!-- 可接任务 -->
-  <template v-if="tab==='available'">
-    <div v-if="!filtered.length" class="card"><div class="empty-state">暂无可接任务</div></div>
-    <div v-for="q in filtered" :key="q.id" class="card" :style="{borderColor:catColor(q.category),padding:'4px 8px'}">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span class="item-name" style="font-size:12px;">{{ catTag(q.category) }} {{ q.name }}</span>
-        <span style="font-size:10px;color:#888;">Lv.{{ q.level_req }}</span>
+  <!-- 可接 -->
+  <template v-if="tab === 'available' && guideStep === 99">
+    <div v-if="!filtered.length" class="q-empty">暂无可接任务</div>
+    <div v-for="q in filtered" :key="q.id" class="q-card q-card-avail">
+      <div class="qc-header">
+        <div class="qc-cat-tag" :style="{background: catColor(q.category)+'22', borderColor: catColor(q.category)+'55', color: catColor(q.category)}">
+          {{ catTag(q.category) }}
+        </div>
+        <div class="qc-name">{{ q.name }}</div>
+        <div class="qc-level">Lv.{{ q.level_req }}</div>
       </div>
-      <div class="item-desc" style="margin-top:2px;">{{ q.description }}</div>
-      <div class="item-desc">{{ questTypes[q.type]||'📋任务' }} · {{ q.npc_name||'未知' }} · <span class="text-gold">经验+{{ q.reward_exp }} 铜+{{ q.reward_money }}{{ q.reward_gold?' 金+'+q.reward_gold:'' }}</span>{{ q.category===2?' · 🔄每日':'' }}</div>
-      <button class="btn btn-primary btn-small" @click="accept(q.id)" style="font-size:10px;margin-top:3px;">📋 接取</button>
+      <div class="qc-body">
+        <div class="qc-desc">{{ q.description }}</div>
+        <div class="qc-meta">
+          <span>{{ questTypes[q.type] || '📋任务' }}</span>
+          <span>📍 {{ q.npc_name || '未知' }}</span>
+        </div>
+        <div class="q-reward-line">
+          ✨ {{ q.reward_exp }} 经验 · 💰 {{ q.reward_money }} 铜
+          <span v-if="q.reward_gold">· 🪙 {{ q.reward_gold }} 金</span>
+          <span v-if="q.category === 2" class="q-daily-tag">🔄 每日</span>
+        </div>
+      </div>
+      <div class="qc-actions">
+        <button class="q-btn q-btn-primary" @click="accept(q.id)">📋 接取</button>
+      </div>
     </div>
   </template>
 
   <!-- 已完成 -->
-  <template v-if="tab==='completed'">
-    <div v-if="!completed.length" class="card"><div class="empty-state">还没有完成任何任务</div></div>
-    <div v-for="q in completed" :key="q.id" class="card" style="opacity:0.7;padding:4px 8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <span class="item-name" style="color:#2e5a3b;font-size:12px;">✅ {{ catTag(q.category) }} {{ q.name }}</span>
-        <span class="text-muted" style="font-size:10px;">{{ fmtTime(q.completed_at) }}</span>
+  <template v-if="tab === 'completed' && guideStep === 99">
+    <div v-if="!completed.length" class="q-empty">还没有完成任何任务</div>
+    <div v-for="q in completed" :key="q.id" class="q-card q-card-done">
+      <div class="qc-header">
+        <div class="qc-cat-tag" :style="{background: '#27ae6022', borderColor: '#27ae6055', color: '#27ae60'}">
+          {{ catTag(q.category) }}
+        </div>
+        <div class="qc-name">✅ {{ q.name }}</div>
+        <div class="qc-time">{{ fmtTime(q.completed_at) }}</div>
       </div>
     </div>
   </template>
@@ -84,8 +133,13 @@ const completed = ref([]);
 const available = ref([]);
 const msg = ref('');
 const msgType = ref('');
-const guideStep = ref(99); // 99=引导完成，显示完整任务
+const guideStep = ref(99);
 const questTypes = {0:'⚔️杀怪',1:'📦收集',2:'📍到达',3:'💬对话',4:'🛡️护送'};
+const tabs = [
+  { key: 'active', label: '进行中', icon: '🔄' },
+  { key: 'available', label: '可接', icon: '📋' },
+  { key: 'completed', label: '已完成', icon: '✅' },
+];
 
 const filtered = computed(() => {
   if (!available.value.length) return [];
@@ -94,30 +148,23 @@ const filtered = computed(() => {
 });
 
 function catTag(c) { return c===1?'📜主线':c===2?'🔄日常':'📋支线'; }
-function catColor(c) { return c===1?'#c9a758':c===2?'#4a90d9':'#2e5a3b'; }
-
+function catColor(c) { return c===1?'#c9a758':c===2?'#4a90d9':'#2ecc71'; }
 function fmtTime(t) {
   if (!t) return '';
   const d = new Date(t * 1000);
   return (d.getMonth()+1) + '/' + d.getDate() + ' ' +
     d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
 }
+function showMsg(text, type='success') { msg.value=text; msgType.value=type; setTimeout(()=>msg.value='',3000); }
 
 async function loadGuideStep() {
   try {
     const d = await Api.get('/auth/me');
     guideStep.value = d.user?.guide_step ?? 99;
-    // 引导未完成时 redirect to QuestGuideView
-    if (guideStep.value !== 99 && guideStep.value !== 0) {
-      // Show only guide quests (no full list loading needed)
-    }
-  } catch(e) {
-    guideStep.value = 99;
-  }
+  } catch(e) { guideStep.value = 99; }
 }
 
 async function load() {
-  // guide_step < 99 时只显示引导任务，不加载完整列表
   if (guideStep.value !== 99) return;
   try {
     const d = await Api.get('/quest/list');
@@ -144,13 +191,149 @@ async function claim(id) {
 async function abandon(id) {
   const ok = await globalConfirm('确定放弃这个任务吗？');
   if (!ok) return;
-  try {
-    await Api.post('/quest/abandon', { quest_id: id });
-    load();
-  } catch(e) { showMsg('放弃失败', 'error'); }
+  try { await Api.post('/quest/abandon', { quest_id: id }); load(); }
+  catch(e) { showMsg('放弃失败', 'error'); }
 }
-
-function showMsg(text, type='success') { msg.value=text; msgType.value=type; setTimeout(()=>msg.value='',3000); }
 
 onMounted(async () => { await loadGuideStep(); await load(); });
 </script>
+
+<style scoped>
+.quest-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 10px;
+  min-height: 100%;
+  overflow-y: auto;
+}
+.quest-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: linear-gradient(160deg, #0d1117 0%, #0d1a0d 50%, #0d1117 100%);
+  pointer-events: none;
+}
+
+/* 引导提示 */
+.guide-block {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 30px 20px;
+  text-align: center;
+}
+.gb-emoji { font-size: 40px; }
+.gb-title { font-size: 15px; font-weight: 700; color: #f0f0f0; }
+.gb-sub { font-size: 11px; color: #7f8c8d; }
+.gb-btn {
+  background: linear-gradient(135deg, #1a4a2a, #27ae60);
+  color: #fff; padding: 8px 20px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; text-decoration: none;
+}
+
+/* HUD */
+.quest-hud {
+  position: relative; z-index: 2;
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.qh-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
+.qh-count { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #7f8c8d; }
+.qc-badge {
+  background: rgba(255,255,255,0.08); border-radius: 10px; padding: 1px 6px;
+  font-size: 10px; transition: all 0.2s;
+}
+.qc-badge.active { background: rgba(39,174,96,0.2); color: #2ecc71; }
+
+/* Toast */
+.quest-toast {
+  position: relative; z-index: 2;
+  border-radius: 8px; padding: 7px 12px; font-size: 11px;
+}
+.toast-err { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
+.toast-ok { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); color: #2ecc71; }
+
+/* Tab */
+.quest-tabs {
+  position: relative; z-index: 2;
+  display: flex; gap: 6px;
+}
+.qt-btn {
+  display: flex; align-items: center; gap: 5px;
+  flex: 1; justify-content: center;
+  padding: 8px 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  font-size: 12px; color: #7f8c8d; cursor: pointer; transition: all 0.2s;
+}
+.qt-btn.active {
+  background: rgba(39,174,96,0.12);
+  border-color: rgba(39,174,96,0.4);
+  color: #2ecc71;
+}
+.qt-icon { font-size: 13px; }
+.qt-label { font-weight: 500; }
+.qt-count {
+  background: rgba(39,174,96,0.2); color: #2ecc71;
+  border-radius: 10px; padding: 1px 5px; font-size: 10px;
+}
+
+/* 任务卡片 */
+.q-empty {
+  position: relative; z-index: 2;
+  text-align: center; font-size: 11px; color: #555; padding: 24px;
+}
+.q-card {
+  position: relative; z-index: 2;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: all 0.2s;
+}
+.q-card:hover { background: rgba(255,255,255,0.06); }
+.q-card.claimable { border-color: rgba(39,174,96,0.3); background: rgba(39,174,96,0.05); }
+.q-card-avail {}
+.q-card-done { opacity: 0.55; }
+
+.qc-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.qc-cat-tag {
+  font-size: 9px; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px;
+  border: 1px solid; white-space: nowrap;
+}
+.qc-name { flex: 1; font-size: 13px; font-weight: 600; color: #f0f0f0; }
+.qc-status { font-size: 11px; font-weight: 600; }
+.qc-level { font-size: 10px; color: #7f8c8d; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; }
+.qc-time { font-size: 10px; color: #555; }
+
+.qc-body { margin-bottom: 6px; }
+.qc-desc { font-size: 11px; color: #95a5a6; margin-bottom: 4px; }
+.qc-meta { display: flex; gap: 8px; font-size: 10px; color: #7f8c8d; margin-bottom: 4px; }
+.qc-progress { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.qp-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+.qp-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.qp-pct { font-size: 9px; color: #7f8c8d; }
+
+.q-reward-line { font-size: 10px; color: #f1c40f; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.q-daily-tag { background: rgba(74,144,217,0.15); border: 1px solid rgba(74,144,217,0.3); color: #4a90d9; padding: 1px 5px; border-radius: 4px; font-size: 9px; }
+
+.qc-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.q-reward-info { display: flex; gap: 8px; font-size: 11px; color: #f1c40f; margin-right: auto; }
+.q-btn {
+  padding: 5px 10px; border-radius: 6px;
+  border: none; font-size: 11px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.2s;
+}
+.q-btn-primary { background: linear-gradient(135deg, #1a4a2a, #27ae60); color: #fff; }
+.q-btn-ghost { background: rgba(255,255,255,0.06); color: #7f8c8d; }
+.q-btn:hover { opacity: 0.9; }
+</style>
