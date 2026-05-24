@@ -1274,10 +1274,10 @@ watch(() => gameStore.inBattle, (val, oldVal) => {
 
 /* ===== Mini 小地图 ===== */
 .mini-map {
-  position: fixed;
-  bottom: 12px;
-  right: 12px;
-  z-index: 3;
+  position: relative;
+  z-index: 2;
+  float: right;
+  margin-top: 4px;
   background: rgba(13,17,23,0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
