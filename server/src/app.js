@@ -46,6 +46,7 @@ app.use('/api/vip', require('./routes/vip'));
 app.use('/api/invite', require('./routes/invite'));
 app.use('/api/codex', require('./routes/codex'));
 app.use('/api/wild', require('./routes/wild'));
+app.use('/api/fishing', require('./routes/fishing'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));

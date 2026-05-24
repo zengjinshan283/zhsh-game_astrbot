@@ -164,14 +164,26 @@
       </div>
     </div>
 
+    <!-- 每日活跃 Tab -->
+    <div v-else-if="activeTab === 'daily'">
+      <DailyEmbed />
+    </div>
+
+    <!-- 钓鱼 Tab -->
+    <div v-else-if="activeTab === 'fishing'">
+      <FishingEmbed />
+    </div>
+
     <button @click="$router.back()" class="btn btn-secondary btn-block mt-10">返回</button>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Api } from '../composables/useApi';
 import { globalAlert } from '../composables/useConfirm';
+import DailyEmbed from './DailyView.vue';
+import FishingEmbed from './FishingView.vue';
 
 const loading = ref(true);
 const claiming = ref(false);
@@ -198,6 +210,8 @@ const CYCLE_MINUTES = 60;
 const tabs = [
   { key: 'welfare', label: '🎁 福利' },
   { key: 'online',  label: '⏱️ 在线奖励' },
+  { key: 'daily',   label: '📅 活跃' },
+  { key: 'fishing', label: '🎣 钓鱼' },
 ];
 
 let refreshTimer = null;
