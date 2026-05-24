@@ -1,81 +1,113 @@
 <template>
-<div class="map-page" v-if="scene" style="display:flex;flex-direction:column;height:100%;overflow:hidden;padding:4px 6px;gap:6px;">
-  <!-- 快捷状态栏 -->
-  <div class="quick-stats">
-    <div class="qs-item qs-hp">
-      <span class="qs-icon">❤️</span>
-      <div class="qs-bar-wrap"><div class="qs-bar qs-hp-bar" :style="{width: hpPct+'%'}"></div></div>
-      <span class="qs-val">{{ user.hp }}/{{ user.hp_max }}</span>
+<div class="map-page" :class="'scene-type-'+scenePlaceType" v-if="scene">
+  <!-- 动态背景层 -->
+  <div class="scene-bg-layer"></div>
+  <!-- 粒子装饰层 -->
+  <div class="particles-layer">
+    <span v-for="(p,i) in particles" :key="i" class="particle" :style="p.style">{{ p.char }}</span>
+  </div>
+
+  <!-- 顶部浮动状态栏 HUD -->
+  <div class="hud-bar">
+    <div class="hud-left">
+      <div class="hud-stat">
+        <div class="hud-icon">❤️</div>
+        <div class="hud-bars">
+          <div class="hud-bar-track">
+            <div class="hud-bar-fill hp-fill" :style="{width: hpPct+'%'}"></div>
+          </div>
+          <span class="hud-num">{{ user.hp }}/{{ user.hp_max }}</span>
+        </div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-icon">⭐</div>
+        <div class="hud-bars">
+          <div class="hud-bar-track">
+            <div class="hud-bar-fill exp-fill" :style="{width: expPct+'%'}"></div>
+          </div>
+          <span class="hud-num">{{ user.exp }}/{{ user.exp_max }}</span>
+        </div>
+      </div>
     </div>
-    <div class="qs-item qs-exp">
-      <span class="qs-icon">⭐</span>
-      <div class="qs-bar-wrap"><div class="qs-bar qs-exp-bar" :style="{width: expPct+'%'}"></div></div>
-      <span class="qs-val">{{ user.exp }}/{{ user.exp_max }}</span>
-    </div>
-    <div class="qs-item qs-money">
-      <span class="qs-icon">💰</span>
-      <span class="qs-val">{{ formatMoney(user.money) }}</span>
-    </div>
-    <div v-if="user.gold>0" class="qs-item qs-gold">
-      <span class="qs-icon">🚙</span>
-      <span class="qs-val">{{ user.gold }}</span>
+    <div class="hud-right">
+      <div class="hud-stat hud-money">
+        <div class="hud-icon">💰</div>
+        <span class="hud-num">{{ formatMoney(user.money) }}</span>
+      </div>
+      <div class="hud-stat" v-if="user.gold>0">
+        <div class="hud-icon">🪙</div>
+        <span class="hud-num gold">{{ user.gold }}</span>
+      </div>
     </div>
   </div>
 
-  <!-- 任务提示 -->
-  <div class="quest-alert" v-if="claimableQuests > 0">
-    🎉 <strong>{{ claimableQuests }}</strong>个任务可领奖！
-    <router-link to="/quest">去领取→</router-link>
+  <!-- 任务提示横幅 -->
+  <div class="quest-banner" v-if="claimableQuests > 0">
+    <span class="banner-icon">🎉</span>
+    <span class="banner-text"><strong>{{ claimableQuests }}</strong>个任务可领奖！</span>
+    <router-link to="/quest" class="banner-btn">去领取 →</router-link>
   </div>
 
-  <!-- 场景面板 -->
-  <div class="scene-panel">
-    <div class="scene-header">
-      <span class="scene-emoji">{{ sceneEmoji }}</span>
-      <div class="scene-title">
-        {{ scene.place.name }}
-        <span class="city-name" v-if="scene.city">{{ scene.city.name }}</span>
+  <!-- 主场景面板 -->
+  <div class="scene-main-card">
+    <div class="scene-title-row">
+      <span class="scene-icon-lg">{{ sceneEmoji }}</span>
+      <div class="scene-name-group">
+        <div class="scene-name">{{ scene.place.name }}</div>
+        <div class="scene-sub" v-if="scene.city">{{ scene.city.name }}</div>
       </div>
+      <button class="btn-refresh" @click="loadScene" title="刷新">🔄</button>
     </div>
-    <div class="scene-atmosphere">
-      <span v-for="(e,i) in atmosEmojis" :key="i" class="atm-emoji" :style="e">{{ atmosEmojiChars[i] }}</span>
+    <div class="scene-desc-box">
+      <template v-if="scene.place.notice">{{ scene.place.notice }}</template>
+      <span v-else class="empty-hint">四周一片安静，没有什么特别之处。</span>
     </div>
-    <div class="scene-body">
-      <div class="scene-desc">
-        <template v-if="scene.place.notice">{{ scene.place.notice }}</template>
-        <span v-else class="empty-hint">四周一片安静，没有什么特别之处。</span>
-        <div v-if="hasMarketNpc" style="margin-top:8px;text-align:center;">
-          <router-link to="/market" style="display:inline-block;background:rgba(169,119,78,0.15);border:1px solid rgba(169,119,78,0.3);color:#c9a758;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
-🏪 进入市场交易</router-link>
-        </div>
-        <div v-if="scene.place && scene.place.type === 1" style="margin-top:8px;text-align:center;">
-          <router-link to="/sail" style="display:inline-block;background:rgba(46,90,59,0.25);border:1px solid rgba(63,106,74,0.5);color:#5f8a6f;padding:6px 20px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;">
-⛵ 航海</router-link>
-        </div>
-      </div>
+    <div class="scene-action-btns">
+      <router-link v-if="hasMarketNpc" to="/market" class="sc-btn sc-btn-market">🏪 进入市场</router-link>
+      <router-link v-if="scene.place.type === 1" to="/sail" class="sc-btn sc-btn-sail">⛵ 航海</router-link>
+    </div>
+  </div>
 
-      <!-- 怪物 + NPC 并排 -->
-      <div class="scene-entities" v-if="scene.monsters.length || scene.npcs.length">
-        <div class="monster-cards" v-if="scene.monsters.length">
-          <div v-for="m in scene.monsters" :key="m.id" class="monster-card">
-            <div class="mc-icon">👹</div>
-            <div class="mc-info">
-              <div class="mc-name" :style="{color: dangerColor(m.hp)}">{{ m.name }}</div>
-              <div class="mc-hp">HP {{ m.hp }} · <span :style="{color: dangerColor(m.hp)}">{{ dangerLabel(m.hp) }}</span></div>
+  <!-- 怪物 & NPC 双栏网格 -->
+  <div class="entities-grid" v-if="scene.monsters.length || scene.npcs.length">
+    <!-- 怪物区 -->
+    <div class="entity-col" v-if="scene.monsters.length">
+      <div class="col-header">
+        <span>👹 怪物</span>
+        <span class="col-count">{{ scene.monsters.length }}</span>
+      </div>
+      <div class="entity-cards">
+        <div v-for="m in scene.monsters" :key="m.id" class="entity-card monster-card" @click="openMonster(m)">
+          <div class="ec-avatar">{{ getMonsterEmoji(m.atk_min) }}</div>
+          <div class="ec-info">
+            <div class="ec-name" :style="{color: dangerColor(m.hp)}">{{ m.name }}</div>
+            <div class="ec-meta">
+              <span class="ec-hp">❤️ {{ m.hp }}</span>
+              <span class="ec-danger" :style="{color: dangerColor(m.hp)}">{{ dangerLabel(m.hp) }}</span>
             </div>
-            <span class="mc-action" @click.stop="openMonster(m)">⚔️战斗</span>
           </div>
+          <div class="ec-action">⚔️</div>
         </div>
-        <div class="scene-col-divider" v-if="scene.monsters.length && scene.npcs.length"></div>
-        <div class="scene-npcs" v-if="scene.npcs.length">
-          <div v-for="n in scene.npcs" :key="n.id" class="scene-npc-row">
-            <div class="npc-avatar" :class="npcTypeClass(n.type)">{{ npcIcon(n.type) }}</div>
-            <div class="npc-info">
-              <div class="npc-name-text" :style="{color: npcColor(n.type)}">{{ n.name }}</div>
-              <div class="npc-desc-text" v-if="n.dialog">{{ truncate(n.dialog, 20) }}…</div>
+      </div>
+    </div>
+    <!-- 分隔线 -->
+    <div class="col-divider" v-if="scene.monsters.length && scene.npcs.length"></div>
+    <!-- NPC区 -->
+    <div class="entity-col" v-if="scene.npcs.length">
+      <div class="col-header">
+        <span>👤 NPC</span>
+        <span class="col-count">{{ scene.npcs.length }}</span>
+      </div>
+      <div class="entity-cards">
+        <div v-for="n in scene.npcs" :key="n.id" class="entity-card npc-card" @click="openPreview(n)">
+          <div class="ec-avatar npc-av" :class="npcTypeClass(n.type)">{{ npcIcon(n.type) }}</div>
+          <div class="ec-info">
+            <div class="ec-name" :style="{color: npcColor(n.type)}">{{ n.name }}</div>
+            <div class="ec-meta">
+              <span class="ec-type-label">{{ getNpcActionLabel(n.type) }}</span>
             </div>
-            <span class="npc-action" @click.stop="openPreview(n)">{{ getNpcActionLabel(n.type) }}</span>
           </div>
+          <div class="ec-action">›</div>
         </div>
       </div>
     </div>
@@ -83,8 +115,8 @@
 
   <!-- 附近玩家 -->
   <div class="nearby-bar">
-    <span class="nearby-label">👥 {{ scene.onlineUsers.length }}人在线</span>
-    <div class="nearby-list">
+    <div class="nearby-label">👥 附近 {{ scene.onlineUsers.length }} 人在线</div>
+    <div class="nearby-scroll">
       <template v-if="scene.onlineUsers.length">
         <a v-for="p in scene.onlineUsers" :key="p.id" class="nearby-chip" href="javascript:void(0)" @click.prevent="viewPlayer(p.id)">
           <span class="chip-sex">{{ p.sex === 2 ? '♀' : '♂' }}</span>
@@ -92,39 +124,86 @@
           <span class="chip-lv">Lv.{{ p.level }}</span>
         </a>
       </template>
-      <span v-else class="nearby-chip" style="color:#8b784e;font-size:11px;">附近暂无其他冒险者</span>
+      <span v-else class="nearby-empty">附近暂无其他冒险者</span>
     </div>
   </div>
 
-  <!-- 方向十字导航 -->
-  <div class="dir-card">
-    <!-- 右上角：进入城市 -->
-    <router-link v-if="scene.city && scene.city.type === 1" :to="'/citymap/' + scene.city.id" class="dir-city-btn">
-      🏛️ 进入城市
-    </router-link>
-    <div class="dir-cross">
-      <div class="dir-n">
-        <a v-if="scene.exits.n" href="javascript:void(0)" class="dir-btn" @click.prevent="move('n')">⬆️北<span class="dir-sub">{{ scene.exits.n.name }}</span></a>
-        <div v-else class="dir-disabled">—</div>
+  <!-- 圆形罗盘导航 -->
+  <div class="compass-wrap">
+    <div class="compass-rose">
+      <div class="cr-center">
+        <div class="cr-dot"></div>
       </div>
-      <div class="dir-w">
-        <a v-if="scene.exits.w" href="javascript:void(0)" class="dir-btn" @click.prevent="move('w')">⬅️西<span class="dir-sub">{{ scene.exits.w.name }}</span></a>
-        <div v-else class="dir-disabled">—</div>
+      <!-- 北 -->
+      <div class="cr-dir cr-n">
+        <a v-if="scene.exits.n" href="javascript:void(0)" class="cr-btn" @click.prevent="move('n')">
+          <div class="cr-arrow">⬆️</div>
+          <div class="cr-name">{{ scene.exits.n.name }}</div>
+        </a>
+        <div v-else class="cr-btn cr-empty">—</div>
       </div>
-      <div class="dir-center">
-        <a href="javascript:void(0)" class="dir-center-btn" @click.prevent="loadScene">🔄</a>
+      <!-- 东 -->
+      <div class="cr-dir cr-e">
+        <a v-if="scene.exits.e" href="javascript:void(0)" class="cr-btn" @click.prevent="move('e')">
+          <div class="cr-arrow">➡️</div>
+          <div class="cr-name">{{ scene.exits.e.name }}</div>
+        </a>
+        <div v-else class="cr-btn cr-empty">—</div>
       </div>
-      <div class="dir-e">
-        <a v-if="scene.exits.e" href="javascript:void(0)" class="dir-btn" @click.prevent="move('e')">东➡️<span class="dir-sub">{{ scene.exits.e.name }}</span></a>
-        <div v-else class="dir-disabled">—</div>
+      <!-- 南 -->
+      <div class="cr-dir cr-s">
+        <a v-if="scene.exits.s" href="javascript:void(0)" class="cr-btn" @click.prevent="move('s')">
+          <div class="cr-arrow">⬇️</div>
+          <div class="cr-name">{{ scene.exits.s.name }}</div>
+        </a>
+        <div v-else class="cr-btn cr-empty">—</div>
       </div>
-      <div class="dir-s">
-        <a v-if="scene.exits.s" href="javascript:void(0)" class="dir-btn" @click.prevent="move('s')">⬇️南<span class="dir-sub">{{ scene.exits.s.name }}</span></a>
-        <div v-else class="dir-disabled">—</div>
+      <!-- 西 -->
+      <div class="cr-dir cr-w">
+        <a v-if="scene.exits.w" href="javascript:void(0)" class="cr-btn" @click.prevent="move('w')">
+          <div class="cr-arrow">⬅️</div>
+          <div class="cr-name">{{ scene.exits.w.name }}</div>
+        </a>
+        <div v-else class="cr-btn cr-empty">—</div>
+      </div>
+      <!-- 中心刷新 -->
+      <div class="cr-refresh" @click="loadScene">🔄</div>
+    </div>
+    <div class="move-error-msg" v-if="moveError">⚠️ {{ moveError }}</div>
+  </div>
+
+  <!-- 右下角 Mini 小地图 -->
+  <div class="mini-map" v-if="scene.city">
+    <div class="mm-title">🏛️ {{ scene.city.name }}</div>
+    <div class="mm-grid">
+      <div class="mm-cell mm-n" @click.prevent="move('n')">
+        <span v-if="scene.exits.n" class="mm-dir">⬆️</span>
+        <span v-else class="mm-none">·</span>
+      </div>
+      <div class="mm-cell mm-w" @click.prevent="move('w')">
+        <span v-if="scene.exits.w" class="mm-dir">⬅️</span>
+        <span v-else class="mm-none">·</span>
+      </div>
+      <div class="mm-cell mm-center">
+        <div class="mm-pin">📍</div>
+        <div class="mm-here">{{ scene.place.name.substring(0,4) }}</div>
+      </div>
+      <div class="mm-cell mm-e" @click.prevent="move('e')">
+        <span v-if="scene.exits.e" class="mm-dir">➡️</span>
+        <span v-else class="mm-none">·</span>
+      </div>
+      <div class="mm-cell mm-s" @click.prevent="move('s')">
+        <span v-if="scene.exits.s" class="mm-dir">⬇️</span>
+        <span v-else class="mm-none">·</span>
       </div>
     </div>
-    <div class="no-exit-msg" v-if="moveError">⚠️ {{ moveError }}</div>
+    <router-link v-if="scene.city" :to="'/citymap/' + scene.city.id" class="mm-city-btn">进城</router-link>
   </div>
+
+  <!-- 城市入口按钮（右上角浮动） -->
+  <router-link v-if="scene.city && scene.city.type === 1" :to="'/citymap/' + scene.city.id" class="float-city-btn">
+    🏛️ 进入城市
+  </router-link>
 
   <Teleport to="body">
   <!-- Toast -->
@@ -133,7 +212,7 @@
     <span :style="{color:msgColor,fontSize:'14px',fontWeight:'600'}">{{ msgText }}</span>
   </div>
   <div class="modal-overlay" :class="{active: modal}" @click.self="closeModal" v-if="modal">
-    <!-- NPC预览弹窗（第一步：点击NPC后） -->
+    <!-- NPC预览弹窗 -->
     <div class="modal-card" v-if="modalType==='preview' && previewNpc">
       <div class="modal-header">
         <div class="modal-avatar" :style="'background:'+previewBg+';border:2px solid '+npcColor(previewNpc.type)">{{ npcIcon(previewNpc.type) }}</div>
@@ -142,7 +221,6 @@
       </div>
       <div class="modal-body">
         <div class="modal-dialog" v-if="previewNpc.dialog">{{ previewNpc.dialog }}</div>
-        <!-- 任务提示区（有可接/进行中任务时显示） -->
         <div id="npcQuestArea" v-if="previewNpc.quest_count > 0" style="margin-top:6px;text-align:center;">
           <a href="javascript:void(0)" @click.prevent="previewOpenQuests" style="display:inline-block;background:linear-gradient(135deg,#5f4a31,#4a3a28);color:#fff;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;">📋 任务({{ previewNpc.quest_count }})</a>
         </div>
@@ -153,7 +231,7 @@
       </div>
     </div>
 
-    <!-- 任务弹窗（预览弹窗中点击任务按钮） -->
+    <!-- 任务弹窗 -->
     <div class="modal-overlay-2" v-if="modalType==='questList'" @click.self="backToPreview">
       <div class="modal-card">
         <div class="modal-header">
@@ -397,7 +475,6 @@
 </div>
 </template>
 
-
 <script setup>
 import { globalConfirm, globalAlert } from '../composables/useConfirm';
 import { ref, computed, reactive, onMounted, nextTick, watch } from 'vue'
@@ -478,6 +555,8 @@ const msgColor = ref('')
 const hpPct = computed(() => user.value.hp_max > 0 ? Math.round(user.value.hp / user.value.hp_max * 100) : 0)
 const expPct = computed(() => user.value.exp_max > 0 ? Math.round(user.value.exp / user.value.exp_max * 100) : 0)
 
+const scenePlaceType = computed(() => scene.value?.place?.type || 0)
+
 const hasMarketNpc = computed(() => {
   if (!scene.value || !scene.value.place) return false
   return scene.value.place.is_market === 1
@@ -496,27 +575,38 @@ const sceneEmoji = computed(() => {
   return '🗺️'
 })
 
-const atmosEmojiChars = computed(() => {
+// 粒子装饰
+const particles = computed(() => {
+  if (!scene.value) return []
+  const t = scenePlaceType.value
   const sets = {
-    0: ['🌳','🍃','🌳','🐻','🌙'],
+    0: ['🌳','🍃','🌿','🐾','🍂'],
     1: ['⚓','🌊','🚢','🐬','🦈'],
-    2: ['🏠','🏢','🏪'],
-    9: ['🏛️','📦','🏪'],
+    2: ['🏠','🏢','🏪','🌿'],
+    9: ['🏛️','📦','🏪','✨'],
   }
-  const t = scene.value?.place?.type || 0
-  const isMarket = scene.value?.place?.id === 1020
-  return isMarket ? sets[9] : (sets[t] || sets[0])
+  const chars = sets[t] || sets[0]
+  return Array.from({length: 8}, (_, i) => ({
+    char: chars[i % chars.length],
+    style: {
+      position: 'absolute',
+      fontSize: (12 + Math.random() * 16) + 'px',
+      opacity: 0.15 + Math.random() * 0.25,
+      top: (5 + Math.random() * 85) + '%',
+      left: (5 + Math.random() * 85) + '%',
+      animation: `float-particle ${6 + Math.random() * 8}s ease-in-out infinite alternate`,
+      animationDelay: Math.random() * 5 + 's',
+      pointerEvents: 'none',
+      userSelect: 'none',
+    }
+  }))
 })
 
-const atmosEmojis = computed(() => {
-  return [
-    {fontSize:'28px',opacity:0.7,position:'absolute',top:'12px',left:'14px'},
-    {fontSize:'20px',opacity:0.4,position:'absolute',top:'20px',right:'18px'},
-    {fontSize:'16px',opacity:0.3,position:'absolute',bottom:'10px',left:'40%'},
-    {fontSize:'14px',opacity:0.2,position:'absolute',bottom:'8px',right:'30%'},
-    {fontSize:'22px',opacity:0.5,position:'absolute',top:'8px',left:'50%'},
-  ]
-})
+function getMonsterEmoji(atk) {
+  if (atk >= 80) return '👹'
+  if (atk >= 40) return '🐺'
+  return '🐾'
+}
 
 function formatMoney(n) {
   if (!n) return '0'
@@ -525,19 +615,19 @@ function formatMoney(n) {
   return n.toLocaleString()
 }
 function truncate(s, n) { return s ? s.substring(0, n) : '' }
-function dangerColor(hp) { return hp >= 100 ? '#73281c' : hp >= 50 ? '#6f5632' : '#8b6843' }
+function dangerColor(hp) { return hp >= 100 ? '#e74c3c' : hp >= 50 ? '#f39c12' : '#27ae60' }
 function dangerLabel(hp) { return hp >= 100 ? '危险' : hp >= 50 ? '普通' : '较弱' }
 
 const npcTypes = {
   icon: { 0:'💬', 1:'🏪', 2:'⚒️', 3:'🏦', 4:'🎰', 5:'📋' },
   cls: { 0:'talk', 1:'shop', 2:'craft', 3:'bank', 4:'danger', 5:'quest' },
   action: { 0:'交谈', 1:'购物', 2:'锻造', 3:'兑换', 4:'挑战', 5:'交谈' },
-  color: { 0:'#3f6a4a', 1:'#c9a758', 2:'#6f5632', 3:'#2e5a3b', 4:'#73281c', 5:'#3f6a4a' },
+  color: { 0:'#3498db', 1:'#c9a758', 2:'#6f5632', 3:'#2ecc71', 4:'#e74c3c', 5:'#9b59b6' },
 }
 function npcIcon(t) { return npcTypes.icon[t] || '💬' }
 function npcTypeClass(t) { return npcTypes.cls[t] || 'talk' }
 function getNpcActionLabel(t) { return npcTypes.action[t] || '查看' }
-function npcColor(t) { return npcTypes.color[t] || '#cfc19e' }
+function npcColor(t) { return npcTypes.color[t] || '#bdc3c7' }
 
 function itemIcon(item) {
   if (item.type === 1 || item.subtype === 'weapon') return '⚔️'
@@ -564,7 +654,6 @@ async function loadScene() {
     gameStore.setScene(data)
     const me = await Api.get('/auth/me')
     userStore.updateUser(me.user)
-    // 更新任务提示数
     try {
       const qData = await Api.get('/quest/list')
       claimableQuests.value = qData.active ? qData.active.filter(q => q.status === 1).length : 0
@@ -588,7 +677,6 @@ function showMsg(icon, text, color) { msgIcon.value = icon; msgText.value = text
 
 function openMonster(m) { openModal('monster', m) }
 
-// ===== 第一步：点击NPC → 预览弹窗 =====
 function openPreview(npc) {
   previewNpc.value = npc
   previewAvailableQuests.value = []
@@ -596,7 +684,6 @@ function openPreview(npc) {
   openModal('preview', null)
 }
 
-// 从预览弹窗打开任务列表
 async function previewOpenQuests() {
   if (!previewNpc.value) return
   const npcId = previewNpc.value.id
@@ -609,18 +696,14 @@ async function previewOpenQuests() {
       id: q.id, name: q.name, progress: q.progress||0, require_value: q.require_value, status: q.status
     }))
     modalType.value = 'questList'
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 function backToPreview() {
   modalType.value = 'preview'
-  // 重新加载预览弹窗以刷新任务数量
-  if (previewNpc.value) {
-    openPreview(previewNpc.value)
-  }
+  if (previewNpc.value) openPreview(previewNpc.value)
 }
 
-// ===== 第二步：点击动作按钮 → 进入功能弹窗 =====
 function handleNpcAction(npc) {
   const t = npc.type
   if (t === 1) return openShop(npc)
@@ -630,37 +713,34 @@ function handleNpcAction(npc) {
   return openChat(npc)
 }
 
-// Shop
 async function openShop(npc) {
   shopNpcName.value = npc.name
   try {
     const data = await Api.get('/npc/' + npc.id + '/shop')
     shopItems.value = data.items || []
     openModal('shop', null)
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 async function buyItem(item) {
-    const buyBtn = event?.target?.closest(".btn-buy");
   const qty = shopQty[item.id] || 1
   try {
     const npc = scene.value.npcs.find(n => n.type === 1)
     await Api.post('/npc/buy', { npc_id: npc.id, item_id: item.id, quantity: qty })
     const me = await Api.get('/auth/me')
     userStore.updateUser(me.user)
-    showMsg("\u2705", item.name+" x"+qty+" 购买成功", "#2e5a3b");
-    await loadScene();
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+    showMsg("✅", item.name+" x"+qty+" 购买成功", "#27ae60");
+    await loadScene()
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
-// Smith
 async function openSmith(npc) {
   smithNpcName.value = npc.name
   try {
     const data = await Api.get('/smith/items')
     smithItems.value = data.items || []
     openModal('smith', null)
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 async function smithEnhance(item) {
@@ -669,13 +749,12 @@ async function smithEnhance(item) {
     const data = await Api.post('/smith/enhance', { inventory_id: item.inv_id })
     const me = await Api.get('/auth/me')
     userStore.updateUser(me.user)
-    showMsg(data.ok ? '✨' : '👿', data.msg, data.ok ? '#2e5a3b' : '#b85a3a')
+    showMsg(data.ok ? '✨' : '👿', data.msg, data.ok ? '#27ae60' : '#e74c3c')
     const smith = await Api.get('/smith/items')
     smithItems.value = smith.items || []
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
-// Bank
 async function openBank(npc) {
   bankNpcName.value = npc.name
   try {
@@ -683,7 +762,7 @@ async function openBank(npc) {
     bankData.money = data.money
     bankData.bank_money = data.bank_money
     openModal('bank', null)
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 async function bankDeposit() {
@@ -693,7 +772,7 @@ async function bankDeposit() {
     const data = await Api.post('/npc/deposit', { amount: amt })
     bankData.money = data.money; bankData.bank_money = data.bank_money; depositAmt.value = ''
     const me = await Api.get('/auth/me'); userStore.updateUser(me.user)
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 async function bankWithdraw() {
@@ -703,7 +782,7 @@ async function bankWithdraw() {
     const data = await Api.post('/npc/withdraw', { amount: amt })
     bankData.money = data.money; bankData.bank_money = data.bank_money; withdrawAmt.value = ''
     const me = await Api.get('/auth/me'); userStore.updateUser(me.user)
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 async function bankQuickDeposit(amt) {
@@ -724,7 +803,6 @@ async function bankQuickWithdraw(amt) {
   } catch (e) {}
 }
 
-// Casino
 async function openCasino(npc) {
   casinoNpcName.value = npc.name
   casinoResult.value = null
@@ -742,7 +820,7 @@ function casinoQuick(amount) {
 }
 
 async function casinoBet() {
-  if (!casinoChoice.value) { showMsg('⚠️', '请先选择大或小', '#6f5632'); return }
+  if (!casinoChoice.value) { showMsg('⚠️', '请先选择大或小', '#f39c12'); return }
   const amount = parseInt(casinoBetAmt.value) || 0
   if (amount <= 0) return
   try {
@@ -755,12 +833,11 @@ async function casinoBet() {
       casinoMaxBet.value = Math.min(parseInt(me.user.money || 0), 10000)
       casinoInfo.value = '💰 铜币：' + formatMoney(me.user.money) + ' · 限额：10,000'
     } else {
-      showMsg('❌', data.msg, '#73281c')
+      showMsg('❌', data.msg, '#e74c3c')
     }
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
-// ===== Chat（talk/quest NPC）- 使用新的 /npc/:id/chat 接口 =====
 async function openChat(npc) {
   chatNpcName.value = npc.name
   chatNpcId.value = npc.id
@@ -784,31 +861,25 @@ function chatNextTopic() {
   if (!topics.length) return
   const used = chatUsedTopics.value.map(t => t.key)
   let remaining = topics.filter(t => !used.includes(t.key))
-  if (remaining.length === 0) {
-    chatUsedTopics.value = []
-    remaining = topics
-  }
+  if (remaining.length === 0) { chatUsedTopics.value = []; remaining = topics }
   const pick = remaining[Math.floor(Math.random() * remaining.length)]
   chatUsedTopics.value.push(pick)
   nextTick(() => {
-    if (chatBubblesRef.value) {
-      const bubbles = chatBubblesRef.value
-      bubbles.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-    }
+    if (chatBubblesRef.value) bubbles.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   })
 }
 
 async function acceptQuest(qid) {
   try {
     await Api.post('/quest/accept', { quest_id: qid })
-    showMsg('\u2705', '\u4efb\u52a1\u63a5\u53d6\u6210\u529f\uff01', '#2e5a3b')
+    showMsg('✅', '任务接取成功！', '#27ae60')
     const npcId = previewNpc.value?.id || chatNpcId.value
     if (npcId) {
       const data = await Api.get('/npc/' + npcId + '/chat')
       if (data.ok) {
         previewAvailableQuests.value = (data.available_quests||[]).map(q => ({
           id:q.id, name:q.name, desc:q.description, lv:q.level_req,
-          reward:'\u7ecf\u9a8c+'+(q.reward_exp||0)+' \u94dc+'+(q.reward_money||0),
+          reward:'经验+'+(q.reward_exp||0)+' 铜+'+(q.reward_money||0),
           status:0, progress:0, require_value:q.require_value||0
         }))
         previewActiveQuests.value = (data.active_quests||[]).map(q => ({
@@ -817,45 +888,485 @@ async function acceptQuest(qid) {
         }))
       }
     }
-  } catch (e) { showMsg('\u274c', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
-// Claim quest reward at NPC
-async function claimQuestAtNpc(qid) {
-  try {
-    const d = await Api.post('/quest/claim', { quest_id: qid })
-    showMsg('🎉', d.msg, '#2e5a3b')
-    const me = await Api.get('/auth/me')
-    userStore.updateUser(me.user)
-    // Refresh NPC quest data
-    const npcId = previewNpc.value?.id || chatNpcId.value
-    if (npcId) {
-      const data = await Api.get('/npc/' + npcId + '/chat')
-      if (data.ok) {
-        previewAvailableQuests.value = (data.available_quests || []).map(q => ({
-          id:q.id, name:q.name, desc:q.description, lv:q.level_req, reward:'经验+'+(q.reward_exp||0)+' 铜+'+(q.reward_money||0), status:0, progress:0, require_value:q.require_value||0
-        }))
-        previewActiveQuests.value = (data.active_quests || []).map(q => ({
-          id:q.id, name:q.name, desc:q.description, status:q.status, progress:q.progress, require_value:q.require_value||0
-        }))
-      }
-    }
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
-}
-
-// Battle
 async function fight(monster) {
   try {
     const data = await Api.post('/battle/start', { monster_id: monster.id })
     gameStore.setBattle(data)
     closeModal()
-  } catch (e) { showMsg('❌', e.message, '#73281c') }
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 onMounted(loadScene)
 
-// Reload scene when battle ends (overlay closes but route stays /map)
 watch(() => gameStore.inBattle, (val, oldVal) => {
   if (oldVal === true && val === false) loadScene()
 })
 </script>
+
+<style>
+@keyframes float-particle {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-20px) rotate(15deg); }
+}
+
+.map-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 6px;
+  gap: 6px;
+  background: #0d1117;
+}
+
+/* ===== 动态背景层 ===== */
+.scene-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: background 0.6s ease;
+}
+.scene-type-0 .scene-bg-layer {
+  background: linear-gradient(160deg, #0d1117 0%, #1a2e1a 50%, #0d1117 100%);
+}
+.scene-type-1 .scene-bg-layer {
+  background: linear-gradient(160deg, #0d1117 0%, #0a1a2e 50%, #0d1117 100%);
+}
+.scene-type-2 .scene-bg-layer {
+  background: linear-gradient(160deg, #0d1117 0%, #2a1a0d 50%, #0d1117 100%);
+}
+.scene-type-9 .scene-bg-layer {
+  background: linear-gradient(160deg, #0d1117 0%, #1a1a2e 50%, #0d1117 100%);
+}
+
+/* ===== 粒子层 ===== */
+.particles-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ===== HUD 浮动状态栏 ===== */
+.hud-bar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(13,17,23,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 8px 12px;
+  gap: 8px;
+}
+.hud-left, .hud-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hud-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hud-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.hud-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 70px;
+}
+.hud-bar-track {
+  height: 5px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.hud-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.hp-fill { background: linear-gradient(90deg, #e74c3c, #ff6b6b); }
+.exp-fill { background: linear-gradient(90deg, #f39c12, #f1c40f); }
+.hud-num {
+  font-size: 10px;
+  color: #bdc3c7;
+  white-space: nowrap;
+}
+.hud-num.gold { color: #f1c40f; }
+
+/* ===== 任务横幅 ===== */
+.quest-banner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(39,174,96,0.15), rgba(39,174,96,0.05));
+  border: 1px solid rgba(39,174,96,0.3);
+  border-radius: 10px;
+  padding: 7px 12px;
+}
+.banner-icon { font-size: 18px; }
+.banner-text { flex: 1; font-size: 13px; color: #a8e6cf; }
+.banner-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ===== 场景主卡片 ===== */
+.scene-main-card {
+  position: relative;
+  z-index: 2;
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 12px;
+}
+.scene-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.scene-icon-lg { font-size: 32px; line-height: 1; }
+.scene-name-group { flex: 1; }
+.scene-name { font-size: 17px; font-weight: 700; color: #f0f0f0; }
+.scene-sub { font-size: 11px; color: #7f8c8d; margin-top: 2px; }
+.btn-refresh {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 5px 8px;
+  transition: background 0.2s;
+}
+.btn-refresh:hover { background: rgba(255,255,255,0.12); }
+.scene-desc-box {
+  font-size: 12px;
+  color: #95a5a6;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.empty-hint { color: #7f8c8d; font-style: italic; }
+.scene-action-btns { display: flex; gap: 8px; justify-content: center; }
+.sc-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.sc-btn-market {
+  background: rgba(201,167,88,0.12);
+  border: 1px solid rgba(201,167,88,0.3);
+  color: #c9a758;
+}
+.sc-btn-market:hover { background: rgba(201,167,88,0.2); }
+.sc-btn-sail {
+  background: rgba(46,90,59,0.2);
+  border: 1px solid rgba(63,106,74,0.4);
+  color: #5f8a6f;
+}
+.sc-btn-sail:hover { background: rgba(46,90,59,0.3); }
+
+/* ===== 实体网格 ===== */
+.entities-grid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+.entity-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #7f8c8d;
+  padding: 0 2px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.col-count {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 10px;
+}
+.col-divider {
+  width: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 0 2px;
+}
+.entity-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow-y: auto;
+  flex: 1;
+}
+.entity-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.entity-card:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.14);
+  transform: translateX(2px);
+}
+.entity-card:active { transform: scale(0.98); }
+.monster-card:hover { border-color: rgba(231,76,60,0.3); }
+.npc-card:hover { border-color: rgba(52,152,219,0.3); }
+.ec-avatar {
+  font-size: 22px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.npc-av.talk { background: rgba(52,152,219,0.12); }
+.npc-av.shop { background: rgba(201,167,88,0.12); }
+.npc-av.craft { background: rgba(111,86,50,0.12); }
+.npc-av.bank { background: rgba(46,90,59,0.12); }
+.npc-av.danger { background: rgba(115,40,28,0.12); }
+.npc-av.quest { background: rgba(155,89,182,0.12); }
+.ec-info { flex: 1; min-width: 0; }
+.ec-name { font-size: 13px; font-weight: 600; }
+.ec-meta { display: flex; gap: 6px; margin-top: 2px; font-size: 10px; color: #95a5a6; }
+.ec-action { font-size: 14px; opacity: 0.5; flex-shrink: 0; }
+
+/* ===== 附近玩家 ===== */
+.nearby-bar {
+  position: relative;
+  z-index: 2;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+.nearby-label { font-size: 11px; color: #7f8c8d; margin-bottom: 5px; font-weight: 600; }
+.nearby-scroll { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; }
+.nearby-scroll::-webkit-scrollbar { height: 2px; }
+.nearby-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.nearby-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  padding: 3px 8px;
+  font-size: 11px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.nearby-chip:hover { background: rgba(255,255,255,0.1); }
+.chip-sex { color: #e74c3c; }
+.chip-name { color: #ecf0f1; }
+.chip-lv { color: #7f8c8d; }
+.nearby-empty { font-size: 11px; color: #555; }
+
+/* ===== 罗盘导航 ===== */
+.compass-wrap {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.compass-rose {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 50%;
+}
+.cr-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cr-dot {
+  width: 8px;
+  height: 8px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.cr-dir { position: absolute; }
+.cr-n { top: 6px; left: 50%; transform: translateX(-50%); }
+.cr-s { bottom: 6px; left: 50%; transform: translateX(-50%); }
+.cr-e { right: 6px; top: 50%; transform: translateY(-50%); }
+.cr-w { left: 6px; top: 50%; transform: translateY(-50%); }
+.cr-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  transition: transform 0.15s;
+}
+.cr-btn:hover { transform: scale(1.1); }
+.cr-btn.cr-empty { cursor: default; opacity: 0.2; }
+.cr-arrow { font-size: 16px; line-height: 1; }
+.cr-name { font-size: 9px; color: #bdc3c7; white-space: nowrap; max-width: 50px; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.cr-refresh {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: all 0.2s;
+  padding: 6px;
+}
+.cr-refresh:hover { opacity: 0.8; transform: translate(-50%, -50%) rotate(180deg); }
+.move-error-msg { font-size: 10px; color: #e74c3c; text-align: center; }
+
+/* ===== Mini 小地图 ===== */
+.mini-map {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 3;
+  background: rgba(13,17,23,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 90px;
+}
+.mm-title { font-size: 9px; color: #7f8c8d; font-weight: 600; text-align: center; }
+.mm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  grid-template-rows: repeat(3, 22px);
+  gap: 2px;
+}
+.mm-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.mm-cell:hover { background: rgba(255,255,255,0.1); }
+.mm-center { background: rgba(39,174,96,0.15); cursor: default; }
+.mm-pin { font-size: 14px; }
+.mm-here { font-size: 7px; color: #27ae60; text-align: center; line-height: 1.1; }
+.mm-dir { font-size: 11px; opacity: 0.7; }
+.mm-none { color: rgba(255,255,255,0.15); font-size: 10px; }
+.mm-city-btn {
+  background: rgba(39,174,96,0.12);
+  border: 1px solid rgba(39,174,96,0.25);
+  color: #27ae60;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.mm-city-btn:hover { background: rgba(39,174,96,0.2); }
+
+/* ===== 浮动城市入口 ===== */
+.float-city-btn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  background: rgba(39,174,96,0.15);
+  border: 1px solid rgba(39,174,96,0.3);
+  color: #2ecc71;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
+}
+.float-city-btn:hover { background: rgba(39,174,96,0.25); }
+
+/* ===== Toast ===== */
+.map-toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  background: rgba(20,20,30,0.95);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 9999;
+  backdrop-filter: blur(12px);
+}
+.map-toast.active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
+}
+</style>
