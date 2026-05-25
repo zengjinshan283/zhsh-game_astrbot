@@ -60,6 +60,8 @@ router.post('/capture', authMiddleware, async (req, res, next) => {
       if (isActive) {
         await db.query('UPDATE user SET pet_id=?, pet_name=?, pet_level=1, pet_exp=0 WHERE id=?', [pet_id, target.name, req.user.id]);
       }
+      // 解锁宠物图鉴
+      await db.query('INSERT IGNORE INTO user_pet_codex (user_id, pet_id, unlocked_at) VALUES (?, ?, ?)', [req.user.id, pet_id, Math.floor(Date.now()/1000)]);
       res.json({ success: true, msg: `🎉 成功捕捉了${target.name}！` });
     } else {
       res.json({ success: false, msg: `😥 ${target.name} 挣脱了...` });

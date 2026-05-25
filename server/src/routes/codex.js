@@ -84,7 +84,35 @@ router.post('/unlock/:itemId', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ===== 收集奖励 =====
+// 宠物图鉴列表
+router.get('/pets', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const pets = await db.getAll('SELECT id, name, type, quality, hp, atk, def_val, capture_rate, skill_name, skill_desc FROM pet ORDER BY quality DESC, id');
+    const unlocked = await db.getAll('SELECT pet_id, unlocked_at FROM user_pet_codex WHERE user_id = ?', [uid]);
+    const unlockedMap = {};
+    unlocked.forEach(r => { unlockedMap[r.pet_id] = r.unlocked_at; });
+
+    const qualityLabel = ['', '普通', '优秀', '精良', '史诗', '传说'];
+    const qualityColor = ['', '#aaaaaa', '#4caf50', '#2196f3', '#9c27b0', '#ff9800'];
+    const typeLabel = ['', '飞行', '野兽', '昆虫', '海兽', '灵兽'];
+
+    res.json({
+      total: pets.length,
+      unlocked_count: Object.keys(unlockedMap).length,
+      pets: pets.map(p => ({
+        ...p,
+        unlocked: !!unlockedMap[p.id],
+        unlocked_at: unlockedMap[p.id] || null,
+        quality_label: qualityLabel[p.quality] || '普通',
+        quality_color: qualityColor[p.quality] || '#aaa',
+        type_label: typeLabel[p.type] || '普通'
+      }))
+    });
+  } catch (err) { next(err); }
+});
+
+// 收集奖励
 router.get('/rewards', authMiddleware, async (req, res, next) => {
   try {
     const uid = req.user.id;
