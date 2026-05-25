@@ -154,4 +154,100 @@ router.post('/rename', authMiddleware, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+// ============================================================
+// 宠物被动技能系统
+// ============================================================
+
+// 学习技能（消耗技能书）
+router.post('/learn-skill', authMiddleware, async (req, res, next) => {
+  try {
+    const { user_pet_id, item_id } = req.body;
+    const pet = await db.getOne('SELECT * FROM user_pet WHERE id=? AND user_id=?', [user_pet_id, req.user.id]);
+    if (!pet) return res.status(400).json({ error: '宠物不存在' });
+
+    const bookItem = await db.getOne('SELECT * FROM `item` WHERE id=? AND subtype=?', [item_id, 'pet_skill']);
+    if (!bookItem) return res.status(400).json({ error: '这不是宠物技能书' });
+
+    const inv = await db.getOne('SELECT id, quantity FROM `inventory` WHERE user_id=? AND item_id=? AND equipped=0', [req.user.id, item_id]);
+    if (!inv) return res.status(400).json({ error: '背包中没有该技能书' });
+
+    // 从技能书找到对应技能
+    const skill = await db.getOne('SELECT * FROM `pet_skill` WHERE book_item_id=?', [item_id]);
+    if (!skill) return res.status(400).json({ error: '技能书没有对应技能' });
+
+    // 检查宠物等级要求
+    if (pet.level < bookItem.level_req) return res.status(400).json({ error: `宠物需要${bookItem.level_req}级才能学习此技能` });
+
+    // 检查技能槽是否已满（3个槽）
+    const filledSlots = [pet.skill_1, pet.skill_2, pet.skill_3].filter(s => s && s.length > 0);
+    if (filledSlots.length >= 3) return res.status(400).json({ error: '技能槽已满（3个），需遗忘一个才能学新技能' });
+
+    // 检查是否已学会该技能
+    if ([pet.skill_1, pet.skill_2, pet.skill_3].includes(skill.skill_key)) {
+      return res.status(400).json({ error: '宠物已学会该技能' });
+    }
+
+    // 找空槽写入
+    let newSkill1 = pet.skill_1 || '', newSkill2 = pet.skill_2 || '', newSkill3 = pet.skill_3 || '';
+    if (!newSkill1) newSkill1 = skill.skill_key;
+    else if (!newSkill2) newSkill2 = skill.skill_key;
+    else newSkill3 = skill.skill_key;
+
+    await db.query('UPDATE user_pet SET skill_1=?, skill_2=?, skill_3=? WHERE id=?', [newSkill1, newSkill2, newSkill3, pet.id]);
+
+    // 消耗技能书
+    if (inv.quantity > 1) await db.query('UPDATE inventory SET quantity=quantity-1 WHERE id=?', [inv.id]);
+    else await db.delete('inventory', 'id=?', [inv.id]);
+
+    res.json({ success: true, msg: `🎉 ${pet.nickname}学会了「${skill.name}」！${skill.desc}` });
+  } catch(e) { next(e); }
+});
+
+// 遗忘技能（指定槽位）
+router.post('/forget-skill', authMiddleware, async (req, res, next) => {
+  try {
+    const { user_pet_id, slot } = req.body; // slot: 1/2/3
+    if (![1,2,3].includes(slot)) return res.status(400).json({ error: '无效的技能槽位' });
+    const pet = await db.getOne('SELECT * FROM user_pet WHERE id=? AND user_id=?', [user_pet_id, req.user.id]);
+    if (!pet) return res.status(400).json({ error: '宠物不存在' });
+
+    const skills = [pet.skill_1, pet.skill_2, pet.skill_3];
+    if (!skills[slot-1]) return res.status(400).json({ error: '该槽位没有技能' });
+
+    const oldSkill = await db.getOne('SELECT * FROM pet_skill WHERE skill_key=?', [skills[slot-1]]);
+    if (slot === 1) await db.query('UPDATE user_pet SET skill_1=? WHERE id=?', ['', pet.id]);
+    else if (slot === 2) await db.query('UPDATE user_pet SET skill_2=? WHERE id=?', ['', pet.id]);
+    else await db.query('UPDATE user_pet SET skill_3=? WHERE id=?', ['', pet.id]);
+
+    res.json({ success: true, msg: `${pet.nickname}遗忘了「${oldSkill?.name || '技能'}」` });
+  } catch(e) { next(e); }
+});
+
+// 查看所有可学习的技能书
+router.get('/skill-books', authMiddleware, async (req, res, next) => {
+  try {
+    const books = await db.getAll("SELECT i.id, i.name, i.level_req, i.quality, ps.skill_key, ps.name as skill_name, ps.stat_key, ps.stat_value FROM item i JOIN pet_skill ps ON ps.book_item_id=i.id WHERE i.subtype='pet_skill' ORDER BY i.quality, i.level_req");
+    const inInventory = await db.getAll("SELECT item_id, quantity FROM inventory WHERE user_id=? AND item_id IN (SELECT id FROM item WHERE subtype='pet_skill') AND equipped=0", [req.user.id]);
+    const invMap = {};
+    inInventory.forEach(r => { invMap[r.item_id] = r.quantity; });
+    books.forEach(b => { b.owned = invMap[b.id] || 0; });
+    res.json({ books });
+  } catch(e) { next(e); }
+});
+
+// 计算宠物技能加成（供其他模块调用）
+// 导出函数到全局，供 battle.js / user2.js 使用
 module.exports = router;
+module.exports.getPetBonus = async function(userId) {
+  const bonus = { atk: 0, def: 0, hp: 0, crit: 0, dodge: 0, money_exp: 0 };
+  try {
+    const pet = await db.getOne('SELECT skill_1, skill_2, skill_3 FROM user_pet WHERE user_id=? AND is_active=1', [userId]);
+    if (!pet) return bonus;
+    const skills = [pet.skill_1, pet.skill_2, pet.skill_3].filter(s => s);
+    for (const sk of skills) {
+      const s = await db.getOne('SELECT stat_key, stat_value FROM pet_skill WHERE skill_key=?', [sk]);
+      if (s && bonus.hasOwnProperty(s.stat_key)) bonus[s.stat_key] += s.stat_value;
+    }
+  } catch(e) {}
+  return bonus;
+};

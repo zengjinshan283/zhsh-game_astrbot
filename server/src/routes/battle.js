@@ -13,7 +13,7 @@ function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Nu
 // In-memory battle sessions (keyed by userId)
 const battleSessions = new Map();
 
-// ─── 装备加成计算（基础属性 + 鉴定词缀 + 套装）───────────────
+// ─── 装备加成计算（基础属性 + 鉴定词缀 + 套装 + 宠物被动技能）───
 async function computeEquipBonus(userId) {
   const equipped = await db.getAll(
     `SELECT inv.id AS inv_id, inv.enhance_level, inv.is_identified, inv.identify_affixes,
@@ -62,6 +62,22 @@ async function computeEquipBonus(userId) {
       bonusHp += rows[0].bonus_hp || 0;
     }
   }
+  // 宠物被动技能加成
+  try {
+    const pet = await db.getOne('SELECT skill_1, skill_2, skill_3 FROM user_pet WHERE user_id=? AND is_active=1', [userId]);
+    if (pet) {
+      const skillSlots = [pet.skill_1, pet.skill_2, pet.skill_3].filter(s => s);
+      for (const sk of skillSlots) {
+        const s = await db.getOne('SELECT stat_key, stat_value FROM pet_skill WHERE skill_key=?', [sk]);
+        if (s) {
+          if (s.stat_key === 'atk') bonusAtk += s.stat_value;
+          if (s.stat_key === 'def') bonusDef += s.stat_value;
+          if (s.stat_key === 'hp') bonusHp += s.stat_value;
+        }
+      }
+    }
+  } catch(e) {}
+
   return { bonusAtk, bonusDef, bonusHp };
 }
 

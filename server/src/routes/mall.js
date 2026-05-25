@@ -41,6 +41,15 @@ const MALL_ITEMS = [
   { id: 603, category: 'material', name: '神秘碎片',   price: 80,   description: '合成稀有道具的材料',     },
   // 藏宝图（特殊）
   { id: 90001, category: 'material', name: '藏宝图',    price: 500,  description: '标注神秘宝藏位置的古老地图', },
+  // 宠物技能书
+  { id: 91001, category: 'material', name: '生命强化·初级技能书', price: 200, description: '宠物学习「生命强化·初级」，等级要求1级', },
+  { id: 91002, category: 'material', name: '生命强化·中级技能书', price: 500, description: '宠物学习「生命强化·中级」，等级要求5级', },
+  { id: 91003, category: 'material', name: '生命强化·高级技能书', price: 1200, description: '宠物学习「生命强化·高级」，等级要求10级', },
+  { id: 91004, category: 'material', name: '攻击强化·初级技能书', price: 200, description: '宠物学习「攻击强化·初级」，等级要求1级', },
+  { id: 91005, category: 'material', name: '攻击强化·中级技能书', price: 500, description: '宠物学习「攻击强化·中级」，等级要求5级', },
+  { id: 91006, category: 'material', name: '攻击强化·高级技能书', price: 1200, description: '宠物学习「攻击强化·高级」，等级要求10级', },
+  { id: 91007, category: 'material', name: '防御强化·初级技能书', price: 200, description: '宠物学习「防御强化·初级」，等级要求1级', },
+  { id: 91008, category: 'material', name: '防御强化·中级技能书', price: 500, description: '宠物学习「防御强化·中级」，等级要求5级', },
 ];
 
 // 获取商城商品列表
