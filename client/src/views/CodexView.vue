@@ -105,13 +105,10 @@
         @click="showDetail(item)"
       >
         <div class="item-icon">
-          <span v-if="item.unlocked">{{ getItemIcon(item) }}</span>
-          <span v-else class="locked-icon">❓</span>
+          <span>{{ getItemIcon(item) }}</span>
         </div>
-        <div class="item-name" :class="{ 'locked-name': !item.unlocked }">
-          {{ item.unlocked ? item.name : '???' }}
-        </div>
-        <div class="item-type" v-if="item.unlocked">{{ getTypeLabel(item.type) }}</div>
+        <div class="item-name">{{ item.name }}</div>
+        <div class="item-type">{{ getTypeLabel(item.type) }}</div>
       </div>
     </div>
 
