@@ -1,6 +1,6 @@
 # 纵横四海 - 项目大纲 (Project Outline)
 
-> v10.1 | 2026-05-22 | 分支: future
+> v11.0 | 2026-05-25 | 分支: future
 > 对标：沧澜四海（参考游戏调研完成）
 
 ---
@@ -337,6 +337,14 @@ StoryView      VipView         WelfareView
 ---
 
 ## 11. Bug修复记录
+
+### v11.0 (2026-05-25)
+- 宠物被动技能系统v1：pet_skill表（9种技能，3品质×3类型），pet_skill_book关联表
+- 宠物技能槽：user_pet新增skill_1/2/3字段，最多3个被动技能槽
+- 3个新API：POST /api/pet/learn-skill（学习）、POST /api/pet/forget-skill（遗忘）、GET /api/pet/skill-books（技能书列表）
+- 被动技能整合进computeEquipBonus（atk/def/hp三类加成）
+- 商城上架8本技能书（初级200铜币/中级500铜币/高级1200铜币）
+- 更新 PROJECT_OUTLINE v11.0
 
 ### v10.1 (2026-05-22)
 - 支线任务内容填充：29城市232个支线任务（打怪/收集/探索/护送/悬赏/送信/跑商/对话）target_id+description填充完毕，`quest_branch_fill_17cities.sql`
