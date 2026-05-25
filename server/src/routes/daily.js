@@ -117,6 +117,8 @@ router.post('/claim/:rewardId', authMiddleware, async (req, res, next) => {
     // 发放奖励
     if (reward.reward_type === 'money') {
       await db.query('UPDATE `user` SET money = money + ? WHERE id = ?', [reward.quantity, userId]);
+    } else if (reward.reward_type === 'silver') {
+      await db.query('UPDATE `user` SET silver = silver + ? WHERE id = ?', [reward.quantity, userId]);
     } else if (reward.reward_type === 'item') {
       // 检查是否已存在该物品
       const existingInv = await db.getOne(
@@ -144,11 +146,17 @@ router.post('/claim/:rewardId', authMiddleware, async (req, res, next) => {
       claimed_at: Math.floor(Date.now() / 1000)
     });
 
-    // 获取物品名称
-    let rewardName = `${reward.quantity}铜币`;
-    if (reward.reward_type === 'item') {
-      const item = await db.getOne('SELECT name FROM `item` WHERE id = ?', [reward.reward_value]);
-      if (item) rewardName = `${item.name}×${reward.quantity}`;
+    // 获取物品名称并发放奖励
+    let rewardName = '';
+    if (reward.reward_type === 'money') {
+      await db.query('UPDATE user SET money = money + ? WHERE id = ?', [parseInt(reward.reward_value), req.user.id]);
+      rewardName = `${reward.reward_value}铜币`;
+    } else if (reward.reward_type === 'silver') {
+      await db.query('UPDATE user SET silver = silver + ? WHERE id = ?', [parseInt(reward.reward_value), req.user.id]);
+      rewardName = `${reward.reward_value}银币`;
+    } else if (reward.reward_type === 'item') {
+      const [itRow] = await db.query('SELECT * FROM item WHERE id = ?', [reward.reward_value]);
+      if (itRow) { await addItem(req.user.id, itRow.id, 1); rewardName = `${itRow.name}×1`; }
     }
 
     res.json({ success: true, msg: `领取成功：${rewardName}` });

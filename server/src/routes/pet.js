@@ -101,6 +101,14 @@ router.post('/feed', authMiddleware, async (req, res, next) => {
     const satietyGain = feedValues[item_id] || 30;
     const newSatiety = Math.min(100, pet.satiety + satietyGain);
     await db.query('UPDATE user_pet SET satiety = ? WHERE id = ?', [newSatiety, pet.id]);
+    // Daily activity: 宠物喂食
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [req.user.id, today, 'daily_feed_pet', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 100), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), req.user.id, today, 'daily_feed_pet']);
+    } catch(e) {}
     if (inv.quantity > 1) {
       await db.query('UPDATE inventory SET quantity = quantity - 1 WHERE id = ?', [inv.inv_id]);
     } else {

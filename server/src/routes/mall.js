@@ -39,6 +39,8 @@ const MALL_ITEMS = [
   { id: 601, category: 'material', name: '陨铁',       price: 150,  description: '稀有锻造材料',            },
   { id: 602, category: 'material', name: '魔兽结晶',   price: 120,  description: '可用于强化装备',        },
   { id: 603, category: 'material', name: '神秘碎片',   price: 80,   description: '合成稀有道具的材料',     },
+  // 藏宝图（特殊）
+  { id: 90001, category: 'material', name: '藏宝图',    price: 500,  description: '标注神秘宝藏位置的古老地图', },
 ];
 
 // 获取商城商品列表

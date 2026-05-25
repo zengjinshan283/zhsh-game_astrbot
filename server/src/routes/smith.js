@@ -117,6 +117,15 @@ router.post('/identify', authMiddleware, async (req, res, next) => {
       [JSON.stringify(affixes), inventory_id]
     );
 
+    // Daily activity: 装备鉴定
+    try {
+      const today = new Date().toISOString().slice(0,10);
+      await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+        [req.user.id, today, 'daily_identify', Math.floor(Date.now()/1000)]);
+      await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 100), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+        [Math.floor(Date.now()/1000), req.user.id, today, 'daily_identify']);
+    } catch(e) {}
+
     const totalAtk = affixes.filter(a => a.stat_key === 'atk').reduce((s, a) => s + a.value, 0);
     const totalDef = affixes.filter(a => a.stat_key === 'def').reduce((s, a) => s + a.value, 0);
     const bonusStats = affixes.map(a => `${a.stat_key}+${a.value}`).join(' ');
@@ -194,6 +203,14 @@ router.post('/enhance', authMiddleware, async (req, res, next) => {
     if (success) {
       const newLevel = currentLevel + 1;
       await db.update('inventory', { enhance_level: newLevel }, '`id` = ?', [inventory_id]);
+      // Daily activity: 装备强化成功
+      try {
+        const today = new Date().toISOString().slice(0,10);
+        await db.query('INSERT IGNORE INTO `user_daily_activity` (user_id, date, activity_key, progress, claimed, updated_at) VALUES (?, ?, ?, 1, 0, ?)',
+          [req.user.id, today, 'daily_enhance', Math.floor(Date.now()/1000)]);
+        await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 100), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
+          [Math.floor(Date.now()/1000), req.user.id, today, 'daily_enhance']);
+      } catch(e) {}
       res.json({ success: true, name: inv.name, level: newLevel, msg: `✨ 强化成功！${inv.name} +${newLevel}！` });
     } else {
       if (currentLevel >= degradeLevel) {
