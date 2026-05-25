@@ -1,6 +1,6 @@
 <template>
   <div class="bottom-bar">
-    <router-link to="/" class="bottom-link" :class="{ active: $route.path === '/' || $route.path.startsWith('/citymap') || $route.path.startsWith('/map') }">
+    <router-link to="/citymap" class="bottom-link" :class="{ active: $route.path.startsWith('/citymap') || $route.path.startsWith('/map') }">
       <span class="nav-icon">🏠</span><span class="nav-text">首页</span>
     </router-link>
     <router-link to="/inventory" class="bottom-link" :class="{ active: $route.path === '/inventory' }">
