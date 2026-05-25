@@ -73,7 +73,7 @@
     </div>
   </div>
 
-  <router-link to="/map" class="bank-back">← 返回地图</router-link>
+  <router-link to="/citymap" class="bank-back">← 返回地图</router-link>
 </div>
 </template>
 

@@ -55,7 +55,7 @@
   <!-- 底部导航 -->
   <div class="inv-nav">
     <router-link to="/equipment" class="inv-nav-btn">⚔️ 查看装备</router-link>
-    <router-link to="/map" class="inv-nav-btn">← 返回</router-link>
+    <router-link to="/citymap" class="inv-nav-btn">← 返回</router-link>
   </div>
 </div>
 </template>

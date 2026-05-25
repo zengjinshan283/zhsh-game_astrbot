@@ -194,7 +194,7 @@ async function continueBattle() {
   try { const data = await Api.post('/battle/start', { monster_id: mid }); gameStore.setBattle(data); } catch (e) { await globalAlert(e.message); }
 }
 
-function exitBattle() { gameStore.clearBattle(); router.push('/map'); }
+function exitBattle() { gameStore.clearBattle(); router.push('/citymap'); }
 
 async function loadShortcuts() {
   try { const d = await Api.get('/user/status'); if (d.shortcuts) { for (let i = 0; i < 3; i++) shortcuts[i] = d.shortcuts[i] || null; } } catch (e) {}

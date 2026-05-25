@@ -122,7 +122,7 @@
       </div>
     </div>
 
-    <router-link v-if="!isSailing" to="/map" class="back-btn">← 返回地图</router-link>
+    <router-link v-if="!isSailing" to="/citymap" class="back-btn">← 返回地图</router-link>
   </div>
 </template>
 
@@ -242,7 +242,7 @@ function closeTreasureDialog() { showTreasureDialog.value = false; }
 
 async function fightPirate() {
   showPirateDialog.value = false;
-  try { const b = await Api.post('/battle/start-pirate', {}); gameStore.setBattle(b); router.push('/map'); }
+  try { const b = await Api.post('/battle/start-pirate', {}); gameStore.setBattle(b); router.push('/citymap'); }
   catch (e) { msg.value = e?.response?.data?.error || e.message || '海盗战斗启动失败'; msgType.value = 'error'; }
 }
 

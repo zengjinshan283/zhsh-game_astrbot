@@ -198,7 +198,7 @@ async function doChallenge() {
   try {
     const b = await Api.post('/arena/challenge', { opponent_id: selectedOpponent.value.opponent_id });
     gameStore.setBattle(b);
-    router.push('/map');
+    router.push('/citymap');
   } catch (e) {
     if (e.message?.includes('挑战') || e.message?.includes('铜币') || e.message?.includes('次数')) {
       battleResult.value = { result: 'lose', opponent_name: selectedOpponent.value.username, reward: { silver: 0 }, log: [] };

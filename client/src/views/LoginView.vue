@@ -46,7 +46,7 @@ async function doLogin() {
   try {
     const data = await Api.post('/auth/login', form.value);
     userStore.setLogin(data);
-    router.push('/map');
+    router.push('/');
   } catch (e) {
     error.value = e.message;
   } finally {

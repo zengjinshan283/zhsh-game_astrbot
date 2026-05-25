@@ -6,7 +6,7 @@ const routes = [
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
   { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue') },
   { path: '/story', name: 'story', component: () => import('../views/StoryView.vue'), meta: { auth: true } },
-  { path: '/map', name: 'map', component: () => import('../views/MapView.vue'), meta: { auth: true } },
+  { path: '/map', redirect: '/citymap' },
   { path: '/shop/:npcId?', name: 'shop', component: () => import('../views/ShopView.vue'), meta: { auth: true } },
   { path: '/bank', name: 'bank', component: () => import('../views/BankView.vue'), meta: { auth: true } },
   { path: '/smith', name: 'smith', component: () => import('../views/SmithView.vue'), meta: { auth: true } },

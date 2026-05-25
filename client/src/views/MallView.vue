@@ -60,7 +60,7 @@
     </div>
   </div>
 
-  <router-link to="/map" class="back-btn">← 返回地图</router-link>
+  <router-link to="/citymap" class="back-btn">← 返回地图</router-link>
 </div>
 </template>
 

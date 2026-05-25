@@ -133,7 +133,7 @@
 
     <div class="rank-footer">排行榜数据实时更新</div>
 
-    <router-link to="/map" class="back-btn">← 返回地图</router-link>
+    <router-link to="/citymap" class="back-btn">← 返回地图</router-link>
   </div>
 </template>
 

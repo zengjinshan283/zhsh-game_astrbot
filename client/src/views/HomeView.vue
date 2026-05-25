@@ -80,6 +80,28 @@
         <div class="qb-icon">📅</div>
         <div class="qb-label">每日</div>
       </router-link>
+      <a href="javascript:void(0)" @click.prevent="showMoreMenu = true" class="quick-btn">
+        <div class="qb-icon">☰</div>
+        <div class="qb-label">更多</div>
+      </a>
+    </div>
+
+    <!-- 更多菜单弹窗 -->
+    <div v-if="showMoreMenu" class="modal-overlay" @click.self="showMoreMenu = false">
+      <div class="modal-card more-menu-card">
+        <div class="more-menu-title">📋 更多功能</div>
+        <div class="more-menu-list">
+          <router-link to="/equipment" class="more-menu-item" @click="showMoreMenu = false">⚔️ 装备强化</router-link>
+          <router-link to="/inventory" class="more-menu-item" @click="showMoreMenu = false">🎒 背包</router-link>
+          <router-link to="/quest" class="more-menu-item" @click="showMoreMenu = false">📋 任务</router-link>
+          <router-link to="/codex" class="more-menu-item" @click="showMoreMenu = false">📖 图鉴</router-link>
+          <router-link to="/rank" class="more-menu-item" @click="showMoreMenu = false">🏆 排行榜</router-link>
+          <router-link to="/friend" class="more-menu-item" @click="showMoreMenu = false">👥 好友</router-link>
+          <router-link to="/guild" class="more-menu-item" @click="showMoreMenu = false">🏠 公会</router-link>
+          <a href="javascript:void(0)" class="more-menu-item logout-item" @click="doLogout">🚪 退出登录</a>
+        </div>
+        <button class="modal-close" @click="showMoreMenu = false">✕</button>
+      </div>
     </div>
 
     <!-- 每日签到 -->
@@ -118,8 +140,7 @@
 
     <!-- 主按钮 -->
     <div class="home-actions">
-      <router-link to="/map" class="btn-primary-action">🗺️ 进入游戏</router-link>
-      <a href="javascript:void(0)" @click.prevent="logout" class="btn-secondary-action">🚪 退出登录</a>
+      <router-link to="/citymap" class="btn-primary-action">🗺️ 继续冒险</router-link>
     </div>
   </div>
 
@@ -178,6 +199,13 @@ const signedDays = ref(new Set());
 
 const onlineReward = ref(null);
 const ONLINE_TOTAL_TIERS = 12;
+const showMoreMenu = ref(false);
+
+function doLogout() {
+  showMoreMenu.value = false;
+  userStore.logout();
+  router.push('/');
+}
 const ITEM_NAMES = { 94: '龙泉水', 96: '体力宝', 97: '大体力宝' };
 
 async function loadOnlineReward() {
@@ -470,4 +498,18 @@ function logout() { userStore.logout(); router.push('/'); }
 }
 .gdc-title { font-size: 12px; font-weight: 600; color: #bdc3c7; margin-bottom: 8px; }
 .gdc-text { font-size: 12px; line-height: 1.8; color: #95a5a6; }
+/* ===== 更多菜单 ===== */
+.more-menu-card { max-width: 320px; width: 90%; }
+.more-menu-title { font-size: 15px; font-weight: 700; color: #f0f0f0; margin-bottom: 14px; text-align: center; }
+.more-menu-list { display: flex; flex-direction: column; gap: 6px; }
+.more-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  color: #ccc; font-size: 13px; text-decoration: none; cursor: pointer;
+  transition: background 0.2s;
+}
+.more-menu-item:hover { background: rgba(255,255,255,0.08); }
+.more-menu-item.logout-item { color: #e74c3c; border-color: rgba(231,76,60,0.2); }
+.more-menu-item.logout-item:hover { background: rgba(231,76,60,0.1); }
 </style>
