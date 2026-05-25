@@ -69,7 +69,7 @@ router.post('/register', async (req, res, next) => {
       accepted_at: now
     });
 
-    // 发放航海者新手套装（6件，1级绿装套）+ 小回复药×5
+    // 发放航海者新手套装（6件，1级绿装套）+ 丰富道具
     const starterPack = [
       { id: 1152, qty: 1 },  // 航海者短剑
       { id: 1153, qty: 1 },  // 航海者皮甲
@@ -77,7 +77,11 @@ router.post('/register', async (req, res, next) => {
       { id: 1155, qty: 1 },  // 航海者皮靴
       { id: 1156, qty: 1 },  // 航海者皮帽
       { id: 1157, qty: 1 },  // 航海者护腿
-      { id: 1,   qty: 5 },  // 小回复药
+      { id: 95002, qty: 5 }, // 小型HP药剂
+      { id: 95010, qty: 5 }, // 微型MP药剂
+      { id: 95050, qty: 3 }, // 普通宠粮
+      { id: 95020, qty: 3 }, // 体力药水
+      { id: 95063, qty: 2 }, // 鉴定石
     ];
     for (const item of starterPack) {
       const existing = await db.getOne(

@@ -29,24 +29,24 @@ async function addItems(uid, items) {
   }
 }
 
-// 7日登录奖励表
+// 7日登录奖励表（每天都有道具）
 const LOGIN_REWARDS = {
-  1: { money: 500,  items: [{ id: 1, qty: 2 }] },
-  2: { money: 800,  items: [{ id: 3, qty: 1 }] },
-  3: { money: 1200, items: [{ id: 10, qty: 1 }] },
-  4: { money: 1500, items: [{ id: 1, qty: 3 }] },
-  5: { money: 2000, items: [{ id: 16, qty: 1 }] },
-  6: { money: 2500, items: [{ id: 101, qty: 1 }] },
-  7: { money: 5000, items: [{ id: 200, qty: 1 }] }
+  1: { money: 500,  items: [{ id: 95002, qty: 3 }, { id: 95020, qty: 1 }] },
+  2: { money: 800,  items: [{ id: 95011, qty: 2 }, { id: 95063, qty: 1 }] },
+  3: { money: 1200, items: [{ id: 95003, qty: 2 }, { id: 95050, qty: 2 }] },
+  4: { money: 1500, items: [{ id: 95012, qty: 2 }, { id: 95040, qty: 1 }] },
+  5: { money: 2000, items: [{ id: 95004, qty: 1 }, { id: 95060, qty: 2 }] },
+  6: { money: 2500, items: [{ id: 95013, qty: 1 }, { id: 95064, qty: 1 }] },
+  7: { money: 5000, items: [{ id: 95005, qty: 1 }, { id: 95021, qty: 1 }, { id: 95070, qty: 1 }] }
 };
 
-// 里程碑奖励（按 level 计）
+// 里程碑奖励（按 level 计，更丰富的道具）
 const MILESTONES = [
-  { level: 10, money: 2000, items: [{ id: 4, qty: 1 }, { id: 96, qty: 5 }],  desc: '10级', name: 'Lv.10' },
-  { level: 20, money: 5000, items: [{ id: 5, qty: 1 }, { id: 96, qty: 10 }], desc: '20级', name: 'Lv.20' },
-  { level: 30, money: 10000, items: [{ id: 6, qty: 1 }, { id: 96, qty: 15 }], desc: '30级', name: 'Lv.30' },
-  { level: 40, money: 20000, items: [{ id: 7, qty: 1 }, { id: 97, qty: 5 }], desc: '40级', name: 'Lv.40' },
-  { level: 50, money: 30000, items: [{ id: 8, qty: 1 }, { id: 97, qty: 10 }], desc: '50级', name: 'Lv.50' }
+  { level: 10, money: 2000,  items: [{ id: 95004, qty: 3 }, { id: 95020, qty: 5 }, { id: 95060, qty: 3 }],  desc: '10级', name: 'Lv.10' },
+  { level: 20, money: 5000,  items: [{ id: 95005, qty: 2 }, { id: 95021, qty: 3 }, { id: 95061, qty: 2 }],  desc: '20级', name: 'Lv.20' },
+  { level: 30, money: 10000, items: [{ id: 95006, qty: 2 }, { id: 95035, qty: 1 }, { id: 95062, qty: 2 }],  desc: '30级', name: 'Lv.30' },
+  { level: 40, money: 20000, items: [{ id: 95014, qty: 2 }, { id: 95036, qty: 1 }, { id: 95064, qty: 3 }],  desc: '40级', name: 'Lv.40' },
+  { level: 50, money: 30000, items: [{ id: 95015, qty: 2 }, { id: 95073, qty: 1 }, { id: 95076, qty: 1 }],  desc: '50级', name: 'Lv.50' }
 ];
 
 // 在线奖励配置（每5分钟一档，60分钟循环）
@@ -55,14 +55,14 @@ const ONLINE_TIERS = [
   { minutes: 10, reward_type: 'money', reward_value: 200,  quantity: 1 },
   { minutes: 15, reward_type: 'money', reward_value: 300,  quantity: 1 },
   { minutes: 20, reward_type: 'money', reward_value: 500,  quantity: 1 },
-  { minutes: 25, reward_type: 'item',   reward_value: 96,   quantity: 1 }, // 体力宝
+  { minutes: 25, reward_type: 'item',  reward_value: 95020, quantity: 1 }, // 体力药水
   { minutes: 30, reward_type: 'money', reward_value: 800,  quantity: 1 },
   { minutes: 35, reward_type: 'money', reward_value: 1000, quantity: 1 },
   { minutes: 40, reward_type: 'money', reward_value: 1500, quantity: 1 },
-  { minutes: 45, reward_type: 'item',   reward_value: 97,   quantity: 1 }, // 大体力宝
+  { minutes: 45, reward_type: 'item',  reward_value: 95021, quantity: 1 }, // 浓缩体力药水
   { minutes: 50, reward_type: 'money', reward_value: 2000, quantity: 1 },
   { minutes: 55, reward_type: 'money', reward_value: 2500, quantity: 1 },
-  { minutes: 60, reward_type: 'both',  reward_value: 94,   quantity: 2 }, // 龙泉水×2 + 5000铜币
+  { minutes: 60, reward_type: 'both',  reward_value: 95073, quantity: 1 }, // 龙泉水×1 + 5000铜币
 ];
 const CYCLE_MINUTES = 60;
 const TIER_INTERVAL = 5; // 每5分钟一档
