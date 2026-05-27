@@ -664,6 +664,25 @@ async function handleMonsterKill(user, battle) {
   user.level = newLevel; user.exp = newExp; user.exp_max = newExpMax;
   user.hp_max = newHpMax; user.money = Number(user.money) + moneyGain;
 
+  // ── 师徒系统：自动检测出师 ────────────────────────────
+  if (user.mentor_id > 0) {
+    try {
+      const maxLevelRow = await db.getOne("SELECT config_value FROM `game_config` WHERE `config_key`='apprentice_max_level' AND `category`='mentor'");
+      const maxLevel = maxLevelRow ? parseInt(maxLevelRow.config_value) : 30;
+      if (newLevel >= maxLevel) {
+        const rewardRow = await db.getOne("SELECT config_value FROM `game_config` WHERE `config_key`='apprentice_reward' AND `category`='mentor'");
+        const reward = rewardRow ? parseInt(rewardRow.config_value) : 1000;
+        const contribRow = await db.getOne("SELECT config_value FROM `game_config` WHERE `config_key`='mentor_contribution' AND `category`='mentor'");
+        const contrib = contribRow ? parseInt(contribRow.config_value) : 10;
+        const mentor_id = user.mentor_id;
+        await db.query('UPDATE `user` SET mentor_id=0 WHERE `id`=?', [user.id]);
+        await db.query('UPDATE `user` SET apprentice_count=GREATEST(apprentice_count-1,0), mentor_contribution=mentor_contribution+? WHERE `id`=?', [contrib, mentor_id]);
+        await db.query('UPDATE `user` SET money=money+? WHERE `id`=?', [reward, mentor_id]);
+        battle.log.push({ type: 'info', text: `🎓 恭喜出师！师父获得了${reward}铜币和${contrib}贡献度奖励！` });
+      }
+    } catch(e) {}
+  }
+
   battle.result = 'win';
   battle.finished = true;
   battle.exp_gained = expGain;

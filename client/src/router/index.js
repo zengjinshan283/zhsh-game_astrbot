@@ -17,6 +17,7 @@ const routes = [
   { path: '/quest-guide', name: 'quest-guide', component: () => import('../views/QuestGuideView.vue'), meta: { auth: true } },
   { path: '/chat', name: 'chat', component: () => import('../views/ChatView.vue'), meta: { auth: true } },
   { path: '/guild', name: 'guild', component: () => import('../views/GuildView.vue'), meta: { auth: true } },
+  { path: '/mentor', name: 'mentor', component: () => import('../views/MentorView.vue'), meta: { auth: true } },
   { path: '/casino', name: 'casino', component: () => import('../views/CasinoView.vue'), meta: { auth: true } },
   { path: '/rank', name: 'rank', component: () => import('../views/RankView.vue'), meta: { auth: true } },
   { path: '/friend', name: 'friend', component: () => import('../views/FriendView.vue'), meta: { auth: true } },

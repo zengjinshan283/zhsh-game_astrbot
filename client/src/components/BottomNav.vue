@@ -31,6 +31,7 @@
             <router-link to="/rank" class="func-btn" @click="showMore = false"><span class="func-emoji">🏆</span><span class="func-label">排行</span></router-link>
             <router-link to="/arena" class="func-btn" @click="showMore = false"><span class="func-emoji">⚔️</span><span class="func-label">竞技场</span></router-link>
             <router-link to="/guild" class="func-btn" @click="showMore = false"><span class="func-emoji">🏴</span><span class="func-label">帮会</span></router-link>
+            <router-link to="/mentor" class="func-btn" @click="showMore = false"><span class="func-emoji">🎓</span><span class="func-label">师徒</span></router-link>
             <router-link to="/welfare" class="func-btn" @click="showMore = false"><span class="func-emoji">🎁</span><span class="func-label">福利</span></router-link>
             <router-link to="/daily" class="func-btn" @click="showMore = false"><span class="func-emoji">📅</span><span class="func-label">每日</span></router-link>
             <router-link to="/mall" class="func-btn" @click="showMore = false"><span class="func-emoji">🛒</span><span class="func-label">商城</span></router-link>
