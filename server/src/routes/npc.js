@@ -183,37 +183,7 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
     const npc = await db.getOne('SELECT * FROM `npc` WHERE `id` = ?', [npcId]);
     if (!npc) return res.status(400).json({ ok: false, msg: 'NPC不存在' });
 
-    // 硬编码对话数据
-    const npcDialogs = {
-      1: { greet: '欢迎来到马可酒馆！外面风大浪急，进来喝杯朗姆酒暖暖身子吧。你要是闲得慌，我有些事情需要人帮忙……',
-        chat1: '最近城外的野狗闹得凶，好几个旅客被咬伤了。你要是有空，帮我料理几只？报酬不会少的！',
-        chat2: '听说码头那边的海盗越来越猖狂了，你要小心啊。不过打败他们能拿到不少铜币！',
-        chat3: '威尼斯是一座伟大的城市，王宫就在城的北边。你应该去见识一下！也许能发现什么秘密……',
-        chat4: '铁匠安芬尼奥的手艺不错，就是脾气有点怪。找他强化装备准没错。他在商业街的铁匠铺。' },
-      2: { greet: '叮叮当当……哦，有客人！想让我帮你强化装备？我的手艺在整个威尼斯可是一绝！就是费用嘛……嘿嘿。',
-        chat1: '想强化装备？到铁匠铺来找我。虽然偶尔会失败，但成功了装备会更强！+7以上失败了会降级哦！',
-        chat2: '我最近需要一些小回复药做辅助材料，你能帮我收集一些吗？我可以送你一把铁剑！',
-        chat3: '码头那帮海盗越来越嚣张了……哼，要是他们敢来我的铁匠铺闹事，有他们好看的！',
-        chat4: '好的武器能让你的攻击力翻倍。记得多来升级装备！打铁的声音就是胜利的号角！' },
-      3: { greet: '金币放在身上可不太安全，海上的海盗可不长眼。存到我这里，我保证分文不少。当然，取款也不收手续费。',
-        chat1: '把多余的铜币存起来吧！在外面战斗被击败会损失5%的铜币，存在银行就安全了。',
-        chat2: '我们提供存取款服务，不收取任何手续费。这可是威尼斯最安全的金库！',
-        chat3: '理财有方，财源广进。存钱是一种好习惯，冒险者！稳健才是长久之道。' },
-      4: { greet: '嘿嘿嘿，来试试手气吧！今天运气不错哦~输了可别赖账，赌场有赌场的规矩！',
-        chat1: '猜大小是最经典的游戏！两个骰子，猜总和是大还是小。赢了翻倍，输了别哭鼻子！',
-        chat2: '每天有下注限额，等级越高限额越高。别想靠赌发财哦！不过嘛……万一呢？',
-        chat3: '小赌怡情，大赌伤身。记住，这只是娱乐！不过今天那位客人赢了不少呢……' },
-      5: { greet: '客官里面请！我这有从东方运来的上好药材和武器防具，价格公道，童叟无欺！',
-        chat1: '武器能增加攻击力，防具能减少伤害。出门冒险一定要装备好！贫僧这里有上等好货。',
-        chat2: '回复药是野外冒险的必备品。小回复药便宜，大回复药效果更好。多备几瓶！',
-        chat3: '我也可以收购你不需要的物品，虽然回收价只有卖价的一半……没办法，生意嘛。' },
-      6: { greet: '星座的排列告诉我……你今天将有一场奇遇。命运的丝线已经编好了，你只需要……打开你的钱包。开玩笑的，进来坐坐吧。',
-        chat1: '我看到了你的未来……你将成为纵横四海的传奇航海家！星辰为你指引方向。',
-        chat2: '星象显示，今天对你来说是个冒险的好日子。去挑战一些强大的怪物吧！',
-        chat3: '命运掌握在你自己手中。我的占卜只是参考，真正的力量来自你的勇气和智慧。' },
-    };
-
-    // 判断触发类型
+    // ── 触发类型判断 ──────────────────────────
     const hasReady = await db.getVar(
       "SELECT COUNT(*) FROM user_quest uq JOIN quest q ON uq.quest_id=q.id WHERE uq.user_id=? AND q.npc_id=? AND uq.status=1",
       [req.user.id, npcId]
@@ -227,37 +197,34 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
       "SELECT COUNT(*) FROM user_quest uq JOIN quest q ON uq.quest_id=q.id WHERE uq.user_id=? AND q.npc_id=? AND uq.status=2",
       [req.user.id, npcId]
     ) || 0;
-
     let triggerType = 'idle';
     if (hasReady > 0) triggerType = 'quest_ready';
     else if (hasActive > 0) triggerType = 'quest_active';
     else if (totalQuests > 0 && doneQuests >= totalQuests) triggerType = 'all_done';
 
-    // 获取NPC对话：优先从npc_dialog表取动态对话
-    const npcChat = npcDialogs[npcId] || {};
-    let dialog = npcChat.greet || npc.dialog;
-
-    const nd = await db.getOne(
-      "SELECT content FROM npc_dialog WHERE npc_id=? AND trigger_type=? ORDER BY sort_order LIMIT 1",
-      [npcId, triggerType]
+    // ── 对话内容：从 npc_dialog 表读取，无则用 npc.dialog 默认 ──
+    const dialogs = await db.getAll(
+      'SELECT trigger_type, content, sort_order FROM `npc_dialog` WHERE `npc_id`=? ORDER BY sort_order',
+      [npcId]
     );
-    if (nd) dialog = nd.content;
-
-    // 收集闲聊话题（chat1~chatN）
+    // 按 trigger_type 聚合成 map
+    const dialogMap = {};
+    dialogs.forEach(d => {
+      if (!dialogMap[d.trigger_type]) dialogMap[d.trigger_type] = d.content;
+    });
+    // 闲聊话题（chat1~chat4）
     const chatTopics = [];
-    if (Object.keys(npcChat).length > 0) {
-      for (const [key, val] of Object.entries(npcChat)) {
-        if (key.startsWith('chat')) {
-          chatTopics.push({ key, text: val });
-        }
-      }
+    for (let i = 1; i <= 4; i++) {
+      const k = 'chat' + i;
+      if (dialogMap[k]) chatTopics.push({ key: k, text: dialogMap[k] });
     }
-
-    // 随机选一个作为默认展示
+    // 默认闲聊随机选一条
     let defaultChat = null;
     if (chatTopics.length > 0) {
       defaultChat = chatTopics[Math.floor(Math.random() * chatTopics.length)];
     }
+    // 优先 trigger_type 匹配对话，无则回退 npc.dialog
+    const dialog = dialogMap[triggerType] || dialogMap['idle'] || npc.dialog;
 
     // 获取用户等级
     const user = await db.getOne('SELECT level FROM `user` WHERE `id` = ?', [req.user.id]);
