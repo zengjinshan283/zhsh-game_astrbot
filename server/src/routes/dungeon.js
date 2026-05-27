@@ -5,6 +5,7 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const config = require('../config').game;
+const { triggerAchievements } = require('./achievement');
 
 const router = express.Router();
 const SILVER_TO_COPPER = 1000;
@@ -375,6 +376,14 @@ router.post('/:id/floor/:floor/attack', authMiddleware, async (req, res, next) =
           } catch(e) {}
 
           battle.result = 'dungeon_clear';
+          // 成就触发：副本通关（非阻塞）
+          (async () => {
+            try {
+              const row = await db.getOne('SELECT COUNT(*) as c FROM battle_log WHERE user_id=? AND result=4', [req.user.id]);
+              const achs = await triggerAchievements(req.user.id, 'dungeon', (row?.c || 0) + 1);
+              if (achs.length) console.log(`[成就] 用户${req.user.id}达成：${achs.map(a=>a.name).join('、')}`);
+            } catch(e) {}
+          })();
         } else {
           // Next floor
           battle.log.push({ type: 'info', text: `准备进入第 ${targetFloor + 1} 层…` });

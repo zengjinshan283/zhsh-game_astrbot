@@ -36,6 +36,7 @@ const routes = [
   { path: '/vip', name: 'vip', component: () => import('../views/VipView.vue'), meta: { auth: true } },
   { path: '/dungeon', name: 'dungeon', component: () => import('../views/DungeonView.vue'), meta: { auth: true } },
   { path: '/arena', name: 'arena', component: () => import('../views/ArenaView.vue'), meta: { auth: true } },
+  { path: '/achievement', name: 'achievement', component: () => import('../views/AchievementView.vue'), meta: { auth: true } },
   { path: '/codex', name: 'codex', component: () => import('../views/CodexView.vue'), meta: { auth: true } },
   { path: '/invite', name: 'invite', component: () => import('../views/InviteView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }

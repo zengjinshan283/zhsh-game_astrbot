@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { triggerAchievements } = require('./achievement');
 const router = express.Router();
 
 // 获取每日重置时间戳(当天0点CST = UTC+8)
@@ -123,6 +124,15 @@ router.post('/claim', authMiddleware, async (req, res, next) => {
       await db.query('UPDATE `user_daily_activity` SET progress = LEAST(progress + 1, 1), updated_at = ? WHERE user_id = ? AND date = ? AND activity_key = ?',
         [Math.floor(Date.now()/1000), uid, today, 'daily_quest']);
     } catch(e) { console.error('[daily] quest_complete progress error:', e.message); }
+
+    // 成就触发：任务完成（非阻塞）
+    (async () => {
+      try {
+        const row = await db.getOne('SELECT COUNT(*) as c FROM user_quest WHERE user_id=? AND status=2', [uid]);
+        const achs = await triggerAchievements(uid, 'quest_complete', (row?.c || 0) + 1);
+        if (achs.length) console.log(`[成就] 用户${uid}达成：${achs.map(a=>a.name).join('、')}`);
+      } catch(e) {}
+    })();
 
     // 触发新手引导：任务完成检查（异步不阻塞）
     (async () => {

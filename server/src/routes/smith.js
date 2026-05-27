@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { triggerAchievements } = require('./achievement');
 const router = express.Router();
 
 function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
@@ -137,6 +138,14 @@ router.post('/identify', authMiddleware, async (req, res, next) => {
       bonusStats,
       msg: `鉴定成功！${inv.name} 获得：${affixes.map(a => `${a.name}(${a.stat_key}+${a.value})`).join('、')}`
     });
+    // 成就触发：鉴定数量（非阻塞）
+    (async () => {
+      try {
+        const row = await db.getOne('SELECT COUNT(*) as c FROM inventory WHERE user_id=? AND is_identified=1', [req.user.id]);
+        const achs = await triggerAchievements(req.user.id, 'identify', (row?.c || 0) + 1);
+        if (achs.length) console.log(`[成就] 用户${req.user.id}达成：${achs.map(a=>a.name).join('、')}`);
+      } catch(e) {}
+    })();
   } catch (e) { next(e); }
 });
 
@@ -212,6 +221,14 @@ router.post('/enhance', authMiddleware, async (req, res, next) => {
           [Math.floor(Date.now()/1000), req.user.id, today, 'daily_enhance']);
       } catch(e) {}
       res.json({ success: true, name: inv.name, level: newLevel, msg: `✨ 强化成功！${inv.name} +${newLevel}！` });
+      // 成就触发：强化等级（非阻塞）
+      (async () => {
+        try {
+          const maxRow = await db.getOne('SELECT MAX(enhance_level) as ml FROM inventory WHERE user_id=? AND enhance_level IS NOT NULL', [req.user.id]);
+          const achs = await triggerAchievements(req.user.id, 'enhance', maxRow?.ml || 0);
+          if (achs.length) console.log(`[成就] 用户${req.user.id}达成：${achs.map(a=>a.name).join('、')}`);
+        } catch(e) {}
+      })();
     } else {
       if (currentLevel >= degradeLevel) {
         const newLevel = Math.max(0, currentLevel - 1);

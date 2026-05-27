@@ -42,6 +42,7 @@ app.use('/api/guide', require('./routes/guide'));
 app.use('/api/mall', require('./routes/mall'));
 app.use('/api/dungeon', require('./routes/dungeon'));
 app.use('/api/arena', require('./routes/arena'));
+app.use('/api/achievement', require('./routes/achievement'));
 app.use('/api/vip', require('./routes/vip'));
 app.use('/api/invite', require('./routes/invite'));
 app.use('/api/codex', require('./routes/codex'));

@@ -236,15 +236,19 @@ router.post('/claim-territory', authMiddleware, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
-// 领地占领记录表（用于领地奖励领取记录）
-await db.query(`CREATE TABLE IF NOT EXISTS guild_territory_claim (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  territory_key VARCHAR(32) NOT NULL,
-  guild_id INT NOT NULL,
-  user_id INT NOT NULL,
-  claim_date DATE NOT NULL,
-  created_at INT NOT NULL,
-  UNIQUE KEY uk_claim (territory_key, guild_id, claim_date)
-)`);
-
 module.exports = router;
+
+// 领地占领记录表初始化（模块加载时自动创建）
+(async () => {
+  try {
+    await db.query(`CREATE TABLE IF NOT EXISTS guild_territory_claim (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      territory_key VARCHAR(32) NOT NULL,
+      guild_id INT NOT NULL,
+      user_id INT NOT NULL,
+      claim_date DATE NOT NULL,
+      created_at INT NOT NULL,
+      UNIQUE KEY uk_claim (territory_key, guild_id, claim_date)
+    )`);
+  } catch(e) { console.error('[guild] init table error:', e.message); }
+})();

@@ -6,6 +6,7 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const config = require('../config').game;
 const statusUtil = require('../utils/status');
+const { triggerAchievements } = require('./achievement');
 
 const router = express.Router();
 function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
@@ -679,9 +680,22 @@ async function handleMonsterKill(user, battle) {
         await db.query('UPDATE `user` SET apprentice_count=GREATEST(apprentice_count-1,0), mentor_contribution=mentor_contribution+? WHERE `id`=?', [contrib, mentor_id]);
         await db.query('UPDATE `user` SET money=money+? WHERE `id`=?', [reward, mentor_id]);
         battle.log.push({ type: 'info', text: `🎓 恭喜出师！师父获得了${reward}铜币和${contrib}贡献度奖励！` });
+        try { const achs = await triggerAchievements(mentor_id, 'mentor_graduate', 1); achs.forEach(a => battle.log.push({ type: 'info', text: `🏆 师父达成成就：${a.name}！` })); } catch(e) {}
       }
     } catch(e) {}
   }
+
+  // ── 成就触发：等级提升 ─────────────────────────────
+  if (newLevel > Number(user.level)) {
+    try { const achs = await triggerAchievements(user.id, 'level_up', newLevel); achs.forEach(a => battle.log.push({ type: 'info', text: `🏆 达成成就：${a.name}！${a.reward}` })); } catch(e) {}
+  }
+
+  // ── 成就触发：战斗胜利 ─────────────────────────────
+  try {
+    const winRow = await db.getOne('SELECT COUNT(*) as c FROM battle_log WHERE user_id=? AND result=1', [user.id]);
+    const achs = await triggerAchievements(user.id, 'battle_win', (winRow?.c || 0) + 1);
+    achs.forEach(a => battle.log.push({ type: 'info', text: `🏆 达成成就：${a.name}！${a.reward}` }));
+  } catch(e) {}
 
   battle.result = 'win';
   battle.finished = true;
