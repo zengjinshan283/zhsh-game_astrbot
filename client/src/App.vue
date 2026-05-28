@@ -4,7 +4,7 @@
     <div class="main-content" :class="routeClass">
       <router-view />
     </div>
-    <BottomNav v-if="userStore.isLoggedIn && showNav" />
+    <BottomNav v-if="false" />
     <BattleOverlay v-if="gameStore.inBattle" />
     <NpcDialogOverlay v-if="gameStore.npcDialog" :npc-id="gameStore.npcDialog.npcId" :place-name="gameStore.npcDialog.placeName" @close="gameStore.closeNpcDialog()" />
     <GuideOverlay v-if="userStore.isLoggedIn" ref="guideRef" />
@@ -31,7 +31,7 @@ import { useRoute } from 'vue-router';
 import { useUserStore } from './stores/user';
 import { useGameStore } from './stores/game';
 import TopBar from './components/TopBar.vue';
-import BottomNav from './components/BottomNav.vue';
+
 import BattleOverlay from './components/BattleOverlay.vue';
 import NpcDialogOverlay from './components/NpcDialogOverlay.vue';
 import GuideOverlay from './components/GuideOverlay.vue';

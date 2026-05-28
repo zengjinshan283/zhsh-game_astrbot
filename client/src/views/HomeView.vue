@@ -1,149 +1,161 @@
 <template>
   <div class="home-page" v-if="userStore.isLoggedIn">
-    <!-- 顶部 HUD -->
-    <div class="top-hud">
-      <div class="hud-user">
-        <div class="hud-avatar">⚓</div>
-        <div class="hud-info">
-          <div class="hud-name">{{ userStore.user?.username }}</div>
-          <div class="hud-lv">Lv.{{ userStore.user?.level }} · {{ userStore.user?.title || '冒险者' }}</div>
-        </div>
-      </div>
-      <div class="hud-stats">
-        <div class="hs-item">
-          <div class="hs-icon">❤️</div>
-          <div class="hs-bar-wrap">
-            <div class="hs-bar hs-hp" :style="{width: hpPct+'%'}"></div>
-          </div>
-          <div class="hs-val">{{ userStore.user?.hp }}/{{ userStore.user?.hp_max }}</div>
-        </div>
-        <div class="hs-item">
-          <div class="hs-icon">⭐</div>
-          <div class="hs-bar-wrap">
-            <div class="hs-bar hs-exp" :style="{width: expPct+'%'}"></div>
-          </div>
-          <div class="hs-val">{{ userStore.user?.exp }}/{{ userStore.user?.exp_max }}</div>
-        </div>
-        <div class="hs-money">
-          <span class="hs-icon">💰</span>
-          <span class="hs-money-val">{{ formatMoney(userStore.user?.money) }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 动态背景 -->
     <div class="home-bg"></div>
 
-    <!-- 在线奖励悬浮卡 -->
-    <div class="online-reward-card" v-if="onlineReward" :class="{claimable: onlineReward.canClaim}">
-      <div class="orc-header">
-        <span class="orc-icon">⏱️</span>
-        <span class="orc-title">在线奖励</span>
-        <span class="orc-tier">{{ onlineReward.currentTier + 1 }}/{{ onlineReward.totalTiers }}</span>
+    <!-- ===== 顶部：城市名 + 在线奖励/快捷操作 ===== -->
+    <div class="top-hud">
+      <div class="hud-left">
+        <div class="hud-icon">🏛️</div>
+        <div class="hud-info">
+          <div class="hud-city">{{ cityName }}</div>
+          <div class="hud-place">{{ placeName }}</div>
+        </div>
       </div>
-      <div class="orc-body" v-if="!onlineReward.loading">
-        <div class="orc-time">
-          在线 <span class="orc-mins">{{ onlineReward.totalMinutes }}</span> 分钟
-          <span v-if="!onlineReward.canClaim" class="orc-remain">，还需 {{ Math.ceil(onlineReward.remainingSeconds / 60) }} 分钟</span>
-          <span v-else class="orc-ready">—— 可领取！</span>
-        </div>
-        <div class="orc-reward-box">
-          <template v-if="onlineReward.reward.reward_type === 'money'">💰 铜币 × {{ onlineReward.reward.reward_value }}</template>
-          <template v-else-if="onlineReward.reward.reward_type === 'item'">📦 {{ onlineReward.reward.itemName }} × {{ onlineReward.reward.quantity }}</template>
-          <template v-else>🎁 铜币×5000 + 龙泉水×2</template>
-        </div>
-        <button v-if="onlineReward.canClaim" @click="claimOnline" class="orc-claim-btn">🎁 立即领取</button>
-        <div v-else class="orc-countdown">⏳ {{ Math.ceil(onlineReward.remainingSeconds / 60) }} 分钟后可领取</div>
-      </div>
-      <div v-else class="orc-loading">加载中...</div>
-    </div>
-
-    <!-- 快捷入口网格 -->
-    <div class="quick-grid">
-      <router-link to="/equipment" class="quick-btn">
-        <div class="qb-icon">⚔️</div>
-        <div class="qb-label">装备</div>
-      </router-link>
-      <router-link to="/inventory" class="quick-btn">
-        <div class="qb-icon">🎒</div>
-        <div class="qb-label">背包</div>
-      </router-link>
-      <router-link to="/quest" class="quick-btn">
-        <div class="qb-icon">📋</div>
-        <div class="qb-label">任务</div>
-      </router-link>
-      <router-link to="/welfare" class="quick-btn">
-        <div class="qb-icon">🎁</div>
-        <div class="qb-label">福利</div>
-      </router-link>
-      <router-link to="/daily" class="quick-btn">
-        <div class="qb-icon">📅</div>
-        <div class="qb-label">每日</div>
-      </router-link>
-      <a href="javascript:void(0)" @click.prevent="showMoreMenu = true" class="quick-btn">
-        <div class="qb-icon">☰</div>
-        <div class="qb-label">更多</div>
-      </a>
-    </div>
-
-    <!-- 更多菜单弹窗 -->
-    <div v-if="showMoreMenu" class="modal-overlay" @click.self="showMoreMenu = false">
-      <div class="modal-card more-menu-card">
-        <div class="more-menu-title">📋 更多功能</div>
-        <div class="more-menu-list">
-          <router-link to="/equipment" class="more-menu-item" @click="showMoreMenu = false">⚔️ 装备强化</router-link>
-          <router-link to="/inventory" class="more-menu-item" @click="showMoreMenu = false">🎒 背包</router-link>
-          <router-link to="/quest" class="more-menu-item" @click="showMoreMenu = false">📋 任务</router-link>
-          <router-link to="/codex" class="more-menu-item" @click="showMoreMenu = false">📖 图鉴</router-link>
-          <router-link to="/rank" class="more-menu-item" @click="showMoreMenu = false">🏆 排行榜</router-link>
-          <router-link to="/friend" class="more-menu-item" @click="showMoreMenu = false">👥 好友</router-link>
-          <router-link to="/guild" class="more-menu-item" @click="showMoreMenu = false">🏠 公会</router-link>
-          <a href="javascript:void(0)" class="more-menu-item logout-item" @click="doLogout">🚪 退出登录</a>
-        </div>
-        <button class="modal-close" @click="showMoreMenu = false">✕</button>
+      <div class="hud-right">
+        <a href="javascript:void(0)" @click.prevent="goPage('/mall')" class="hud-act">⚙️</a>
       </div>
     </div>
 
-    <!-- 每日签到 -->
-    <div class="sign-card">
-      <div class="sign-header">
-        <span>📅 每日签到</span>
-        <span v-if="!signLoading && signStatus.signed" class="sign-done">✅ 今日已签到 · 连续 {{ signStatus.consecutive_days }} 天</span>
+    <!-- ===== 状态条 ===== -->
+    <div class="status-bar">
+      <div class="sb-user">
+        <span class="sb-name">{{ userStore.user?.username }}</span>
+        <span class="sb-lv">Lv.{{ userStore.user?.level }}</span>
       </div>
-      <div v-if="signLoading" class="sign-loading">加载中...</div>
-      <div v-else class="sign-week">
-        <div
-          v-for="r in rewards"
-          :key="r.day"
-          class="sign-day"
-          :class="{
-            'signed': signedDays.has(r.day),
-            'today': r.day === todayRewardDay && !signStatus.signed,
-            'claimed': r.day === todayRewardDay && signStatus.signed
-          }"
-        >
-          <div class="sd-top">第{{ r.day }}天</div>
-          <div class="sd-reward">
-            <span v-if="r.reward_type==='money'">💰</span>
-            <span v-else-if="r.reward_type==='exp'">⭐</span>
-            <span v-else>📦</span>
+      <div class="sb-bars">
+        <div class="sb-item">
+          <span class="sb-icon">❤️</span>
+          <div class="sb-bar-wrap"><div class="sb-bar sb-hp" :style="{width: hpPct+'%'}"></div></div>
+          <span class="sb-val">{{ userStore.user?.hp }}/{{ userStore.user?.hp_max }}</span>
+        </div>
+        <div class="sb-item">
+          <span class="sb-icon">⭐</span>
+          <div class="sb-bar-wrap"><div class="sb-bar sb-exp" :style="{width: expPct+'%'}"></div></div>
+          <span class="sb-val">{{ userStore.user?.exp }}/{{ userStore.user?.exp_max }}</span>
+        </div>
+      </div>
+      <div class="sb-money">
+        <span class="sb-icon">💰</span>
+        <span class="sb-money-val">{{ formatMoney(userStore.user?.money) }}</span>
+      </div>
+    </div>
+
+    <!-- ===== 主体（可滚动） ===== -->
+    <div class="home-body">
+      <!-- ===== 在线奖励悬浮卡 ===== -->
+      <div class="online-reward-card" v-if="onlineReward" :class="{claimable: onlineReward.canClaim}">
+        <div class="orc-body" v-if="!onlineReward.loading">
+          <span class="orc-time" v-if="!onlineReward.canClaim">在线 <span class="orc-mins">{{ onlineReward.totalMinutes }}</span> 分钟，还需 {{ Math.ceil(onlineReward.remainingSeconds / 60) }} 分钟</span>
+          <span class="orc-time orc-ready" v-else>在线 <span class="orc-mins">{{ onlineReward.totalMinutes }}</span> 分钟——可领取！</span>
+          <div class="orc-reward-box">
+            <span v-if="onlineReward.reward.reward_type === 'money'">💰 铜币 × {{ onlineReward.reward.reward_value }}</span>
+            <span v-else-if="onlineReward.reward.reward_type === 'item'">📦 {{ onlineReward.reward.itemName }} × {{ onlineReward.reward.quantity }}</span>
+            <span v-else>🎁 铜币×5000 + 龙泉水×2</span>
           </div>
-          <div class="sd-status">
-            <template v-if="signedDays.has(r.day)">✅</template>
-            <template v-else-if="r.day === todayRewardDay">●</template>
-            <template v-else>○</template>
+          <button v-if="onlineReward.canClaim" @click="claimOnline" class="orc-claim-btn">🎁 立即领取</button>
+          <div v-else class="orc-countdown">⏳ {{ Math.ceil(onlineReward.remainingSeconds / 60) }} 分钟后可领取</div>
+        </div>
+      </div>
+
+      <!-- ===== 地点信息 ===== -->
+      <div class="scene-body" v-if="sceneData">
+        <div class="place-desc" v-if="sceneData.place?.description">
+          {{ sceneData.place.description }}
+        </div>
+        <div class="npc-section" v-if="sceneData.npcs?.length">
+          <div class="section-title">你看到：</div>
+          <div class="npc-list">
+            <div v-for="npc in sceneData.npcs" :key="npc.id" class="npc-item" @click="talkToNpc(npc)">
+              <div class="npc-info"><span class="npc-name">{{ npc.name }}</span><span v-if="npc.dialog" class="npc-dialog">{{ npc.dialog }}</span></div>
+              <div class="npc-tags"><span v-if="npc.quest_count > 0" class="npc-quest-tag">{{ npc.quest_count }}任务</span><span class="npc-arrow">›</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="npc-empty" v-else-if="sceneData.monsters?.length">
+          <div class="section-title">你遇到：</div>
+          <div class="monster-list">
+            <div v-for="m in sceneData.monsters" :key="m.id" class="monster-item">
+              <span class="monster-icon">{{ monsterIcon(m) }}</span>
+              <span class="monster-name">{{ m.name }}</span>
+              <span class="monster-lv">Lv.{{ m.level }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="npc-empty" v-else><div class="empty-text">此地暂无NPC或怪物</div></div>
+
+        <div class="exit-section" v-if="hasExits">
+          <div class="section-title">请选择出口：</div>
+          <div class="exit-list">
+            <a v-for="(exit, dir) in exitsDisplay" :key="dir" href="javascript:void(0)" class="exit-item" @click.prevent="goDir(dir)">
+              <span class="exit-dir">{{ dirLabel(dir) }}</span>
+              <span class="exit-name">{{ exit.name }}</span>
+              <span class="exit-arrow">›</span>
+            </a>
           </div>
         </div>
       </div>
-      <button v-if="!signStatus.signed" @click="doSign" class="sign-btn">🎯 立即签到（第{{ todayRewardDay }}天奖励）</button>
+
+      <!-- ===== 附近玩家 ===== -->
+      <div class="nearby-section" v-if="sceneData?.onlineUsers?.length">
+        <div class="section-title">附近玩家：</div>
+        <div class="nearby-list">
+          <span v-for="u in sceneData.onlineUsers" :key="u.id" class="nearby-name">{{ u.username }}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- 主按钮 -->
-    <div class="home-actions">
-      <router-link to="/citymap" class="btn-primary-action">🗺️ 继续冒险</router-link>
+    <!-- ===== 底部快捷入口 ===== -->
+    <div class="home-bottom">
+      <div class="quick-strip">
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/status')">👤<span>状态</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/inventory')">🎒<span>背包</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/quest')">📋<span>任务</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/daily')">📅<span>每日</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/welfare')">🎁<span>福利</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/mall')">🛒<span>商城</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/pet')">🐶<span>宠物</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/dungeon')">🏔️<span>副本</span></a>
+      </div>
+      <div class="quick-strip">
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/guild')">🏴<span>帮会</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/mentor')">🎓<span>师徒</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/arena')">⚔️<span>竞技</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/friend')">👥<span>好友</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/rank')">🏆<span>排行</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/codex')">📜<span>图鉴</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/citymap')">🗺️<span>地图</span></a>
+        <a href="javascript:void(0)" class="qs-btn" @click.prevent="goPage('/mall')">🛒<span>更多</span></a>
+      </div>
+    </div>
+
+    <!-- ===== 更多菜单弹窗 ===== -->
+    <div v-if="showMenu" class="menu-overlay" @click.self="showMenu = false">
+      <div class="menu-card">
+        <button class="menu-close" @click="showMenu = false">✕</button>
+        <div class="menu-title">📋 功能菜单</div>
+        <div class="menu-list">
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/status'); showMenu=false">👤 状态</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/equipment'); showMenu=false">⚔️ 装备</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/inventory'); showMenu=false">🎒 背包</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/quest'); showMenu=false">📋 任务</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/friend'); showMenu=false">👥 好友</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/pet'); showMenu=false">🐶 宠物</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/rank'); showMenu=false">🏆 排行</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/arena'); showMenu=false">⚔️ 竞技场</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/guild'); showMenu=false">🏴 帮会</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/welfare'); showMenu=false">🎁 福利</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/mall'); showMenu=false">🛒 商城</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/codex'); showMenu=false">📜 图鉴</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/citymap'); showMenu=false">🗺️ 城内地图</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/fishing'); showMenu=false">🎣 钓鱼</a>
+          <a href="javascript:void(0)" class="menu-item" @click="goPage('/chat'); showMenu=false">💬 聊天</a>
+          <a href="javascript:void(0)" class="menu-item logout-item" @click="doLogout">🚪 退出登录</a>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- 未登录 -->
   <div class="home-page" v-else>
     <div class="home-bg"></div>
     <div class="guest-hero">
@@ -171,11 +183,22 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
+import { useGameStore } from '../stores/game';
 import { Api } from '../composables/useApi';
 import { globalAlert } from '../composables/useConfirm';
 
 const userStore = useUserStore();
+const gameStore = useGameStore();
 const router = useRouter();
+
+const sceneData = ref(null);
+const cityName = ref('');
+const placeName = ref('');
+const showMenu = ref(false);
+
+const onlineReward = ref(null);
+const ONLINE_TOTAL_TIERS = 12;
+const ITEM_NAMES = { 94: '龙泉水', 96: '体力宝', 97: '大体力宝' };
 
 const hpPct = computed(() => {
   const u = userStore.user;
@@ -185,6 +208,7 @@ const expPct = computed(() => {
   const u = userStore.user;
   return u?.exp_max > 0 ? Math.round(u.exp / u.exp_max * 100) : 0;
 });
+
 function formatMoney(n) {
   if (!n) return '0';
   if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
@@ -192,21 +216,40 @@ function formatMoney(n) {
   return n.toLocaleString();
 }
 
-const signLoading = ref(true);
-const signStatus = ref({ signed: false, consecutive_days: 0 });
-const rewards = ref([]);
-const signedDays = ref(new Set());
+const exitsDisplay = computed(() => {
+  if (!sceneData.value?.exits) return {};
+  const m = { n: null, s: null, e: null, w: null };
+  for (const [d, v] of Object.entries(sceneData.value.exits)) {
+    if (v) m[d] = v;
+  }
+  return m;
+});
+const hasExits = computed(() => Object.values(exitsDisplay.value).some(Boolean));
 
-const onlineReward = ref(null);
-const ONLINE_TOTAL_TIERS = 12;
-const showMoreMenu = ref(false);
-
-function doLogout() {
-  showMoreMenu.value = false;
-  userStore.logout();
-  router.push('/');
+function dirLabel(dir) {
+  return { n: '北:', s: '南:', e: '东:', w: '西:' }[dir] || dir + ':';
 }
-const ITEM_NAMES = { 94: '龙泉水', 96: '体力宝', 97: '大体力宝' };
+
+function monsterIcon(m) {
+  if (!m) return '🐾';
+  if (m.name?.includes('海盗')) return '🏴‍☠️';
+  if (m.name?.includes('狼') || m.name?.includes('狗')) return '🐺';
+  if (m.name?.includes('虎') || m.name?.includes('狮')) return '🦁';
+  if (m.name?.includes('龙')) return '🐉';
+  if (m.name?.includes('鱼')) return '🐟';
+  return '🐾';
+}
+
+async function loadScene() {
+  try {
+    const d = await Api.get('/map/scene');
+    sceneData.value = d;
+    cityName.value = d.city?.name || '';
+    placeName.value = d.place?.name || '';
+  } catch (e) {
+    console.error('loadScene失败', e);
+  }
+}
 
 async function loadOnlineReward() {
   try {
@@ -221,6 +264,25 @@ async function loadOnlineReward() {
   } catch (e) { onlineReward.value = { loading: false }; }
 }
 
+async function refreshScene() {
+  await loadScene();
+  await globalAlert('刷新成功');
+}
+
+async function goDir(dir) {
+  try {
+    const d = await Api.post('/map/move', { dir });
+    if (d.error) { await globalAlert(d.error); return; }
+    await loadScene();
+  } catch (e) { await globalAlert(e.message); }
+}
+
+function talkToNpc(npc) {
+  gameStore.showNpcDialog(npc.id, placeName.value);
+}
+
+function goPage(path) { router.push(path); }
+
 async function claimOnline() {
   try {
     const res = await Api.post('/welfare/claim-online', {});
@@ -230,37 +292,17 @@ async function claimOnline() {
   } catch (e) { await globalAlert(e.message); }
 }
 
-const todayRewardDay = computed(() => {
-  if (signStatus.value.signed) return signStatus.value.reward_day;
-  return (signStatus.value.consecutive_days % 7) || 7;
-});
+async function doLogout() {
+  showMenu.value = false;
+  userStore.logout();
+  router.push('/login');
+}
 
 onMounted(async () => {
   if (!userStore.isLoggedIn) return;
-  try {
-    const [statusData, rewardsData] = await Promise.all([
-      Api.get('/sign/status'),
-      Api.get('/sign/rewards'),
-    ]);
-    signStatus.value = statusData;
-    rewards.value = rewardsData.rewards || [];
-    if (statusData.signed) signedDays.value.add(statusData.reward_day);
-    await loadOnlineReward();
-  } catch (e) { console.error('签到加载失败', e); }
-  finally { signLoading.value = false; }
+  await loadScene();
+  await loadOnlineReward();
 });
-
-async function doSign() {
-  try {
-    const res = await Api.post('/sign/in', {});
-    await globalAlert(res.msg || '签到成功！');
-    signStatus.value.signed = true;
-    signStatus.value.consecutive_days = res.consecutive_days;
-    signedDays.value.add(res.reward_day);
-  } catch (e) { await globalAlert(e.message); }
-}
-
-function logout() { userStore.logout(); router.push('/'); }
 </script>
 
 <style scoped>
@@ -268,13 +310,10 @@ function logout() { userStore.logout(); router.push('/'); }
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 8px 10px;
-  min-height: 100%;
-  overflow-y: auto;
+  height: 100%;
+  overflow: hidden;
 }
 
-/* 背景 */
 .home-bg {
   position: fixed;
   inset: 0;
@@ -283,204 +322,217 @@ function logout() { userStore.logout(); router.push('/'); }
   pointer-events: none;
 }
 
-/* ===== 顶部 HUD ===== */
+/* ===== 顶部 HUD（固定不滚动） ===== */
 .top-hud {
-  position: relative;
-  z-index: 2;
-  background: rgba(13,17,23,0.88);
-  backdrop-filter: blur(16px);
+  position: relative; z-index: 2; flex-shrink: 0;
+  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 12px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
+  border-radius: 14px; padding: 10px 14px;
+  display: flex; justify-content: space-between; align-items: center;
 }
-.hud-user { display: flex; align-items: center; gap: 8px; }
-.hud-avatar {
-  width: 40px; height: 40px;
-  background: linear-gradient(135deg, #1a3a2a, #0d2a1a);
-  border: 2px solid rgba(39,174,96,0.3);
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
+.hud-left { display: flex; align-items: center; gap: 8px; }
+.hud-icon { font-size: 18px; }
+.hud-info { display: flex; flex-direction: column; gap: 1px; }
+.hud-city { font-size: 14px; font-weight: 700; color: #f0f0f0; }
+.hud-place { font-size: 10px; color: #7f8c8d; }
+.hud-right { display: flex; align-items: center; }
+.hud-act {
+  font-size: 13px; font-weight: 600; color: #bdc3c7;
+  text-decoration: none; padding: 4px 8px;
+  border-radius: 6px; transition: all 0.2s;
 }
-.hud-info { display: flex; flex-direction: column; gap: 2px; }
-.hud-name { font-size: 14px; font-weight: 700; color: #f0f0f0; }
-.hud-lv { font-size: 10px; color: #7f8c8d; }
-.hud-stats { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-.hs-item { display: flex; align-items: center; gap: 5px; }
-.hs-icon { font-size: 12px; width: 16px; text-align: center; }
-.hs-bar-wrap {
-  flex: 1; height: 4px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px; overflow: hidden;
-}
-.hs-bar { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-.hs-hp { background: linear-gradient(90deg, #c0392b, #e74c3c); }
-.hs-exp { background: linear-gradient(90deg, #1a7a3a, #27ae60); }
-.hs-val { font-size: 9px; color: #95a5a6; width: 50px; text-align: right; white-space: nowrap; }
-.hs-money { display: flex; align-items: center; gap: 4px; margin-left: 4px; }
-.hs-money-val { font-size: 12px; font-weight: 700; color: #f1c40f; }
+.hud-act:hover { background: rgba(255,255,255,0.08); color: #f0f0f0; }
 
-/* ===== 在线奖励悬浮卡 ===== */
+/* ===== 状态条（固定不滚动） ===== */
+.status-bar {
+  position: relative; z-index: 2; flex-shrink: 0;
+  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.sb-user { display: flex; flex-direction: column; gap: 2px; min-width: 60px; }
+.sb-name { font-size: 12px; font-weight: 700; color: #f0f0f0; }
+.sb-lv { font-size: 10px; color: #c9a758; font-weight: 600; }
+.sb-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.sb-item { display: flex; align-items: center; gap: 5px; }
+.sb-icon { font-size: 11px; width: 14px; text-align: center; }
+.sb-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+.sb-bar { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+.sb-hp { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+.sb-exp { background: linear-gradient(90deg, #1a7a3a, #27ae60); }
+.sb-val { font-size: 9px; color: #95a5a6; width: 48px; text-align: right; white-space: nowrap; }
+.sb-money { display: flex; align-items: center; gap: 4px; }
+.sb-money-val { font-size: 13px; font-weight: 700; color: #f1c40f; }
+
+/* ===== 主体（可滚动） ===== */
+.home-body {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 0 6px;
+  position: relative; z-index: 2;
+}
+
+/* ===== 在线奖励 ===== */
 .online-reward-card {
-  position: relative;
-  z-index: 2;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 10px 12px;
-  transition: all 0.3s;
+  border-radius: 12px; padding: 8px 12px; margin-top: 4px;
 }
 .online-reward-card.claimable {
   background: rgba(39,174,96,0.08);
   border-color: rgba(39,174,96,0.3);
 }
-.orc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.orc-icon { font-size: 14px; }
-.orc-title { flex: 1; font-size: 12px; font-weight: 600; color: #bdc3c7; }
-.orc-tier { font-size: 10px; color: #7f8c8d; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 10px; }
-.orc-body {}
-.orc-time { font-size: 11px; color: #95a5a6; margin-bottom: 4px; }
+.orc-body { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.orc-time { font-size: 11px; color: #95a5a6; }
 .orc-mins { color: #f1c40f; font-weight: 600; }
-.orc-remain { color: #7f8c8d; }
 .orc-ready { color: #2ecc71; font-weight: 600; }
 .orc-reward-box {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 11px; color: #bdc3c7; margin-bottom: 6px;
+  background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #bdc3c7;
 }
 .orc-claim-btn {
-  width: 100%;
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 7px;
-  font-size: 12px; font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
+  background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff;
+  border: none; border-radius: 8px; padding: 5px 12px;
+  font-size: 11px; font-weight: 600; cursor: pointer; margin-left: auto;
 }
-.orc-claim-btn:hover { opacity: 0.9; }
-.orc-countdown { text-align: center; font-size: 10px; color: #7f8c8d; }
-.orc-loading { text-align: center; font-size: 11px; color: #555; padding: 8px 0; }
+.orc-countdown { font-size: 10px; color: #7f8c8d; margin-left: auto; }
 
-/* ===== 快捷入口 ===== */
-.quick-grid {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+/* ===== 主体：地点描述 ===== */
+.scene-body {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 10px;
 }
-.quick-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  padding: 14px 6px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-.quick-btn:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.15);
-  transform: translateY(-1px);
-}
-.quick-btn:active { transform: scale(0.97); }
-.qb-icon { font-size: 24px; }
-.qb-label { font-size: 11px; color: #bdc3c7; font-weight: 500; }
+.place-desc { font-size: 12px; color: #8b9a7c; margin-bottom: 8px; line-height: 1.5; font-style: italic; }
+.section-title { font-size: 12px; font-weight: 600; color: #7f8c8d; margin-bottom: 5px; }
 
-/* ===== 每日签到 ===== */
-.sign-card {
-  position: relative;
-  z-index: 2;
+/* ===== NPC列表 ===== */
+.npc-list { display: flex; flex-direction: column; gap: 3px; }
+.npc-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px;
   background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px; cursor: pointer; transition: all 0.2s;
 }
-.sign-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 12px; font-weight: 600; color: #bdc3c7; }
-.sign-done { font-size: 10px; color: #27ae60; font-weight: 500; }
-.sign-loading { text-align: center; font-size: 11px; color: #555; padding: 8px 0; }
-.sign-week { display: flex; gap: 5px; margin-bottom: 8px; }
-.sign-day {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 7px 2px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 8px;
-  transition: all 0.2s;
+.npc-item:hover { background: rgba(255,255,255,0.07); transform: translateX(2px); }
+.npc-info { display: flex; flex-direction: column; gap: 1px; }
+.npc-name { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+.npc-dialog { font-size: 10px; color: #6b7280; }
+.npc-tags { display: flex; align-items: center; gap: 5px; }
+.npc-quest-tag {
+  font-size: 9px; background: rgba(39,174,96,0.15);
+  border: 1px solid rgba(39,174,96,0.3); color: #2ecc71;
+  padding: 1px 5px; border-radius: 6px;
 }
-.sign-day.signed { background: rgba(39,174,96,0.12); border-color: rgba(39,174,96,0.3); }
-.sign-day.today { background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.4); }
-.sign-day.claimed { background: rgba(39,174,96,0.12); border-color: rgba(39,174,96,0.3); }
-.sd-top { font-size: 9px; color: #7f8c8d; }
-.sd-reward { font-size: 14px; }
-.sd-status { font-size: 10px; color: #7f8c8d; }
-.sign-btn {
-  width: 100%;
-  background: linear-gradient(135deg, #1a4a2a, #27ae60);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px;
-  font-size: 12px; font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-.sign-btn:hover { opacity: 0.9; }
+.npc-arrow { font-size: 14px; color: #555; }
+.npc-empty { margin-top: 4px; }
 
-/* ===== 操作按钮 ===== */
-.home-actions {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* ===== 怪物列表 ===== */
+.monster-list { display: flex; flex-direction: column; gap: 3px; }
+.monster-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
 }
-.btn-primary-action {
-  display: block;
-  text-align: center;
-  background: linear-gradient(135deg, #1a4a2a, #27ae60);
-  color: #fff;
-  padding: 12px;
-  border-radius: 10px;
-  font-size: 14px; font-weight: 700;
-  text-decoration: none;
-  transition: opacity 0.2s;
+.monster-icon { font-size: 16px; }
+.monster-name { font-size: 12px; color: #f0f0f0; flex: 1; }
+.monster-lv { font-size: 10px; color: #c9a758; }
+.empty-text { font-size: 11px; color: #555; }
+
+/* ===== 出口方向 ===== */
+.exit-section { margin-top: 8px; }
+.exit-list { display: flex; flex-direction: column; gap: 3px; }
+.exit-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px; cursor: pointer;
+  text-decoration: none; transition: all 0.2s;
 }
-.btn-primary-action:hover { opacity: 0.9; }
-.btn-secondary-action {
-  display: block;
-  text-align: center;
+.exit-item:hover { background: rgba(255,255,255,0.07); transform: translateX(2px); }
+.exit-dir { font-size: 12px; font-weight: 700; color: #c9a758; min-width: 30px; }
+.exit-name { font-size: 12px; color: #bdc3c7; flex: 1; }
+.exit-arrow { font-size: 14px; color: #555; }
+
+/* ===== 附近玩家 ===== */
+.nearby-section {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 10px;
+}
+.nearby-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.nearby-name {
+  font-size: 11px; color: #8b9dc3;
+  background: rgba(88,110,170,0.1);
+  padding: 2px 8px; border-radius: 10px;
+}
+
+/* ===== 底部快捷入口（固定不滚动） ===== */
+.home-bottom {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 6px 8px;
+  background: rgba(13,17,23,0.92);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  position: relative; z-index: 2;
+}
+.quick-strip { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.qs-btn {
+  display: flex; align-items: center; gap: 3px;
+  padding: 5px 8px;
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #95a5a6;
-  padding: 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px; text-decoration: none;
+  font-size: 12px; color: #8b9a7c;
+  transition: all 0.2s; cursor: pointer;
+}
+.qs-btn:hover { background: rgba(255,255,255,0.09); color: #f0f0f0; transform: translateY(-1px); }
+.qs-btn:active { transform: scale(0.97); }
+.qs-btn span { font-size: 10px; font-weight: 500; }
+
+/* ===== 菜单弹窗 ===== */
+.menu-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.menu-card {
+  position: relative;
+  background: rgba(20,25,35,0.97); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px 18px 0 0; padding: 16px 16px 32px;
+  width: 100%; max-width: 420px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.menu-title { font-size: 13px; font-weight: 700; color: #c9a758; padding-left: 4px; }
+.menu-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.menu-item {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 4px; padding: 10px 4px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; text-decoration: none; cursor: pointer;
+  font-size: 11px; color: #bdc3c7; font-weight: 600;
   transition: all 0.2s;
 }
-.btn-secondary-action:hover { background: rgba(255,255,255,0.08); color: #bdc3c7; }
+.menu-item:hover { background: rgba(255,255,255,0.09); transform: translateY(-1px); }
+.menu-item.logout-item { border-color: rgba(231,76,60,0.3); color: #e74c3c; }
+.menu-item.logout-item:hover { background: rgba(231,76,60,0.1); }
+.menu-close {
+  position: absolute; top: 14px; right: 16px;
+  background: rgba(255,255,255,0.06); border: none;
+  color: #7f8c8d; width: 28px; height: 28px;
+  border-radius: 50%; font-size: 14px; cursor: pointer;
+}
 
 /* ===== 未登录页 ===== */
 .guest-hero {
-  position: relative;
-  z-index: 2;
-  text-align: center;
+  position: relative; z-index: 2; text-align: center;
   padding: 40px 20px 16px;
 }
 .guest-logo { font-size: 56px; margin-bottom: 8px; }
@@ -488,28 +540,29 @@ function logout() { userStore.logout(); router.push('/'); }
 .guest-subtitle { font-size: 13px; color: #7f8c8d; margin-bottom: 4px; }
 .guest-version { font-size: 10px; color: #555; }
 .guest-desc-card {
-  position: relative;
-  z-index: 2;
+  position: relative; z-index: 2;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 14px;
-  margin: 0 10px;
+  border-radius: 12px; padding: 14px; margin: 0 10px;
 }
 .gdc-title { font-size: 12px; font-weight: 600; color: #bdc3c7; margin-bottom: 8px; }
 .gdc-text { font-size: 12px; line-height: 1.8; color: #95a5a6; }
-/* ===== 更多菜单 ===== */
-.more-menu-card { max-width: 320px; width: 90%; }
-.more-menu-title { font-size: 15px; font-weight: 700; color: #f0f0f0; margin-bottom: 14px; text-align: center; }
-.more-menu-list { display: flex; flex-direction: column; gap: 6px; }
-.more-menu-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 8px;
-  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);
-  color: #ccc; font-size: 13px; text-decoration: none; cursor: pointer;
-  transition: background 0.2s;
+
+.home-actions {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; gap: 8px; padding: 0 10px;
 }
-.more-menu-item:hover { background: rgba(255,255,255,0.08); }
-.more-menu-item.logout-item { color: #e74c3c; border-color: rgba(231,76,60,0.2); }
-.more-menu-item.logout-item:hover { background: rgba(231,76,60,0.1); }
+.btn-primary-action {
+  display: block; text-align: center;
+  background: linear-gradient(135deg, #1a4a2a, #27ae60);
+  color: #fff; padding: 12px; border-radius: 10px;
+  font-size: 14px; font-weight: 700; text-decoration: none;
+}
+.btn-secondary-action {
+  display: block; text-align: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #95a5a6; padding: 10px; border-radius: 10px;
+  font-size: 12px; text-decoration: none;
+}
 </style>

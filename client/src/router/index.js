@@ -2,7 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '../stores/user';
 
 const routes = [
-  { path: '/', redirect: '/citymap' },
+  { path: '/', redirect: '/home' },
+  { path: '/home', name: 'home', component: () => import('../views/HomeView.vue'), meta: { auth: true } },
   { path: '/login', name: 'login', component: () => import('../views/LoginView.vue') },
   { path: '/register', name: 'register', component: () => import('../views/RegisterView.vue') },
   { path: '/story', name: 'story', component: () => import('../views/StoryView.vue'), meta: { auth: true } },

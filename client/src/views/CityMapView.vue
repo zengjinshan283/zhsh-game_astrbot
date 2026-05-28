@@ -191,7 +191,8 @@ async function goTo(p) {
   try {
     await Api.post('/user/teleport', { place_id: p.id });
     userStore.updateUser({ ...userStore.user, place_id: p.id });
-    router.push('/citymap');
+    // HomeView onMounted 会自动刷新 scene
+    router.push('/home');
   } catch (e) {}
 }
 
