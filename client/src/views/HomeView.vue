@@ -251,9 +251,7 @@ async function loadScene() {
     sceneData.value = d;
     cityName.value = d.city?.name || '';
     placeName.value = d.place?.name || '';
-  } catch (e) {
-    console.error('loadScene失败', e);
-  }
+  } catch (e) {}
 }
 
 async function loadOnlineReward() {

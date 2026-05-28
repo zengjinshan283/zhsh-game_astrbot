@@ -103,9 +103,7 @@ async function load() {
   try {
     const d = await Api.get('/achievement/list');
     list.value = d.list || [];
-  } catch (e) {
-    console.error('[成就]', e.message);
-  } finally {
+  } catch (e) {} finally {
     loading.value = false;
   }
 }
