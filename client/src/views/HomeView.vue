@@ -37,10 +37,10 @@
         <span class="sb-icon">💰</span>
         <span class="sb-money-val">{{ formatMoney(userStore.user?.money) }}</span>
         <span class="sb-divider">|</span>
-        <span class="sb-icon"><img src="/icons/silver_coin32.png" style="width:14px;height:14px;vertical-align:middle;" /></span>
+        <span class="sb-icon"><img src="/icons/silver_coin.png" style="width:14px;height:14px;vertical-align:middle;" /></span>
         <span class="sb-money-val silver">{{ formatMoney(userStore.user?.silver) }}</span>
         <span class="sb-divider">|</span>
-        <span class="sb-icon"><img src="/icons/gold_coin32.png" style="width:14px;height:14px;vertical-align:middle;" /></span>
+        <span class="sb-icon"><img src="/icons/gold_coin.png" style="width:14px;height:14px;vertical-align:middle;" /></span>
         <span class="sb-money-val gold">{{ formatMoney(userStore.user?.gold) }}</span>
       </div>
     </div>
