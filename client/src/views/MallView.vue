@@ -14,6 +14,17 @@
   <div v-if="error" class="mall-msg mall-err">❌ {{ error }}</div>
   <div v-if="success" class="mall-msg mall-ok">✅ {{ success }}</div>
 
+  <!-- 刷新提示 & 按钮 -->
+  <div class="refresh-bar">
+    <span class="refresh-hint">
+      {{ refreshUsed ? '今日免费刷新已用' : '今日还有1次免费刷新' }}
+    </span>
+    <button class="refresh-btn" @click="refreshMall" :disabled="refreshing">
+      {{ refreshing ? '刷新中...' : '🔄 刷新商品' }}
+      <span v-if="refreshCost > 0" class="r-cost">{{ refreshCost }}铜</span>
+    </button>
+  </div>
+
   <!-- 分类标签 -->
   <div class="tab-scroll">
     <button
@@ -32,13 +43,13 @@
   <div v-if="loading" class="mall-loading">加载中...</div>
   <div v-else-if="!filteredItems.length" class="mall-empty">该分类暂无商品</div>
   <div v-else class="item-list">
-    <div v-for="item in filteredItems" :key="item.id" class="item-card">
+    <div v-for="item in filteredItems" :key="item.item_id" class="item-card">
       <div class="ic-left">
         <div class="ic-icon">{{ getItemIcon(item) }}</div>
       </div>
       <div class="ic-body">
         <div class="ic-name">{{ item.name }}</div>
-        <div class="ic-desc">{{ item.description }}</div>
+        <div class="ic-desc">{{ getItemDesc(item) }}</div>
         <div class="ic-stats">
           <span v-if="item.atk_min > 0" class="ic-stat">⚔️ +{{ item.atk_min }}</span>
           <span v-if="item.def > 0" class="ic-stat">🛡️ +{{ item.def }}</span>
@@ -49,12 +60,12 @@
       <div class="ic-right">
         <div class="ic-price">{{ formatMoney(item.price) }}</div>
         <div class="qty-ctrl">
-          <button class="qty-btn" @click="qtyMap[item.id] = Math.max(1, (qtyMap[item.id] || 1) - 1)">−</button>
-          <input type="number" v-model.number="qtyMap[item.id]" min="1" max="99" class="qty-input">
-          <button class="qty-btn" @click="qtyMap[item.id] = Math.min(99, (qtyMap[item.id] || 1) + 1)">+</button>
+          <button class="qty-btn" @click="qtyMap[item.item_id] = Math.max(1, (qtyMap[item.item_id] || 1) - 1)">−</button>
+          <input type="number" v-model.number="qtyMap[item.item_id]" min="1" max="99" class="qty-input">
+          <button class="qty-btn" @click="qtyMap[item.item_id] = Math.min(99, (qtyMap[item.item_id] || 1) + 1)">+</button>
         </div>
-        <button class="buy-btn" @click="buyItem(item)" :disabled="purchasing === item.id">
-          {{ purchasing === item.id ? '购买中...' : '购买' }}
+        <button class="buy-btn" @click="buyItem(item)" :disabled="purchasing === item.item_id">
+          {{ purchasing === item.item_id ? '购买中...' : '购买' }}
         </button>
       </div>
     </div>
@@ -68,14 +79,15 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+
 const userStore = useUserStore();
 const allItems = ref([]);
 const categories = ref([
-  { key: 'weapon', label: '武器', icon: '⚔️' },
-  { key: 'armor', label: '防具', icon: '🛡️' },
-  { key: 'accessory', label: '饰品', icon: '💍' },
-  { key: 'consumable', label: '消耗', icon: '💊' },
-  { key: 'material', label: '材料', icon: '📦' },
+  { key: 'weapon',    label: '武器',   icon: '⚔️' },
+  { key: 'armor',     label: '防具',   icon: '🛡️' },
+  { key: 'accessory', label: '饰品',   icon: '💍' },
+  { key: 'consumable',label: '消耗品', icon: '💊' },
+  { key: 'material',  label: '材料',   icon: '📦' },
 ]);
 const loading = ref(false);
 const error = ref('');
@@ -83,6 +95,24 @@ const success = ref('');
 const activeTab = ref('weapon');
 const qtyMap = reactive({});
 const purchasing = ref(0);
+const refreshing = ref(false);
+const refreshUsed = ref(false);
+const refreshCost = ref(0);
+
+// 物品描述/属性缓存
+const itemMeta = {};
+const ITEM_DESC = {
+  201: '稀有武器，攻击力+50', 202: '稀有武器，攻击力+45', 203: '稀有武器，攻击力+55',
+  301: '稀有防具，防御+40', 302: '稀有防具，防御+35',
+  401: '生命值上限+100', 402: '敏捷+20',
+  501: '恢复500HP', 502: '恢复300MP', 503: '获得5000经验',
+  601: '稀有锻造材料', 602: '可用于强化装备', 603: '合成稀有道具的材料',
+  90001: '标注神秘宝藏位置的古老地图',
+  91001: '宠物学习「生命强化·初级」', 91002: '宠物学习「生命强化·中级」',
+  91003: '宠物学习「生命强化·高级」', 91004: '宠物学习「攻击强化·初级」',
+  91005: '宠物学习「攻击强化·中级」', 91006: '宠物学习「攻击强化·高级」',
+  91007: '宠物学习「防御强化·初级」', 91008: '宠物学习「防御强化·中级」',
+};
 
 function formatMoney(n) {
   if (!n) return '0';
@@ -96,21 +126,49 @@ function getItemIcon(item) {
   return icons[item.category] || '📦';
 }
 
+function getItemDesc(item) {
+  return ITEM_DESC[item.item_id] || '';
+}
+
 const filteredItems = computed(() => allItems.value.filter(i => i.category === activeTab.value));
 
 async function loadItems() {
   loading.value = true; error.value = '';
-  try { allItems.value = (await Api.get('/mall/items')).items || []; }
-  catch (e) { error.value = e.message; }
+  try {
+    const data = await Api.get('/mall');
+    allItems.value = data.items || [];
+    refreshUsed.value = data.refreshUsed > 0;
+    refreshCost.value = data.refreshCost || 0;
+    // 更新用户铜币
+    if (data.userMoney !== undefined) userStore.money = data.userMoney;
+  } catch (e) { error.value = e.message; }
   finally { loading.value = false; }
 }
 
+async function refreshMall() {
+  refreshing.value = true; error.value = ''; success.value = '';
+  try {
+    const data = await Api.post('/mall/refresh', {});
+    allItems.value = data.items || [];
+    refreshUsed.value = true;
+    if (data.cost > 0) {
+      userStore.money = (userStore.money || 0) - data.cost;
+      success.value = `商品已刷新，花费${data.cost}铜币`;
+    } else {
+      success.value = '商品已刷新（今日免费次数已用完）';
+    }
+    setTimeout(() => { success.value = ''; }, 2500);
+  } catch (e) { error.value = e.message; }
+  finally { refreshing.value = false; }
+}
+
 async function buyItem(item) {
-  const qty = qtyMap[item.id] || 1;
-  purchasing.value = item.id;
+  const qty = qtyMap[item.item_id] || 1;
+  purchasing.value = item.item_id;
   error.value = ''; success.value = '';
   try {
-    await Api.post('/mall/buy', { item_id: item.id, quantity: qty });
+    const data = await Api.post('/mall/buy', { item_id: item.item_id, quantity: qty });
+    if (data.remainingMoney !== undefined) userStore.money = data.remainingMoney;
     success.value = `${item.name} x${qty} 购买成功`;
     setTimeout(() => { success.value = ''; }, 2500);
   } catch (e) { error.value = e.message; }
@@ -154,6 +212,27 @@ onMounted(loadItems);
 .mall-msg { position: relative; z-index: 2; border-radius: 8px; padding: 7px 10px; font-size: 11px; }
 .mall-err { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
 .mall-ok { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); color: #2ecc71; }
+
+/* 刷新栏 */
+.refresh-bar {
+  position: relative; z-index: 2;
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px;
+}
+.refresh-hint { font-size: 11px; color: #7f8c8d; flex: 1; }
+.refresh-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  background: rgba(52,73,94,0.5);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 20px;
+  font-size: 12px; color: #ecf0f1;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.2s;
+}
+.refresh-btn:hover:not(:disabled) { background: rgba(52,73,94,0.8); border-color: rgba(255,255,255,0.2); }
+.refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.r-cost { font-size: 10px; color: #f1c40f; }
 
 /* ===== 分类标签 ===== */
 .tab-scroll {
