@@ -12,7 +12,6 @@
         </div>
       </div>
       <div class="hud-right">
-        <a href="javascript:void(0)" @click.prevent="goPage('/mall')" class="hud-act">⚙️</a>
       </div>
     </div>
 
@@ -37,6 +36,12 @@
       <div class="sb-money">
         <span class="sb-icon">💰</span>
         <span class="sb-money-val">{{ formatMoney(userStore.user?.money) }}</span>
+        <span class="sb-divider">|</span>
+        <span class="sb-icon">🪙</span>
+        <span class="sb-money-val silver">{{ formatMoney(userStore.user?.silver) }}</span>
+        <span class="sb-divider">|</span>
+        <span class="sb-icon">👑</span>
+        <span class="sb-money-val gold">{{ formatMoney(userStore.user?.gold) }}</span>
       </div>
     </div>
 
@@ -363,8 +368,11 @@ onMounted(async () => {
 .sb-hp { background: linear-gradient(90deg, #c0392b, #e74c3c); }
 .sb-exp { background: linear-gradient(90deg, #1a7a3a, #27ae60); }
 .sb-val { font-size: 9px; color: #95a5a6; width: 48px; text-align: right; white-space: nowrap; }
-.sb-money { display: flex; align-items: center; gap: 4px; }
+.sb-money { display: flex; align-items: center; gap: 3px; }
 .sb-money-val { font-size: 13px; font-weight: 700; color: #f1c40f; }
+.sb-money-val.silver { color: #bdc3c7; }
+.sb-money-val.gold { color: #f39c12; }
+.sb-divider { color: rgba(255,255,255,0.15); font-size: 10px; }
 
 /* ===== 主体（可滚动） ===== */
 .home-body {
