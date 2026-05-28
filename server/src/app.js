@@ -40,6 +40,7 @@ app.use('/api/cdkey', require('./routes/cdkey'));
 app.use('/api/welfare', require('./routes/welfare'));
 app.use('/api/guide', require('./routes/guide'));
 app.use('/api/mall', require('./routes/mall'));
+app.use('/api/skill', require('./routes/skill'));
 app.use('/api/dungeon', require('./routes/dungeon'));
 app.use('/api/arena', require('./routes/arena'));
 app.use('/api/achievement', require('./routes/achievement'));
