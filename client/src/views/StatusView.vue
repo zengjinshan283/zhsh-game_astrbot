@@ -135,6 +135,7 @@
     <router-link to="/inventory" class="sn-btn">🎒 背包</router-link>
     <router-link to="/equipment" class="sn-btn">⚔️ 装备</router-link>
     <router-link to="/talent" class="sn-btn">⚡ 天赋</router-link>
+    <router-link to="/skill-upgrade" class="sn-btn">⬆️ 技能</router-link>
     <router-link to="/arena" class="sn-btn">🏟️ 竞技</router-link>
   </div>
 </div>

@@ -5,23 +5,38 @@
     <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
-        <div class="hud-icon">📜</div>
-        <div class="hud-title">装备图鉴</div>
+        <div class="hud-icon">{{ activeTab === 'pets' ? '🐾' : '📜' }}</div>
+        <div class="hud-title">{{ activeTab === 'pets' ? '宠物图鉴' : '装备图鉴' }}</div>
       </div>
-      <div class="hud-right">
+      <div class="hud-right" v-if="activeTab !== 'pets'">
         <span class="hud-counter">{{ unlockedCount }}/{{ total }}</span>
+        <span class="hud-label">已解锁</span>
+      </div>
+      <div class="hud-right" v-else>
+        <span class="hud-counter">{{ petsUnlocked }}/{{ petsTotal }}</span>
         <span class="hud-label">已解锁</span>
       </div>
     </div>
 
     <!-- 进度条 -->
-    <div class="progress-card">
+    <div class="progress-card" v-if="activeTab !== 'pets'">
       <div class="progress-info">
         <span class="progress-label">收集进度</span>
         <span class="progress-value">{{ Math.round(unlockedCount/total*100) }}%</span>
       </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar" :style="{ width: (unlockedCount/total*100) + '%' }"></div>
+      </div>
+    </div>
+
+    <!-- 宠物进度条 -->
+    <div class="progress-card" v-else>
+      <div class="progress-info">
+        <span class="progress-label">收集进度</span>
+        <span class="progress-value">{{ Math.round(petsUnlocked/Math.max(petsTotal,1)*100) }}%</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" :style="{ width: (petsUnlocked/Math.max(petsTotal,1)*100) + '%', background: 'linear-gradient(90deg, #c9a84c, #f1c40f)' }"></div>
       </div>
     </div>
 
@@ -81,6 +96,31 @@
             </div>
             <div v-else class="locked-badge">{{ r.current_count }}/{{ r.require_count }}</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 宠物网格 -->
+    <div v-else-if="activeTab === 'pets'">
+      <div v-if="petsLoading" class="loading-card">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">加载中...</div>
+      </div>
+      <div v-else-if="!filteredPets.length" class="empty-card">
+        <div class="empty-icon">🐾</div>
+        <div class="empty-text">暂无宠物图鉴数据</div>
+      </div>
+      <div v-else class="pets-grid">
+        <div v-for="p in filteredPets" :key="p.id" class="pet-codex-item" :class="{ unlocked: p.unlocked }">
+          <div class="pci-icon" :style="{ color: p.quality_color }">{{ p.unlocked ? '🐾' : '❓' }}</div>
+          <div class="pci-name">{{ p.unlocked ? p.name : '???' }}</div>
+          <div class="pci-type" :style="{ color: p.quality_color }">{{ p.unlocked ? p.type_label : '未知' }}</div>
+          <div class="pci-stats" v-if="p.unlocked">
+            <span>⚔️{{ p.atk }}</span>
+            <span>❤️{{ p.hp }}</span>
+            <span>🛡️{{ p.def_val }}</span>
+          </div>
+          <div class="pci-skill" v-if="p.unlocked && p.skill_name">⚡{{ p.skill_name }}</div>
         </div>
       </div>
     </div>
@@ -174,6 +214,8 @@ const showModal = ref(false);
 const selectedItem = ref(null);
 const rewards = ref([]);
 const codexCount = ref(0);
+const pets = ref([]);
+const petsLoading = ref(false);
 
 const tabs = [
   { label: '全部', value: 'all', icon: '📦' },
@@ -182,7 +224,8 @@ const tabs = [
   { label: '饰品', value: '3', icon: '💍' },
   { label: '消耗品', value: '4', icon: '🧪' },
   { label: '材料', value: '5', icon: '💎' },
-  { label: '奖励', value: 'rewards', icon: '🎁' }
+  { label: '奖励', value: 'rewards', icon: '🎁' },
+  { label: '宠物', value: 'pets', icon: '🐾' }
 ];
 
 const total = computed(() => items.value.length);
@@ -192,6 +235,17 @@ const filteredItems = computed(() => {
   return items.value.filter(i => String(i.type) === activeTab.value);
 });
 const nextReward = computed(() => rewards.value.find(r => !r.is_claimed));
+const filteredPets = computed(() => pets.value);
+const petsTotal = computed(() => pets.value.length);
+const petsUnlocked = computed(() => pets.value.filter(p => p.unlocked).length);
+
+async function loadPets() {
+  try {
+    petsLoading.value = true;
+    const d = await Api.get('/codex/pets');
+    pets.value = d.pets || [];
+  } catch (e) {} finally { petsLoading.value = false; }
+}
 
 function getItemIcon(item) {
   const map = { 1: '🗡️', 2: '🛡️', 3: '💍', 4: '🧪', 5: '💎' };
@@ -240,6 +294,7 @@ async function claimReward(r) {
 function switchTab(tab) {
   activeTab.value = tab;
   if (tab === 'rewards') loadRewards();
+  else if (tab === 'pets') loadPets();
   else load();
 }
 
@@ -383,6 +438,31 @@ onMounted(load);
 }
 .empty-icon { font-size: 32px; }
 .empty-text { font-size: 12px; color: #7f8c8d; }
+
+/* 宠物网格 */
+.pets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+}
+.pet-codex-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px 6px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.pet-codex-item.unlocked {
+  border-color: rgba(201,168,88,0.3);
+  background: rgba(201,168,88,0.05);
+}
+.pet-codex-item:not(.unlocked) { opacity: 0.5; filter: grayscale(60%); }
+.pci-icon { font-size: 24px; margin-bottom: 4px; }
+.pci-name { font-size: 11px; font-weight: 600; color: #e8d5a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pci-type { font-size: 10px; margin-top: 2px; }
+.pci-stats { display: flex; justify-content: center; gap: 3px; margin-top: 4px; font-size: 9px; color: #7f8c8d; }
+.pci-skill { font-size: 9px; color: #c9a758; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .codex-grid {
   position: relative;
