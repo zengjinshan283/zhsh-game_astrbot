@@ -16,6 +16,7 @@
       <button class="tab-btn" :class="{ active: tab === 'enhance' }" @click="tab = 'enhance'">⚒️ 强化</button>
       <button class="tab-btn" :class="{ active: tab === 'identify' }" @click="tab = 'identify'">🔍 鉴定</button>
       <button class="tab-btn" :class="{ active: tab === 'repair' }" @click="loadRepairItems">🔧 修理</button>
+      <button class="tab-btn" :class="{ active: tab === 'refine' }" @click="tab = 'refine'">🔮 精炼</button>
     </div>
 
     <!-- ── 强化 ── -->
@@ -157,6 +158,57 @@
       </div>
     </div>
 
+    <!-- ── 精炼 ── -->
+    <div v-if="tab === 'refine'">
+      <div class="rule-card">
+        <div class="rule-row">
+          <span class="ri-label">🔮 精炼费用</span>
+          <span class="ri-val">强化等级 × 300 铜币</span>
+        </div>
+        <div class="rule-row">
+          <span class="ri-label">📦 条件</span>
+          <span class="ri-val">武器/防具 · 已鉴定 · 强化+3以上</span>
+        </div>
+        <div class="rule-row">
+          <span class="ri-label">✨ 效果</span>
+          <span class="ri-val">新增2条随机词缀（不重复）</span>
+        </div>
+        <div class="rule-note">💡 精炼次数越多，词缀越丰富</div>
+      </div>
+
+      <div class="empty-card" v-if="!refineItems.length">
+        <div class="empty-icon">🔮</div><div class="empty-text">没有可精炼的装备</div>
+      </div>
+      <div class="equip-list">
+        <div v-for="item in refineItems" :key="item.inv_id" class="equip-card"
+          :style="{ borderColor: '#9b59b6' }">
+          <div class="ec-top">
+            <div class="ec-icon">{{ item.subtype === 'weapon' ? '🗡️' : '🛡️' }}</div>
+            <div class="ec-info">
+              <div class="ec-name">
+                {{ item.name }}<span class="ec-enh">+{{ item.enhance_level }}</span>
+                <span class="q-badge" :class="'q-' + item.quality">{{ qualityName(item.quality) }}</span>
+              </div>
+              <div class="ec-stats">
+                <span class="ec-atk" v-if="item.atk">⚔️ {{ item.atk }}</span>
+                <span class="ec-def" v-if="item.def_val">🛡️ {{ item.def_val }}</span>
+              </div>
+              <div class="ec-affixes" v-if="item.refine_affixes && item.refine_affixes.length">
+                <span v-for="(a, i) in item.refine_affixes" :key="i" class="affix-tag">{{ a.name }} {{ a.stat_key }}+{{ a.value }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="ec-bottom">
+            <div class="ec-cost">
+              <span class="cost-coin">💰 {{ item.enhance_level * 300 }}</span>
+              <span class="id-count">词缀×{{ (item.refine_affixes||[]).length }}/{{ (item.refine_affixes||[]).length + 2 }}</span>
+            </div>
+            <button class="ec-btn refine-btn" @click="refine(item.inv_id, item.name, item.enhance_level)">🔮 精炼</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <router-link to="/citymap" class="back-btn">← 返回地图</router-link>
   </div>
 </template>
@@ -172,6 +224,7 @@ const tab = ref('enhance');
 const items = ref([]);
 const identifyItems = ref([]);
 const repairItems = ref([]);
+const refineItems = ref([]);
 const msg = ref('');
 const msgType = ref('');
 
@@ -222,7 +275,8 @@ async function loadRepairItems() {
 
 async function enhance(id, name, level) {
   if (level >= 10) return;
-  if (!(await globalConfirm('花费' + getCost(level) + '铜强化? 成功率' + getRate(level) + '%' + (level >= 7 ? ' 失败降级' : '')))) return;
+  const protectHint = level >= 7 ? '⚠️ +7以上失败降级，使用保护符可防止降级' : '';
+  if (!(await globalConfirm('花费' + getCost(level) + '铜强化? 成功率' + getRate(level) + '%' + (level >= 7 ? ' 失败降级' : '') + '\n' + protectHint))) return;
   try {
     const d = await Api.post('/smith/enhance', { inventory_id: id });
     msg.value = d.msg; msgType.value = d.success ? 'success' : 'error';
@@ -252,11 +306,28 @@ async function repair(id, name) {
   } catch (e) { msg.value = e.message; msgType.value = 'error'; }
 }
 
+async function loadRefineItems() {
+  try {
+    const d = await Api.get('/smith/refine-items');
+    refineItems.value = d.items || [];
+  } catch (e) { refineItems.value = []; }
+}
+
+async function refine(id, name, level) {
+  if (!(await globalConfirm('花费' + (level * 300) + '铜币精炼 ' + name + '？'))) return;
+  try {
+    const d = await Api.post('/smith/refine', { inventory_id: id });
+    msg.value = d.msg; msgType.value = d.success ? 'success' : 'error';
+    const me = await Api.get('/auth/me'); userStore.updateUser(me.user);
+    await loadRefineItems();
+  } catch (e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
 onMounted(() => { load(); loadIdentify(); });
 
 // Watch tab changes
 import { watch } from 'vue';
-watch(tab, (t) => { msg.value = ''; if (t === 'repair') loadRepairItems(); });
+watch(tab, (t) => { msg.value = ''; if (t === 'repair') loadRepairItems(); if (t === 'refine') loadRefineItems(); });
 </script>
 
 <style scoped>
@@ -333,6 +404,7 @@ watch(tab, (t) => { msg.value = ''; if (t === 'repair') loadRepairItems(); });
 .ec-btn:hover { opacity: 0.9; }
 .id-btn { background: linear-gradient(135deg, #4a1a6a, #9b59b6); }
 .repair-btn { background: linear-gradient(135deg, #4a3a10, #f39c12); }
+.refine-btn { background: linear-gradient(135deg, #3a1a4a, #9b59b6); }
 .ec-max { text-align: center; font-size: 13px; font-weight: 700; color: #c9a758; }
 
 .back-btn { position: relative; z-index: 2; display: block; text-align: center; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: #95a5a6; padding: 10px; border-radius: 10px; font-size: 13px; text-decoration: none; transition: all 0.2s; }
