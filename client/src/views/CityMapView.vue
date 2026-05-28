@@ -2,18 +2,12 @@
   <div class="citymap-page">
     <div class="citymap-bg"></div>
 
-    <!-- 顶部位置信息栏（参考沧澜四海） -->
+    <!-- 顶部位置信息栏 -->
     <div class="top-hud">
       <div class="hud-left">
+        <a href="javascript:void(0)" @click.prevent="$router.back()" class="hud-back">←</a>
         <div class="hud-icon">🗺️</div>
         <div class="hud-title">{{ cityName }}</div>
-      </div>
-      <div class="hud-actions">
-        <a href="javascript:void(0)" @click.prevent="refreshPlace" class="hud-act">刷新</a>
-        <a href="javascript:void(0)" @click.prevent="goQuest" class="hud-act">任务</a>
-        <a href="javascript:void(0)" @click.prevent="goMall" class="hud-act">商城</a>
-        <a href="javascript:void(0)" @click.prevent="goSign" class="hud-act hud-red">签到</a>
-        <a href="javascript:void(0)" @click.prevent="showMenu = true" class="hud-act">☰</a>
       </div>
     </div>
 
@@ -69,33 +63,6 @@
       <div class="empty-text">该城市暂无地点数据</div>
     </div>
 
-    <!-- 底部更多菜单弹窗 -->
-    <div v-if="showMenu" class="menu-overlay" @click.self="showMenu = false">
-      <div class="menu-card">
-        <button class="menu-close" @click="showMenu = false">✕</button>
-        <div class="menu-title">📋 功能菜单</div>
-        <div class="menu-list">
-          <router-link to="/status" class="menu-item" @click="showMenu=false">👤 状态</router-link>
-          <router-link to="/equipment" class="menu-item" @click="showMenu=false">⚔️ 装备</router-link>
-          <router-link to="/inventory" class="menu-item" @click="showMenu=false">🎒 背包</router-link>
-          <router-link to="/quest" class="menu-item" @click="showMenu=false">📋 任务</router-link>
-          <router-link to="/friend" class="menu-item" @click="showMenu=false">👥 好友</router-link>
-          <router-link to="/pet" class="menu-item" @click="showMenu=false">🐶 宠物</router-link>
-          <router-link to="/rank" class="menu-item" @click="showMenu=false">🏆 排行</router-link>
-          <router-link to="/arena" class="menu-item" @click="showMenu=false">⚔️ 竞技场</router-link>
-          <router-link to="/guild" class="menu-item" @click="showMenu=false">🏴 帮会</router-link>
-          <router-link to="/welfare" class="menu-item" @click="showMenu=false">🎁 福利</router-link>
-          <router-link to="/daily" class="menu-item" @click="showMenu=false">📅 每日</router-link>
-          <router-link to="/mall" class="menu-item" @click="showMenu=false">🛒 商城</router-link>
-          <router-link to="/codex" class="menu-item" @click="showMenu=false">📜 图鉴</router-link>
-          <router-link to="/dungeon" class="menu-item" @click="showMenu=false">🏔️ 副本</router-link>
-          <router-link to="/vip" class="menu-item" @click="showMenu=false">👑 月卡</router-link>
-          <router-link to="/fishing" class="menu-item" @click="showMenu=false">🎣 钓鱼</router-link>
-          <router-link to="/chat" class="menu-item" @click="showMenu=false">💬 聊天</router-link>
-          <a href="javascript:void(0)" class="menu-item logout-item" @click="doLogout">🚪 退出登录</a>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -114,7 +81,6 @@ const gameStore = useGameStore();
 const cityName = ref('');
 const places = ref([]);
 const currentPlaceId = ref(0);
-const showMenu = ref(false);
 
 const hpPct = computed(() => {
   const u = userStore.user;
@@ -196,23 +162,7 @@ async function goTo(p) {
   } catch (e) {}
 }
 
-async function refreshPlace() {
-  await load();
-  await globalAlert('刷新成功');
-}
-
-function goQuest() { router.push('/quest'); }
-function goMall() { router.push('/mall'); }
-async function goSign() {
-  try {
-    const d = await Api.get('/sign/status');
-    if (d.signed) { await globalAlert('今日已签到！'); }
-    else { router.push('/sign'); }
-  } catch { router.push('/sign'); }
-}
-
 async function doLogout() {
-  showMenu.value = false;
   userStore.logout();
   router.push('/login');
 }
@@ -263,6 +213,11 @@ onMounted(load);
   align-items: center;
 }
 .hud-left { display: flex; align-items: center; gap: 8px; }
+.hud-back {
+  font-size: 18px; color: #bdc3c7; text-decoration: none;
+  padding: 2px 6px; border-radius: 6px; transition: all 0.2s;
+}
+.hud-back:hover { background: rgba(255,255,255,0.08); color: #f0f0f0; }
 .hud-icon { font-size: 18px; }
 .hud-title { font-size: 14px; font-weight: 700; color: #f0f0f0; }
 .hud-actions { display: flex; align-items: center; gap: 2px; }
