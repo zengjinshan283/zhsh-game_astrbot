@@ -429,15 +429,37 @@ router.post('/event-action', authMiddleware, async (req, res, next) => {
         break;
       }
       case 'trade': {
-        // 商船交易：给玩家一些便宜货物或铜币
-        const roll = Math.random();
-        if (roll < 0.5) {
-          const money = Math.floor(Math.random() * 201) + 100;
-          await db.query('UPDATE `user` SET money = money + ? WHERE `id` = ?', [money, req.user.id]);
-          result.msg = `🤝 商船船员和你交换了航海图，获得 ${money} 铜币补偿。`;
-          result.moneyDelta = money;
+        // 商船交易：低价出售货物给玩家，可之后到市场卖出赚差价
+        const goods = await db.getAll(
+          `SELECT g.id, g.name, g.category, mp.base_price FROM goods g
+           JOIN market_price mp ON g.id=mp.goods_id
+           WHERE mp.city_id = (SELECT city_id FROM map WHERE id=? LIMIT 1)
+           ORDER BY RAND() LIMIT 1`,
+          [user.place_id]
+        );
+        if (goods.length > 0) {
+          const g = goods[0];
+          // 以市场价的30%出售给玩家（相当于利润空间）
+          const price = Math.max(1, Math.floor(g.base_price * 0.3));
+          const qty = Math.floor(Math.random() * 3) + 1;
+          const totalCost = price * qty;
+          const user2 = await db.getOne('SELECT money FROM user WHERE id=?', [req.user.id]);
+          if (user2.money >= totalCost) {
+            await db.query('UPDATE user SET money=money-? WHERE id=?', [totalCost, req.user.id]);
+            const existing = await db.getOne('SELECT id,quantity FROM cargo WHERE user_id=? AND goods_id=?', [req.user.id, g.id]);
+            if (existing) await db.query('UPDATE cargo SET quantity=quantity+? WHERE id=?', [qty, existing.id]);
+            else await db.insert('cargo', { user_id: req.user.id, goods_id: g.id, quantity: qty });
+            result.msg = `🤝 商船船员出售给你${g.name}×${qty}，单价${price}铜币（市场价${g.base_price}），可去市场转卖赚取差价！`;
+            result.goods = { id: g.id, name: g.name, qty, price, marketPrice: g.base_price };
+          } else {
+            result.msg = `🤝 商船船员出售${g.name}×${qty}，但铜币不足（需要${totalCost}铜币）。`;
+          }
         } else {
-          result.msg = '🤝 商船船员婉拒了你的请求，但送上了祝福。';
+          // 没有可用货物，给少量铜币
+          const money = Math.floor(Math.random() * 201) + 100;
+          await db.query('UPDATE user SET money=money+? WHERE id=?', [money, req.user.id]);
+          result.msg = `🤝 商船船员和你交换航海图，获得${money}铜币补偿。`;
+          result.moneyDelta = money;
         }
         break;
       }

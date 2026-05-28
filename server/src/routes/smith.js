@@ -28,6 +28,9 @@ async function getDegradeLevel() {
   return row ? parseInt(row.config_value) : 7;
 }
 
+// 强化保护符道具ID
+const PROTECT_ITEM_ID = 95090;
+
 // ─── 装备鉴定 ────────────────────────────────────────────
 // 词缀表（随机属性池）
 // 鉴定费用 = 500 + item.level_req * 100 铜币
@@ -187,7 +190,7 @@ router.get('/config', authMiddleware, async (req, res, next) => {
 
 router.post('/enhance', authMiddleware, async (req, res, next) => {
   try {
-    const { inventory_id } = req.body;
+    const { inventory_id, protect } = req.body;
     const inv = await db.getOne("SELECT inv.*, i.name, i.subtype, i.atk, i.def_val FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.id = ? AND inv.user_id = ? AND inv.equipped = 0", [inventory_id, req.user.id]);
     if (!inv) return res.status(400).json({ error: '物品不存在' });
     if (!['weapon','armor'].includes(inv.subtype)) return res.status(400).json({ error: '只有武器和防具可以强化' });
@@ -200,12 +203,20 @@ router.post('/enhance', authMiddleware, async (req, res, next) => {
     const user = await db.getOne('SELECT money FROM `user` WHERE `id` = ?', [req.user.id]);
     if (user.money < cost) return res.status(400).json({ error: `铜币不足！需要 ${cost}` });
 
+    // 检查保护符（+7以上必须使用）
+    const degradeLevel = await getDegradeLevel();
+    if (currentLevel >= degradeLevel) {
+      if (!protect) return res.status(400).json({ error: `+${currentLevel}强化需使用强化护符保护，传入 protect:true` });
+      const hasProtect = await db.getOne('SELECT id,quantity FROM inventory WHERE user_id=? AND item_id=? AND equipped=0 AND quantity>=1', [req.user.id, PROTECT_ITEM_ID]);
+      if (!hasProtect) return res.status(400).json({ error: '强化护符不足，请先在商城购买' });
+      await db.query('UPDATE inventory SET quantity=quantity-1 WHERE id=?', [hasProtect.id]);
+    }
+
     // 扣除铜币
     await db.query('UPDATE `user` SET money = money - ? WHERE `id` = ?', [cost, req.user.id]);
 
     // 成功率
     const rate = await getEnhanceConfig(currentLevel);
-    const degradeLevel = await getDegradeLevel();
     const roll = Math.floor(Math.random()*100)+1;
     const success = roll <= rate;
 
@@ -230,12 +241,13 @@ router.post('/enhance', authMiddleware, async (req, res, next) => {
         } catch(e) {}
       })();
     } else {
-      if (currentLevel >= degradeLevel) {
+      if (currentLevel >= degradeLevel && !protect) {
+        // 有保护符则不降级
         const newLevel = Math.max(0, currentLevel - 1);
         await db.update('inventory', { enhance_level: newLevel }, '`id` = ?', [inventory_id]);
         res.json({ success: false, level: newLevel, msg: `😡 强化失败！降级到 +${newLevel}`, downgraded: true });
       } else {
-        res.json({ success: false, level: currentLevel, msg: `😡 强化失败！仍是 +${currentLevel}` });
+        res.json({ success: false, level: currentLevel, msg: protect ? `😡 强化失败！强化护符保护了装备，+${currentLevel}不变` : `😡 强化失败！仍是 +${currentLevel}` });
       }
     }
   } catch(e){next(e);}
@@ -288,8 +300,87 @@ router.post('/repair', authMiddleware, async (req, res, next) => {
 
     await db.query('UPDATE `user` SET money = money - ? WHERE `id` = ?', [totalCost, req.user.id]);
     await db.query('UPDATE `inventory` SET durability = ? WHERE `id` = ?', [inv.durability_max, inv.id]);
-    res.json({ success: true, msg: `✅ ${inv.name} 修复完成！恢复了 ${missing} 点耐久度，消耗 ${totalCost} 铜币` });
+    res.json({ success: true, msg: `✅ ${inv.name}修复完成！恢复了 ${missing} 点耐久度，消耗 ${totalCost} 铜币` });
   } catch(e){next(e);}
+});
+
+// GET /api/smith/refine-items  可精炼装备列表
+router.get('/refine-items', authMiddleware, async (req, res, next) => {
+  try {
+    const items = await db.getAll(
+      `SELECT inv.id AS inv_id, inv.enhance_level, inv.refine_affixes, inv.is_identified,
+              i.id AS item_id, i.name, i.subtype, i.atk, i.def_val, i.level_req, i.quality, i.price_buy
+       FROM inventory inv JOIN item i ON inv.item_id = i.id
+       WHERE inv.user_id = ? AND inv.equipped = 0 AND i.subtype IN ('weapon','armor')
+         AND inv.is_identified = 1 AND inv.enhance_level >= 3
+       ORDER BY inv.enhance_level DESC`,
+      [req.user.id]
+    );
+    const result = items.map(inv => {
+      let refineAffixes = [];
+      try { if (inv.refine_affixes) refineAffixes = JSON.parse(inv.refine_affixes); } catch (_) {}
+      return { ...inv, refine_affixes: refineAffixes };
+    });
+    res.json({ items: result });
+  } catch (e) { next(e); }
+});
+
+// 精炼费用：enhance_level * 300 铜币
+async function getRefineCost(inv) {
+  return Math.max(100, ((inv.enhance_level || 0) * 300));
+}
+
+// 精炼一件装备
+router.post('/refine', authMiddleware, async (req, res, next) => {
+  try {
+    const { inventory_id } = req.body;
+    const inv = await db.getOne(
+      `SELECT inv.*, i.name, i.subtype, i.atk, i.def_val, i.level_req, i.quality
+       FROM inventory inv JOIN item i ON inv.item_id = i.id
+       WHERE inv.id = ? AND inv.user_id = ? AND inv.equipped = 0`,
+      [inventory_id, req.user.id]
+    );
+    if (!inv) return res.status(400).json({ error: '物品不存在' });
+    if (!['weapon','armor'].includes(inv.subtype)) return res.status(400).json({ error: '只有武器和防具可以精炼' });
+    if (!inv.is_identified) return res.status(400).json({ error: '该装备未鉴定，无法精炼' });
+    if ((inv.enhance_level || 0) < 3) return res.status(400).json({ error: '需要强化+3以上才能精炼' });
+
+    const cost = await getRefineCost(inv);
+    const user = await db.getOne('SELECT money FROM user WHERE id = ?', [req.user.id]);
+    if (user.money < cost) return res.status(400).json({ error: `铜币不足，需要${cost}铜币` });
+
+    // 已有精练词缀
+    let existing = [];
+    try { if (inv.refine_affixes) existing = JSON.parse(inv.refine_affixes); } catch (_) {}
+
+    // 从 item_affix 池中抽取新词缀（取2条，去重stat_key）
+    const pool = await db.getAll(
+      'SELECT * FROM item_affix WHERE level_req <= ? AND rarity <= 3 ORDER BY RAND()',
+      [inv.level_req]
+    );
+    const shuffled = pool.sort(() => Math.random() - 0.5);
+    const toAdd = [];
+    const usedStats = new Set(existing.map(a => a.stat_key));
+    for (const a of shuffled) {
+      if (usedStats.has(a.stat_key)) continue;
+      const val = Math.floor(Math.random() * (a.stat_max - a.stat_min + 1)) + a.stat_min;
+      toAdd.push({ name: a.affix_name, stat_key: a.stat_key, value: val });
+      usedStats.add(a.stat_key);
+      if (toAdd.length >= 2) break;
+    }
+    if (toAdd.length === 0) return res.status(400).json({ error: '精炼词缀库不足，请稍后重试' });
+
+    await db.query('UPDATE user SET money = money - ? WHERE id = ?', [cost, req.user.id]);
+    const newAffixes = [...existing, ...toAdd];
+    await db.query('UPDATE inventory SET refine_affixes = ? WHERE id = ?', [JSON.stringify(newAffixes), inventory_id]);
+
+    const bonusStats = toAdd.map(a => `${a.name}(${a.stat_key}+${a.value})`).join('、');
+    res.json({
+      success: true,
+      msg: `🔮 精炼成功！${inv.name} 新增词缀：${bonusStats}（精炼共${newAffixes.length}条）`,
+      refine_affixes: newAffixes,
+    });
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

@@ -17,7 +17,7 @@ const battleSessions = new Map();
 // ─── 装备加成计算（基础属性 + 鉴定词缀 + 套装 + 宠物被动技能）───
 async function computeEquipBonus(userId) {
   const equipped = await db.getAll(
-    `SELECT inv.id AS inv_id, inv.enhance_level, inv.is_identified, inv.identify_affixes,
+    `SELECT inv.id AS inv_id, inv.enhance_level, inv.is_identified, inv.identify_affixes, inv.refine_affixes,
             i.atk, i.def_val, i.set_name
      FROM inventory inv JOIN item i ON inv.item_id = i.id
      WHERE inv.user_id = ? AND inv.equipped = 1 AND i.subtype IN ('weapon','armor')`,
@@ -42,6 +42,19 @@ async function computeEquipBonus(userId) {
           if (a.stat_key === 'def') bonusDef += a.value;
           if (a.stat_key === 'hp') bonusHp += a.value;
           if (a.stat_key === 'agility') {} // future
+        }
+      } catch (_) {}
+    }
+
+    // 精炼词缀加成
+    if (eq.refine_affixes) {
+      try {
+        const rafixes = typeof eq.refine_affixes === 'string'
+          ? JSON.parse(eq.refine_affixes) : eq.refine_affixes;
+        for (const a of rafixes) {
+          if (a.stat_key === 'atk') bonusAtk += a.value;
+          if (a.stat_key === 'def') bonusDef += a.value;
+          if (a.stat_key === 'hp') bonusHp += a.value;
         }
       } catch (_) {}
     }
