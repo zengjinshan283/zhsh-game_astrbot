@@ -53,8 +53,8 @@
           <div class="ac-reward">
             <div class="acr-label">奖励</div>
             <div class="acr-val">{{ rewardText(a) }}</div>
-            <div v-if="a.achieved" class="acr-done">✅ 已达成</div>
-            <div v-else class="acr-btn">🔒 未解锁</div>
+            <div v-if="a.achieved" class="acr-done">✅ 奖励已发放</div>
+            <div v-else class="acr-btn">🔓 努力中</div>
           </div>
         </div>
       </div>
@@ -95,6 +95,7 @@ const filteredList = computed(() => {
 function rewardText(a) {
   if (a.reward_type === 'money') return `💰 ${a.reward_value} 铜币`;
   if (a.reward_type === 'exp') return `✨ ${a.reward_value} 经验`;
+  if (a.reward_type === 'title') return `🏅 称号：${a.title}`;
   if (a.reward_type === 'item') return `🎁 物品×${a.reward_value}`;
   return '—';
 }
