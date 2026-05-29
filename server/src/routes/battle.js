@@ -200,7 +200,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
 
     battle.sail_remaining_sec = Number(user.sail_remaining_sec || 0);
     battleSessions.set(req.user.id, battle);
-    res.json(buildBattleResponse(battle, user));
+    res.json(await buildBattleResponse(battle, user));
   } catch (err) { next(err); }
 });
 
@@ -255,7 +255,7 @@ router.post('/start', authMiddleware, async (req, res, next) => {
     if (petAtk > 0) battle.log.push({ type: 'info', text: `🐾 ${petName} 在一旁准备战斗！` });
 
     battleSessions.set(req.user.id, battle);
-    res.json(buildBattleResponse(battle, user));
+    res.json(await buildBattleResponse(battle, user));
   } catch (err) { next(err); }
 });
 
@@ -278,7 +278,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       if (battle.frozen) {
         battle.round++;
         battleSessions.set(req.user.id, battle);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
       // Apply atk multiplier from status
       const atkBoost = (battle.temp_atk_boost || 1) * (statusEffects.atkMult || 1.0);
@@ -306,7 +306,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         await handleMonsterKill(user, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       // Monster retaliates
@@ -315,7 +315,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         await handlePlayerDeath(user, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
     } else if (action === 'flee') {
@@ -326,31 +326,45 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         await statusUtil.clearDebuffsOnBattleEnd(req.user.id);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       } else {
         battle.log.push({ type: 'system', text: '逃跑失败！' });
         await monsterRetaliate(user, battle);
         if (user.hp <= 0) {
           await handlePlayerDeath(user, battle);
           battleSessions.delete(req.user.id);
-          return res.json(buildBattleResponse(battle, user));
+          return res.json(await buildBattleResponse(battle, user));
         }
       }
 
     } else if (action === 'capture') {
       if (!battle.captureable) {
         battle.log.push({ type: 'system', text: '这个怪物无法捕捉！' });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
       const petCount = await db.getVar('SELECT COUNT(*) FROM user_pet WHERE user_id = ?', [req.user.id]);
       if (petCount >= 3) {
         battle.log.push({ type: 'system', text: '宠物已满（最多3只）！' });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
       const hpLoss = 1 - (Math.max(0, battle.monster_hp) / battle.monster_hp_max);
       const rate = Math.min(99, Math.round(battle.capture_rate * (1 + hpLoss * 2)));
       if (randInt(1, 100) <= rate) {
-        await db.update('user', { pet_id: battle.monster_id, pet_name: battle.monster_name, pet_level: 1, pet_exp: 0 }, '`id` = ?', [req.user.id]);
+        // 创建宠物记录（与 pet.js /capture 相同逻辑）
+        const currentActive = await db.getVar('SELECT COUNT(*) FROM user_pet WHERE user_id = ? AND is_active = 1', [req.user.id]);
+        const isActive = currentActive === 0 ? 1 : 0;
+        const initHp = battle.monster_hp_max || 100;
+        const initAtk = Math.round((battle.monster_atk_min + battle.monster_atk_max) / 2 * 0.5);
+        const initDef = Math.round((battle.monster_def || 0) * 0.3);
+        const newPetId = await db.insert('user_pet', {
+          user_id: req.user.id, pet_id: battle.monster_id, nickname: battle.monster_name,
+          level: 1, exp: 0, is_active: isActive, created_at: Math.floor(Date.now() / 1000),
+          hp: initHp, hp_max: initHp, atk: initAtk, def_val: initDef, satiety: 100
+        });
+        // 同步 user 表（兼容旧字段）
+        if (isActive) {
+          await db.query('UPDATE user SET pet_id=?, pet_name=?, pet_level=1, pet_exp=0 WHERE id=?', [battle.monster_id, battle.monster_name, req.user.id]);
+        }
         battle.log.push({ type: 'info', text: `🎉 捕捉成功！${battle.monster_name} 成为了你的伙伴！（成功率${rate}%）` });
         battle.result = 'capture';
         battle.finished = true;
@@ -358,14 +372,14 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         battle.money_gained = 0;
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       } else {
         battle.log.push({ type: 'system', text: `捕捉失败！${battle.monster_name} 挣脱了…（成功率${rate}%）` });
         await monsterRetaliate(user, battle);
         if (user.hp <= 0) {
           await handlePlayerDeath(user, battle);
           battleSessions.delete(req.user.id);
-          return res.json(buildBattleResponse(battle, user));
+          return res.json(await buildBattleResponse(battle, user));
         }
       }
     } else if (action === 'skill') {
@@ -385,19 +399,19 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       if (userSkill.cooldown_end > now) {
         const remain = userSkill.cooldown_end - now;
         battle.log.push({ type: 'system', text: `${userSkill.name} 冷却中（${remain}秒）` });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       // Check level requirement
       if (user.level < userSkill.level_req) {
         battle.log.push({ type: 'system', text: `${userSkill.name} 需要 Lv.${userSkill.level_req}` });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       // Check MP
       if ((user.mp || 0) < userSkill.mp_cost) {
         battle.log.push({ type: 'system', text: `魔法值不足（需要${userSkill.mp_cost}点）` });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       // Deduct MP
@@ -433,7 +447,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         await handleMonsterKill(user, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       // Monster retaliates
@@ -442,7 +456,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         await handlePlayerDeath(user, battle);
         await resumeSailingIfNeeded(req.user.id, battle);
         battleSessions.delete(req.user.id);
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
     } else if (action === 'use_shortcut') {
       const slot = Number(req.body.slot);
@@ -453,7 +467,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       const invId = Number(fullUser && fullUser[field]);
       if (!invId) {
         battle.log.push({ type: 'system', text: `快捷栏槽位${slot}为空！` });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       const inv = await db.getOne(
@@ -463,7 +477,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       if (!inv) {
         await db.query(`UPDATE \`user\` SET ${field} = 0 WHERE \`id\` = ?`, [req.user.id]);
         battle.log.push({ type: 'system', text: `快捷栏槽位${slot}物品已不存在！` });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
 
       if (inv.item_hp > 0 && Number(user.hp) < Number(user.hp_max)) {
@@ -481,25 +495,26 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         if (user.hp <= 0) {
           await handlePlayerDeath(user, battle);
           battleSessions.delete(req.user.id);
-          return res.json(buildBattleResponse(battle, user));
+          return res.json(await buildBattleResponse(battle, user));
         }
       } else {
         battle.log.push({ type: 'system', text: `当前无法使用${inv.name}。` });
-        return res.json(buildBattleResponse(battle, user));
+        return res.json(await buildBattleResponse(battle, user));
       }
     }
 
     battle.round++;
     battleSessions.set(req.user.id, battle);
-    res.json(buildBattleResponse(battle, user));
+    res.json(await buildBattleResponse(battle, user));
   } catch (err) { next(err); }
 });
 
 // 获取当前战斗状态
-router.get('/state', authMiddleware, (req, res) => {
+router.get('/state', authMiddleware, async (req, res) => {
   const battle = battleSessions.get(req.user.id);
   if (!battle) return res.json({ inBattle: false });
-  res.json({ inBattle: true, ...buildBattleResponse(battle, null) });
+  const resp = await buildBattleResponse(battle, null);
+  res.json({ inBattle: true, ...resp });
 });
 
 
@@ -770,18 +785,15 @@ async function handleMonsterKill(user, battle) {
       else if (roll <= 99) quality = 3;   // purple
       else quality = 4;                    // orange
 
-      const itemRow = await db.getOne('SELECT name FROM `item` WHERE `id` = ?', [drop.item_id]);
-      // Insert inventory item
+      // Insert inventory item with per-instance quality
       const invId = await db.insert('inventory', {
         user_id: user.id,
         item_id: drop.item_id,
         quantity: qty,
         equipped: 0,
-        enhance_level: 0
+        enhance_level: 0,
+        quality: quality
       });
-
-      // Update item quality
-      await db.query('UPDATE `item` SET `quality` = ? WHERE `id` = ?', [quality, drop.item_id]);
 
       // Generate affixes if quality > 0
       if (quality > 0) {
@@ -800,10 +812,11 @@ async function handleMonsterKill(user, battle) {
         }
         const qualityNames = ['', '绿色', '蓝色', '紫色', '橙色'];
         battle.log.push({ type: 'info', text: `💎 获得${qualityNames[quality]}装备！` });
-        // 收集到 loot 列表（battle.loot 由调用方保证是数组）
-        if (!battle.loot) battle.loot = [];
-        battle.loot.push({ item_id: drop.item_id, name: itemRow ? itemRow.name : '???', qty, quality });
       }
+      // Always add to loot list (need itemRow for name even if quality=0)
+      const itemRow = await db.getOne('SELECT name FROM `item` WHERE `id` = ?', [drop.item_id]);
+      if (!battle.loot) battle.loot = [];
+      battle.loot.push({ item_id: drop.item_id, name: itemRow ? itemRow.name : '???', qty, quality });
     }
   }
 
@@ -852,7 +865,7 @@ async function handlePlayerDeath(user, battle) {
   });
 }
 
-function buildBattleResponse(battle, user) {
+async function buildBattleResponse(battle, user) {
   const resp = {
     inBattle: !battle.finished,
     finished: battle.finished,
@@ -886,6 +899,27 @@ function buildBattleResponse(battle, user) {
     resp.player_mp_max = user.mp_max || 100;
     resp.pet_name = battle.pet_name;
     resp.pet_satiety = battle.pet_satiety || 0;
+    // Active status effects (buffs/debuffs) with definitions for frontend rendering
+    try {
+      const rawEffects = user.status_effects ? (typeof user.status_effects === 'string' ? JSON.parse(user.status_effects) : user.status_effects) : [];
+      const now = Math.floor(Date.now() / 1000);
+      const defs = await db.getAll('SELECT id, name, icon, type, tick_seconds, tick_damage, description FROM `status_effect`');
+      resp.active_statuses = rawEffects
+        .filter(s => !s.end_at || s.end_at > now)
+        .map(s => {
+          const def = defs.find(d => d.id === s.id);
+          return {
+            id: s.id,
+            name: def ? def.name : `状态${s.id}`,
+            icon: def ? def.icon : '💫',
+            type: def ? def.type : 0,
+            stack: s.stack || 1,
+            remaining_sec: s.end_at ? Math.max(0, s.end_at - now) : null,
+            tick_sec: def ? def.tick_seconds : 0,
+            description: def ? def.description : ''
+          };
+        });
+    } catch (e) { resp.active_statuses = []; }
     resp.pet_up_id = battle.pet_up_id || 0;
   }
   // Calculate capture rate

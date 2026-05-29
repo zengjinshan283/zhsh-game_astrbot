@@ -33,6 +33,13 @@
         <div class="hp-bar">
           <div class="hp-fill player-fill" :class="{ low: playerHpPct < 30 }" :style="{ width: playerHpPct + '%' }"></div>
         </div>
+
+        <!-- 状态效果 -->
+        <div v-if="battle.active_statuses && battle.active_statuses.length" class="status-row">
+          <span v-for="s in battle.active_statuses" :key="s.id" class="status-badge" :title="s.description">
+            {{ s.icon }}<span v-if="s.remaining_sec != null" class="status-timer">{{ Math.ceil((s.remaining_sec || 0) / 60) }}</span>
+          </span>
+        </div>
       </div>
 
       <!-- 战斗日志 -->
@@ -252,6 +259,9 @@ async function tryCapture() { if (await globalConfirm(`尝试捕捉？(成功率
 .monster-fill.low { background: linear-gradient(90deg, #8b0000, #ff5544); }
 .player-fill { background: linear-gradient(90deg, #2980b9, #3498db); }
 .player-fill.low { background: linear-gradient(90deg, #8b1a1a, #ff5544); }
+.status-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.status-badge { display: inline-flex; align-items: center; gap: 2px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
+.status-timer { font-size: 10px; color: #e2b70a; }
 .log-card {
   flex: 1; display: flex; flex-direction: column; min-height: 0;
   background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
