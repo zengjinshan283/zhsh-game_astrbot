@@ -155,9 +155,9 @@ const msgType = ref('');
 const newName = ref('');
 const renameTarget = ref(null);
 
-const petColors = { 0: '#cfc19e', 1: '#3f6a4a', 2: '#9b59b6', 3: '#c9a758' };
-const petTypeNames = { 0: '普通', 1: '稀有', 2: '史诗', 3: '传说' };
-const petEmojis = { 1: '🐱', 2: '🦅', 3: '🦊', 4: '🐻' };
+const petColors = { 1: '#aaaaaa', 2: '#4caf50', 3: '#2196f3', 4: '#9c27b0', 5: '#ff9800' };
+const petTypeNames = { 1: '飞行', 2: '野兽', 3: '昆虫', 4: '海兽', 5: '灵兽' };
+const petEmojis = { 1: '🐱', 2: '🦅', 3: '🦊', 4: '🐻', 5: '🦅', 6: '🦊', 7: '🐙', 8: '🦄', 9: '🦅', 10: '🐵' };
 
 const activePetExpPct = computed(() => activePet.value ? Math.round(activePet.value.exp / activePet.value.exp_max * 100) : 0);
 const satColor = computed(() => {
