@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(adminAuth);
 
 // 玩家列表（支持等级范围、金币范围搜索）
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const { page = 1, pageSize = 20, keyword, online, levelMin, levelMax, moneyMin, moneyMax } = req.query;
     let where = '1=1';
@@ -35,13 +35,11 @@ router.get('/', async (req, res) => {
       [...params, parseInt(pageSize), (parseInt(page) - 1) * parseInt(pageSize)]
     );
     res.json({ code: 0, data: { list, total, page: parseInt(page), pageSize: parseInt(pageSize) }, message: 'success' });
-  } catch (err) {
-    res.status(500).json({ code: 500, message: err.message });
-  }
+  } catch (err) { next(err); }
 });
 
 // 玩家详情（增强：宠物、好友、航海状态）
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const uid = req.params.id;
     const user = await db.getOne(
@@ -148,13 +146,11 @@ router.put('/:id', async (req, res) => {
     await logAction(req.admin.id, 'update', 'user', `编辑玩家: ${old.username}`, req);
     await logChangelog(req.admin.id, 'user', id, 'update', old, { ...old, ...data }, req);
     res.json({ code: 0, message: 'success' });
-  } catch (err) {
-    res.status(500).json({ code: 500, message: err.message });
-  }
+  } catch (err) { next(err); }
 });
 
 // 重置密码
-router.post('/:id/reset-password', async (req, res) => {
+router.post('/:id/reset-password', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     const user = await db.getOne('SELECT username FROM user WHERE id = ?', [id]);
@@ -164,13 +160,11 @@ router.post('/:id/reset-password', async (req, res) => {
     await db.update('user', { password: newPwd }, 'id = ?', [id]);
     await logAction(req.admin.id, 'update', 'user', `重置玩家密码: ${user.username}`, req);
     res.json({ code: 0, message: '密码已重置为 123456' });
-  } catch (err) {
-    res.status(500).json({ code: 500, message: err.message });
-  }
+  } catch (err) { next(err); }
 });
 
 // 发送系统消息
-router.post('/:id/message', async (req, res) => {
+router.post('/:id/message', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     const { message } = req.body;
@@ -187,13 +181,11 @@ router.post('/:id/message', async (req, res) => {
     });
     await logAction(req.admin.id, 'update', 'user', `发送系统消息给 ${user.username}: ${message.trim()}`, req);
     res.json({ code: 0, message: '消息已发送' });
-  } catch (err) {
-    res.status(500).json({ code: 500, message: err.message });
-  }
+  } catch (err) { next(err); }
 });
 
 // 玩家操作 - 封禁/解封 (设置sid为空)
-router.post('/:id/ban', async (req, res) => {
+router.post('/:id/ban', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     const old = await db.getOne('SELECT * FROM user WHERE id = ?', [id]);
@@ -201,12 +193,10 @@ router.post('/:id/ban', async (req, res) => {
     await db.update('user', { sid: 'banned_' + Date.now() }, 'id = ?', [id]);
     await logAction(req.admin.id, 'ban', 'user', `封禁玩家: ${old.username}`, req);
     res.json({ code: 0, message: '已封禁' });
-  } catch (err) {
-    res.status(500).json({ code: 500, message: err.message });
-  }
+  } catch (err) { next(err); }
 });
 
-router.post('/:id/unban', async (req, res) => {
+router.post('/:id/unban', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     const old = await db.getOne('SELECT * FROM user WHERE id = ?', [id]);

@@ -22,7 +22,7 @@ router.get('/list', adminAuth, async (req, res, next) => {
     const params = [];
     if (type) { where = 'WHERE type = ?'; params.push(type); }
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
-    const rows = await db.getAll(`SELECT c.*, (SELECT COUNT(*) FROM cdkey_log cl WHERE cl.cdkey_id=c.id) as actual_used FROM cdkey c ${where} ORDER BY c.id DESC LIMIT ${parseInt(pageSize)} OFFSET ${offset}`, params);
+    const rows = await db.getAll(`SELECT c.*, (SELECT COUNT(*) FROM cdkey_log cl WHERE cl.cdkey_id=c.id) as actual_used FROM cdkey c ${where} ORDER BY c.id DESC LIMIT ? OFFSET ?`, [...params, parseInt(pageSize), offset]);
     const total = await db.getVar(`SELECT COUNT(*) as v FROM cdkey c ${where}`, params);
     res.json({ rows, total, page: parseInt(page), pageSize: parseInt(pageSize) });
   } catch (err) { next(err); }

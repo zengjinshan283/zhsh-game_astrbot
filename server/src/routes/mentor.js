@@ -82,7 +82,7 @@ router.post('/graduate', authMiddleware, async (req, res, next) => {
 });
 
 // 师徒排行榜
-router.get('/ranking', async (req, res, next) => {
+router.get('/ranking', authMiddleware, async (req, res, next) => {
   try {
     const top = await db.getAll(
       'SELECT id, username, level, apprentice_count, mentor_contribution FROM `user` WHERE is_mentor = 1 ORDER BY mentor_contribution DESC, apprentice_count DESC LIMIT 20'

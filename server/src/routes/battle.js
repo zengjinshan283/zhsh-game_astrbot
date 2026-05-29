@@ -462,9 +462,8 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       const slot = Number(req.body.slot);
       if (slot < 1 || slot > 3) return res.status(400).json({ error: '无效槽位' });
 
-      const field = `shortcut_slot_${slot}`;
-      const fullUser = await db.getOne(`SELECT ${field} FROM \`user\` WHERE \`id\` = ?`, [req.user.id]);
-      const invId = Number(fullUser && fullUser[field]);
+      const fullUser = await db.getOne(`SELECT \`shortcut_slot_${slot}\` AS slot_val FROM \`user\` WHERE \`id\` = ?`, [req.user.id]);
+      const invId = Number(fullUser && fullUser.slot_val);
       if (!invId) {
         battle.log.push({ type: 'system', text: `快捷栏槽位${slot}为空！` });
         return res.json(await buildBattleResponse(battle, user));
@@ -475,7 +474,7 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         [invId, req.user.id]
       );
       if (!inv) {
-        await db.query(`UPDATE \`user\` SET ${field} = 0 WHERE \`id\` = ?`, [req.user.id]);
+        await db.query(`UPDATE \`user\` SET \`shortcut_slot_${slot}\` = 0 WHERE \`id\` = ?`, [req.user.id]);
         battle.log.push({ type: 'system', text: `快捷栏槽位${slot}物品已不存在！` });
         return res.json(await buildBattleResponse(battle, user));
       }
@@ -844,7 +843,6 @@ async function handlePlayerDeath(user, battle) {
       }
     }
   } catch(e) { console.error('[DEATH] Error finding tavern:', e.message); }
-  console.log('[DEATH] user.place_id=', user.place_id, 'tavernId=', tavernId, 'tavernName=', tavernName);
   await db.query('UPDATE `user` SET hp=?, money=GREATEST(0, money-?), place_id=? WHERE `id` = ?', [newHp, lostMoney, tavernId, user.id]);
   user.hp = newHp; user.money = Math.max(0, Number(user.money) - lostMoney); user.place_id = tavernId;
 
