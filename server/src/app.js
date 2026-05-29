@@ -4,10 +4,16 @@ const cors = require('cors');
 const path = require('path');
 const config = require('./config');
 const GameWsServer = require('./ws/WsServer');
+const errorHandler = require('./middleware/errorHandler');
+const db = require('./db');
 
 const app = express();
 app.set("trust proxy", 1);
-app.use(cors());
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || '*',
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../../client/dist')));
@@ -69,6 +75,9 @@ app.use('/api/admin/logs', require('./routes/admin/logs'));
 app.use('/api/admin/changelogs', require('./routes/admin/changelogs'));
 app.use('/api/admin/cdkey', require('./routes/admin/cdkey'));
 
+// ========== 全局错误处理 ==========
+app.use(errorHandler);
+
 // ========== 错误处理 & 兜底路由 ==========
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
@@ -85,5 +94,5 @@ const server = app.listen(config.port, () => {
 const wsServer = new GameWsServer();
 wsServer.start(config.wsPort);
 
-process.on('SIGTERM', () => { server.close(); process.exit(0); });
-process.on('SIGINT', () => { server.close(); process.exit(0); });
+process.on('SIGTERM', () => { server.close(); db.pool.end(); process.exit(0); });
+process.on('SIGINT', () => { server.close(); db.pool.end(); process.exit(0); });

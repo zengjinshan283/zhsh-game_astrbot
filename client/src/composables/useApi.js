@@ -2,8 +2,9 @@
  * API 请求封装
  */
 import { useUserStore } from '../stores/user';
+import router from '../router';
 
-const BASE = '/api';
+const BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export async function api(path, options = {}) {
   const userStore = useUserStore();
@@ -12,17 +13,27 @@ export async function api(path, options = {}) {
     headers['Authorization'] = `Bearer ${userStore.token}`;
   }
 
-  const res = await fetch(`${BASE}${path}`, {
-    method: options.method || 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: options.method || 'GET',
+      headers,
+      body: options.body ? JSON.stringify(options.body) : undefined
+    });
+  } catch (e) {
+    throw new Error('网络连接失败，请检查网络');
+  }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    throw new Error('服务器响应异常');
+  }
 
   if (res.status === 401) {
     userStore.logout();
-    window.location.href = '/login';
+    router.push('/login');
     throw new Error('登录已过期');
   }
 

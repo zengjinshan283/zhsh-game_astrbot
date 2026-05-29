@@ -284,9 +284,16 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       const atkBoost = (battle.temp_atk_boost || 1) * (statusEffects.atkMult || 1.0);
       const defReduction = 1.0 - Math.max(0, (statusEffects.defMult || 1.0) - 1.0);
       const pAtk = Math.floor(randInt(battle.e_atk_min, battle.e_atk_max) * atkBoost);
-      const pDmg = Math.max(1, Math.floor((pAtk - battle.monster_def * (1 - defReduction))));
-      battle.monster_hp -= pDmg;
-      battle.log.push({ type: 'attack', text: `你挥剑攻击${battle.monster_name}，造成 ${pDmg} 点伤害！` });
+      const pDmgBase = Math.floor((pAtk - battle.monster_def * (1 - defReduction)));
+      const pDmg = Math.max(Math.floor(pAtk * 0.1), pDmgBase);
+      // 暴击检测（ agility/1000 = 暴击率）
+      const critRate = Math.min(50, Math.floor((user.agility || 0) / 10));
+      const isCrit = randInt(1, 100) <= critRate;
+      const finalDmg = isCrit ? pDmg * 2 : pDmg;
+      battle.monster_hp -= finalDmg;
+      battle.log.push({ type: 'attack', text: isCrit
+        ? `💥 你发动暴击！对${battle.monster_name}造成 ${finalDmg} 点伤害！`
+        : `你挥剑攻击${battle.monster_name}，造成 ${pDmg} 点伤害！` });
 
       // Weapon durability -1 to -2
       const weaponLoss = randInt(1, 2);
@@ -319,7 +326,10 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       }
 
     } else if (action === 'flee') {
-      if (randInt(1, 100) <= 50) {
+      // 逃跑成功率：基础30% + agility贡献，最高85%
+      const baseRate = 30;
+      const fleeRate = Math.min(85, baseRate + Math.floor((user.agility || 0) / 5));
+      if (randInt(1, 100) <= fleeRate) {
         battle.log.push({ type: 'info', text: '你成功逃离了战斗！' });
         battle.result = 'flee';
         battle.finished = true;
@@ -429,9 +439,15 @@ router.post('/action', authMiddleware, async (req, res, next) => {
         const hits = skill_id === 3 ? 2 : 1; // Skill 3 = Double Strike (2 hits)
         for (let h = 0; h < hits; h++) {
           const pAtk = randInt(battle.e_atk_min, battle.e_atk_max);
-          const pDmg = Math.max(1, Math.floor((pAtk * Number(userSkill.atk_multiplier)) - battle.monster_def));
-          battle.monster_hp -= pDmg;
-          battle.log.push({ type: 'skill', text: `你施展了${userSkill.name}，造成 ${pDmg} 点伤害！` });
+          const pDmgBase = Math.floor((pAtk * Number(userSkill.atk_multiplier)) - battle.monster_def);
+          const pDmg = Math.max(Math.floor(pAtk * 0.1), pDmgBase);
+          const critRate = Math.min(50, Math.floor((user.agility || 0) / 10));
+          const isCrit = randInt(1, 100) <= critRate;
+          const finalDmg = isCrit ? pDmg * 2 : pDmg;
+          battle.monster_hp -= finalDmg;
+          battle.log.push({ type: 'skill', text: isCrit
+            ? `💥 你施展了${userSkill.name}，暴击造成 ${finalDmg} 点伤害！`
+            : `你施展了${userSkill.name}，造成 ${pDmg} 点伤害！` });
         }
       } else if (userSkill.type === 2) {
         // Defense skill - temporarily boost def (handled in retaliation calc via battle state)
@@ -545,14 +561,21 @@ async function monsterRetaliate(user, battle) {
   }
 
   const mAtk = randInt(battle.monster_atk_min, battle.monster_atk_max);
+  // 怪物暴击率（默认5%）
+  const mCritRate = battle.monster_crit_rate || 5;
+  const mIsCrit = randInt(1, 100) <= mCritRate;
+  const mCritMult = mIsCrit ? 2 : 1;
   // Apply temp defense boost from skill
   const defBoost = battle.temp_def_boost || 1;
   const effectiveDef = Math.floor(Number(user.def) * defBoost);
-  const mDmg = Math.max(1, mAtk - effectiveDef);
+  const mDmgBase = (mAtk - effectiveDef) * mCritMult;
+  const mDmg = Math.max(1, mDmgBase);
   const newHp = Math.max(0, Number(user.hp) - mDmg);
   await db.query('UPDATE `user` SET hp = ? WHERE `id` = ?', [newHp, user.id]);
   user.hp = newHp;
-  battle.log.push({ type: 'defend', text: `${battle.monster_name}反击，对你造成 ${mDmg} 点伤害！` });
+  battle.log.push({ type: 'defend', text: mIsCrit
+    ? `${battle.monster_name}发动暴击，对你造成 ${mDmg} 点伤害！`
+    : `${battle.monster_name}反击，对你造成 ${mDmg} 点伤害！` });
   battle.round++;
 
   // Ship takes damage during pirate battles (from_sail=true)
