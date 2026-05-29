@@ -20,6 +20,12 @@
           <button v-if="isConfirm" class="modal-btn" style="flex:1;padding:10px;border-radius:30px;font-size:14px;font-weight:bold;background:#5f4a31;border:1px solid #bb9f6b;color:#f7efdb;cursor:pointer;box-shadow:0 2px 0 #2f2418;" @click="confirmCancel">取消</button>
           <button class="modal-btn" style="flex:1;padding:10px;border-radius:30px;font-size:14px;font-weight:bold;background:#b89b4c;border:1px solid #c9a758;color:#141e0a;cursor:pointer;box-shadow:0 2px 0 #7a6848;" @click="confirmOk">确定</button>
         </div>
+        <div v-if="confirmExtraOpts?.checkbox" style="padding:0 16px 16px;text-align:center;">
+          <label style="font-size:12px;color:#c9a758;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+            <input type="checkbox" v-model="confirmExtraOpts.checkbox.checked" style="width:14px;height:14px;" />
+            {{ confirmExtraOpts.checkbox.label }}
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -36,7 +42,7 @@ import BattleOverlay from './components/BattleOverlay.vue';
 import NpcDialogOverlay from './components/NpcDialogOverlay.vue';
 import GuideOverlay from './components/GuideOverlay.vue';
 import { useGameWS } from './composables/useGameWS';
-import { visible, title, message, isConfirm, confirmOk, confirmCancel } from './composables/useConfirm';
+import { visible, title, message, isConfirm, confirmExtraOpts, confirmOk, confirmCancel } from './composables/useConfirm';
 
 const userStore = useUserStore();
 const gameStore = useGameStore();

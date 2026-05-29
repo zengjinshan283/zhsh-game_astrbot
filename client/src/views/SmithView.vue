@@ -276,9 +276,16 @@ async function loadRepairItems() {
 async function enhance(id, name, level) {
   if (level >= 10) return;
   const protectHint = level >= 7 ? '⚠️ +7以上失败降级，使用保护符可防止降级' : '';
-  if (!(await globalConfirm('花费' + getCost(level) + '铜强化? 成功率' + getRate(level) + '%' + (level >= 7 ? ' 失败降级' : '') + '\n' + protectHint))) return;
+  const useProtect = { checkbox: { label: '💍 使用强化护符保护（防止降级）', checked: false } };
+  const ok = await globalConfirm(
+    '花费' + getCost(level) + '铜强化? 成功率' + getRate(level) + '%' + (level >= 7 ? ' 失败降级' : '') + '\n' + protectHint,
+    '',
+    useProtect
+  );
+  if (!ok) return;
   try {
-    const d = await Api.post('/smith/enhance', { inventory_id: id });
+    const protect = level >= 7 ? useProtect.checkbox.checked : false;
+    const d = await Api.post('/smith/enhance', { inventory_id: id, protect });
     msg.value = d.msg; msgType.value = d.success ? 'success' : 'error';
     const me = await Api.get('/auth/me'); userStore.updateUser(me.user);
     await load();
