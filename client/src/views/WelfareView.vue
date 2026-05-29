@@ -150,6 +150,7 @@ const claiming = ref(false);
 const activeTab = ref('welfare');
 const status = ref({});
 const claimedDays = ref([]);
+const userLevel = ref(0);
 const online = ref({});
 
 const tabs = [
@@ -161,9 +162,18 @@ const tabs = [
 
 const CYCLE_MINUTES = 60;
 const ONLINE_TIERS = [
-  { minutes: 10, reward_type: 'money', reward_value: 100, quantity: 0 },
-  { minutes: 30, reward_type: 'item', reward_value: 0, quantity: 1 },
-  { minutes: 60, reward_type: 'mixed', reward_value: 200, quantity: 2 }
+  { minutes: 5,  reward_type: 'money', reward_value: 100,  quantity: 1 },
+  { minutes: 10, reward_type: 'money', reward_value: 200,  quantity: 1 },
+  { minutes: 15, reward_type: 'money', reward_value: 300,  quantity: 1 },
+  { minutes: 20, reward_type: 'money', reward_value: 500,  quantity: 1 },
+  { minutes: 25, reward_type: 'item',  reward_value: 95020, quantity: 1 },
+  { minutes: 30, reward_type: 'money', reward_value: 800,  quantity: 1 },
+  { minutes: 35, reward_type: 'money', reward_value: 1000, quantity: 1 },
+  { minutes: 40, reward_type: 'money', reward_value: 1500, quantity: 1 },
+  { minutes: 45, reward_type: 'item',  reward_value: 95021, quantity: 1 },
+  { minutes: 50, reward_type: 'money', reward_value: 2000, quantity: 1 },
+  { minutes: 55, reward_type: 'money', reward_value: 2500, quantity: 1 },
+  { minutes: 60, reward_type: 'both',  reward_value: 95073, quantity: 1 },
 ];
 
 const ITEM_NAMES = { 3001: '千银矿石', 96: '体力宝', 94: '龙泉水', 2001: '月华密令', 2002: '龙门镖旗' };
@@ -176,14 +186,20 @@ function fmtTime(mins) {
   return h > 0 ? `${h}小时${m}分` : `${m}分钟`;
 }
 
-function canClaimMilestone(m) { return !m.claimed && (status.value.level || 0) >= m.level; }
+function canClaimMilestone(m) { return !m.claimed && userLevel.value >= m.level; }
 
 async function load() {
-  try { const d = await Api.get('/welfare/status'); status.value = d; claimedDays.value = d.claimedDays || []; } catch (e) {} finally { loading.value = false; }
+  try {
+    const d = await Api.get('/welfare/status');
+    status.value = d;
+    claimedDays.value = d.claimedDays || [];
+    userLevel.value = d.user_level || 0;
+  } catch (e) { globalAlert(e.message); }
+  finally { loading.value = false; }
 }
 
 async function loadOnline() {
-  try { const d = await Api.get('/welfare/online'); online.value = d; } catch (e) {}
+  try { const d = await Api.get('/welfare/online-status'); online.value = d; } catch (e) {}
 }
 
 async function claimStarter() {
@@ -200,7 +216,7 @@ async function claimLogin() {
 
 async function claimMilestone(level) {
   claiming.value = true;
-  try { const d = await Api.post(`/welfare/claim-milestone/${level}`); globalAlert(d.msg); await load(); } catch (e) { globalAlert(e.message); }
+  try { const d = await Api.post('/welfare/claim-milestone', { level }); globalAlert(d.msg); await load(); } catch (e) { globalAlert(e.message); }
   finally { claiming.value = false; }
 }
 
