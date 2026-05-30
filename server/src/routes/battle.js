@@ -7,6 +7,7 @@ const { authMiddleware } = require('../middleware/auth');
 const config = require('../config').game;
 const statusUtil = require('../utils/status');
 const { triggerAchievements } = require('./achievement');
+const { calcTalentBonuses } = require('./talent');
 
 const router = express.Router();
 function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
@@ -128,11 +129,13 @@ async function persistDurability(userId) {
 router.post('/start-pirate', authMiddleware, async (req, res, next) => {
   try {
     const user = await db.getOne(
-      'SELECT id, username, level, hp, hp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, sail_time, sail_paused, sail_remaining_sec FROM `user` WHERE `id` = ?',
+      'SELECT id, username, level, hp, hp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, talent_points, talents, sail_time, sail_paused, sail_remaining_sec FROM `user` WHERE `id` = ?',
       [req.user.id]
     );
     if (!user) return res.status(404).json({ error: '角色不存在' });
     if (user.hp <= 0) return res.status(400).json({ error: '你已经倒下了，请回酒馆休息' });
+    const userTalents = (user.talents && typeof user.talents === 'string') ? JSON.parse(user.talents) : (user.talents || {});
+    const talentBonus = await calcTalentBonuses(userTalents);
     if (!user.sail_time) return res.status(400).json({ error: '当前不在航行中' });
     if (!user.sail_paused) {
       const speedShip = await db.getOne("SELECT speed FROM `ship` WHERE `id`=?", [user.ship_id || 0]);
@@ -186,6 +189,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       monster_id: pirate.id, monster_name: pirate.name,
       monster_hp: Number(pirate.hp), monster_hp_max: Number(pirate.hp),
       monster_atk_min: Number(pirate.atk_min), monster_atk_max: Number(pirate.atk_max), monster_def: Number(pirate.def),
+      monster_crit_rate: 5,
       monster_exp: Number(pirate.exp_reward), monster_money_min: Math.floor(Number(pirate.money) * 0.9), monster_money_max: Math.floor(Number(pirate.money) * 1.1),
       monster_desc: pirate.description || '',
       captureable: 0, capture_rate: 0,
@@ -194,6 +198,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
       log: [{ type: 'info', text: '🏴‍☠️ 海盗船逼近！战斗开始！' }],
       equip_bonus: { bonusAtk, bonusDef, bonusHp },
+      talent_bonus: talentBonus,
       e_atk_min: eAtkMin, e_atk_max: eAtkMax,
     };
     if (petAtk > 0) battle.log.push({ type: 'info', text: `🐾 ${petName} 在一旁准备战斗！` });
@@ -209,10 +214,12 @@ router.post('/start', authMiddleware, async (req, res, next) => {
   try {
     const { monster_id } = req.body;
     const user = await db.getOne(
-      'SELECT id, username, level, hp, hp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, sail_time, sail_paused, sail_remaining_sec FROM `user` WHERE `id` = ?',
+      'SELECT id, username, level, hp, hp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, talent_points, talents, sail_time, sail_paused, sail_remaining_sec FROM `user` WHERE `id` = ?',
       [req.user.id]
     );
     if (user.hp <= 0) return res.status(400).json({ error: '你已经倒下了，请回酒店休息' });
+    const userTalents = (user.talents && typeof user.talents === 'string') ? JSON.parse(user.talents) : (user.talents || {});
+    const talentBonus = await calcTalentBonuses(userTalents);
 
     const monster = await db.getOne('SELECT * FROM `monster` WHERE `id` = ?', [monster_id]);
     if (!monster) return res.status(404).json({ error: '怪物不存在' });
@@ -243,6 +250,7 @@ router.post('/start', authMiddleware, async (req, res, next) => {
       monster_id, monster_name: monster.name,
       monster_hp: Number(monster.hp), monster_hp_max: Number(monster.hp),
       monster_atk_min: Number(monster.atk_min), monster_atk_max: Number(monster.atk_max), monster_def: Number(monster.def),
+      monster_crit_rate: monster.crit_rate || 5,
       monster_exp: Number(monster.exp), monster_money_min: Math.floor(Number(monster.money) * 0.9), monster_money_max: Math.floor(Number(monster.money) * 1.1),
       monster_desc: monster.description || '',
       captureable: Number(monster.captureable) || 0, capture_rate: Number(monster.capture_rate) || 0,
@@ -250,6 +258,7 @@ router.post('/start', authMiddleware, async (req, res, next) => {
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
       log: [{ type: 'info', text: `你遭遇了${monster.name}！` }],
       equip_bonus: { bonusAtk, bonusDef, bonusHp },
+      talent_bonus: talentBonus,
       e_atk_min: eAtkMin, e_atk_max: eAtkMax,
     };
     if (petAtk > 0) battle.log.push({ type: 'info', text: `🐾 ${petName} 在一旁准备战斗！` });
@@ -267,11 +276,13 @@ router.post('/action', authMiddleware, async (req, res, next) => {
     if (!battle || battle.finished) return res.status(400).json({ error: '没有进行中的战斗' });
 
     const user = await db.getOne(
-      'SELECT id, username, level, hp, hp_max, mp, mp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, exp, exp_max FROM `user` WHERE `id` = ?',
+      'SELECT id, username, level, hp, hp_max, mp, mp_max, atk_min, atk_max, def, agility, pet_id, place_id, money, exp, exp_max, talent_points, talents FROM `user` WHERE `id` = ?',
       [req.user.id]
     );
-
     if (action === 'attack') {
+      const userTalents = (user.talents && typeof user.talents === 'string') ? JSON.parse(user.talents) : (user.talents || {});
+      const talentBonus = await calcTalentBonuses(userTalents);
+      battle.talent_bonus = talentBonus;
       // Load & preprocess status effects
       const { effects: statusEffects, activeStatuses } = await statusUtil.preBattleProcess(req.user.id, user, battle);
       // Frozen: skip attack
@@ -283,13 +294,21 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       // Apply atk multiplier from status
       const atkBoost = (battle.temp_atk_boost || 1) * (statusEffects.atkMult || 1.0);
       const defReduction = 1.0 - Math.max(0, (statusEffects.defMult || 1.0) - 1.0);
-      const pAtk = Math.floor(randInt(battle.e_atk_min, battle.e_atk_max) * atkBoost);
+      // 天赋攻击加成（atk_pct）
+      const atkPct = (talentBonus.atk_pct || 0) / 100;
+      const pAtk = Math.floor(randInt(battle.e_atk_min, battle.e_atk_max) * atkBoost * (1 + atkPct));
       const pDmgBase = Math.floor((pAtk - battle.monster_def * (1 - defReduction)));
       const pDmg = Math.max(Math.floor(pAtk * 0.1), pDmgBase);
-      // 暴击检测（ agility/1000 = 暴击率）
-      const critRate = Math.min(50, Math.floor((user.agility || 0) / 10));
+      // 暴击检测（基础 agility/10 + 天赋暴击率，上限50%）
+      const critRate = Math.min(50, Math.floor((user.agility || 0) / 10) + (talentBonus.crit_pct || 0));
       const isCrit = randInt(1, 100) <= critRate;
       const finalDmg = isCrit ? pDmg * 2 : pDmg;
+      // 天赋反击率（受怪物攻击时固定概率反击）
+      if (talentBonus.counter_pct > 0 && randInt(1, 100) <= talentBonus.counter_pct) {
+        const counterDmg = Math.max(1, Math.floor(pDmg * 0.5));
+        battle.monster_hp -= counterDmg;
+        battle.log.push({ type: 'attack', text: `⚔️ 天赋反击！额外造成 ${counterDmg} 点伤害！` });
+      }
       battle.monster_hp -= finalDmg;
       battle.log.push({ type: 'attack', text: isCrit
         ? `💥 你发动暴击！对${battle.monster_name}造成 ${finalDmg} 点伤害！`
@@ -561,15 +580,17 @@ async function monsterRetaliate(user, battle) {
   }
 
   const mAtk = randInt(battle.monster_atk_min, battle.monster_atk_max);
-  // 怪物暴击率（默认5%）
+  // 怪物暴击率（从 battle 对象读取，已在 start/start-pirate 时从 monster.crit_rate 填充）
   const mCritRate = battle.monster_crit_rate || 5;
   const mIsCrit = randInt(1, 100) <= mCritRate;
   const mCritMult = mIsCrit ? 2 : 1;
   // Apply temp defense boost from skill
   const defBoost = battle.temp_def_boost || 1;
   const effectiveDef = Math.floor(Number(user.def) * defBoost);
-  const mDmgBase = (mAtk - effectiveDef) * mCritMult;
-  const mDmg = Math.max(1, mDmgBase);
+  // 天赋伤害减免
+  const dmgReduce = battle.talent_bonus ? (battle.talent_bonus.damage_reduce || 0) : 0;
+  const mDmgBase = ((mAtk - effectiveDef) * mCritMult) * (1 - dmgReduce / 100);
+  const mDmg = Math.max(1, Math.floor(mDmgBase));
   const newHp = Math.max(0, Number(user.hp) - mDmg);
   await db.query('UPDATE `user` SET hp = ? WHERE `id` = ?', [newHp, user.id]);
   user.hp = newHp;
@@ -916,6 +937,7 @@ async function buildBattleResponse(battle, user) {
     resp.player_atk_max = battle.e_atk_max;
     resp.player_def = user.def;
     resp.equip_bonus = battle.equip_bonus || { bonusAtk: 0, bonusDef: 0, bonusHp: 0 };
+    resp.talent_bonus = battle.talent_bonus || { crit_pct: 0, damage_reduce: 0, counter_pct: 0 };
     resp.player_mp = user.mp || 0;
     resp.player_mp_max = user.mp_max || 100;
     resp.pet_name = battle.pet_name;

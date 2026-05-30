@@ -17,7 +17,7 @@
       <!-- 闲聊话题 -->
       <div v-if="chatTopics.length" class="topics-row">
         <button v-for="topic in chatTopics" :key="topic.key" class="topic-btn"
-          @click="currentDialog = topic.text">💬 {{ topic.key.replace('chat', '') }}</button>
+          @click="currentDialog = topic.text">💬 {{ topic.text.substring(0, 8) }}{{ topic.text.length > 8 ? '…' : '' }}</button>
         <button v-if="npc?.type === 5" class="topic-btn shop-topic" @click="openShop">💎 查看商品</button>
       </div>
 

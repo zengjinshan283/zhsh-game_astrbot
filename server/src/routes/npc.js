@@ -212,11 +212,18 @@ router.get('/:id/chat', authMiddleware, async (req, res, next) => {
     dialogs.forEach(d => {
       if (!dialogMap[d.trigger_type]) dialogMap[d.trigger_type] = d.content;
     });
-    // 闲聊话题（chat1~chat4）
+    // 闲聊话题（chat1~chat4，先从 npc_dialog 表取，再从 npc.chat1~4 列兜底）
     const chatTopics = [];
     for (let i = 1; i <= 4; i++) {
       const k = 'chat' + i;
       if (dialogMap[k]) chatTopics.push({ key: k, text: dialogMap[k] });
+    }
+    if (chatTopics.length === 0) {
+      // 兜底：直接从 npc 表 chat1~chat4 列读取
+      for (let i = 1; i <= 4; i++) {
+        const k = 'chat' + i;
+        if (npc[k]) chatTopics.push({ key: k, text: npc[k] });
+      }
     }
     // 默认闲聊随机选一条
     let defaultChat = null;

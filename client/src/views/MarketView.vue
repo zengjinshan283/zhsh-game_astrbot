@@ -81,6 +81,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const city = ref(null);
 const regionName = ref('');
@@ -94,8 +95,7 @@ const msg = ref('');
 const msgType = ref('');
 const qtyMap = reactive({});
 
-function formatMoney(n) { if (!n) return '0'; if (n >= 100000000) return (n/100000000).toFixed(1)+'亿'; if (n >= 10000) return (n/10000).toFixed(1)+'万'; return n.toLocaleString(); }
-function setQty(id, delta) { qtyMap[id] = Math.max(1, (qtyMap[id]||1) + delta); }
+
 
 async function load() {
   try {

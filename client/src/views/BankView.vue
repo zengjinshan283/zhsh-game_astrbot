@@ -80,15 +80,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const info = ref({ money: 0, bank_money: 0 });
 const amount = ref(null);
 const msg = ref('');
 const msgType = ref('success');
 const logs = ref([]);
-
-function formatMoney(n) { if (!n) return '0'; if (n >= 100000000) return (n/100000000).toFixed(1)+'亿'; if (n >= 10000) return (n/10000).toFixed(1)+'万'; return n.toLocaleString(); }
-function logTypeName(t) { return {1:'存入',2:'取出',3:'利息',4:'转帐'}[t]||'交易'; }
 
 async function loadBank() { try { const d = await Api.get('/npc/1/bank'); info.value = d; logs.value = d.logs||[]; } catch(e) { msg.value = e.message; msgType.value='error'; } }
 

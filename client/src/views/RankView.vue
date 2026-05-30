@@ -100,7 +100,7 @@
             <span class="rank-lv">Lv.{{ p.level }}</span>
           </div>
           <div class="rank-val">
-            <span class="rank-power">{{ (p.atk_max || 0) + (p.def || 0) + (p.agility || 0) + (p.equip_bonus || 0) }}</span>
+            <span class="rank-power">{{ p.power || 0 }}</span>
           </div>
         </div>
       </div>
@@ -141,6 +141,7 @@
 import { ref, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const userStore = useUserStore();
 const tab = ref('level');
@@ -158,15 +159,7 @@ const tabs = [
 
 function isMe(id) { return userStore.user?.id === id; }
 
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
-
 async function loadTab(t) {
-  tab.value = t;
   try {
     if (t === 'level') { const d = await Api.get('/rank/level'); levelList.value = d.list || []; }
     else if (t === 'wealth') { const d = await Api.get('/rank/wealth'); wealthList.value = d.list || []; }

@@ -190,6 +190,7 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { useGameStore } from '../stores/game';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 import { globalAlert } from '../composables/useConfirm';
 
 const userStore = useUserStore();
@@ -214,22 +215,14 @@ const expPct = computed(() => {
   return u?.exp_max > 0 ? Math.round(u.exp / u.exp_max * 100) : 0;
 });
 
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
-
+const hasExits = computed(() => Object.values(exitsDisplay.value).some(Boolean));
 const exitsDisplay = computed(() => {
-  if (!sceneData.value?.exits) return {};
   const m = { n: null, s: null, e: null, w: null };
-  for (const [d, v] of Object.entries(sceneData.value.exits)) {
+  for (const [d, v] of Object.entries(sceneData.value?.exits || {})) {
     if (v) m[d] = v;
   }
   return m;
 });
-const hasExits = computed(() => Object.values(exitsDisplay.value).some(Boolean));
 
 function dirLabel(dir) {
   return { n: '北:', s: '南:', e: '东:', w: '西:' }[dir] || dir + ':';

@@ -70,6 +70,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 import { useUserStore } from '../stores/user';
 import { useGameStore } from '../stores/game';
 import { globalAlert } from '../composables/useConfirm';
@@ -90,14 +91,8 @@ const expPct = computed(() => {
   const u = userStore.user;
   return u?.exp_max > 0 ? Math.round(u.exp / u.exp_max * 100) : 0;
 });
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
 
-const gridPlaces = computed(() => places.value.filter(p => p.pos_row != null && p.pos_col != null));
+const gridPlaces = computed(() => places.value);
 
 const placeMap = computed(() => {
   const m = {};

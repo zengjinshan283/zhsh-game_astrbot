@@ -73,6 +73,7 @@
 import { ref, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const userStore = useUserStore();
 const money = ref(0);
@@ -84,20 +85,7 @@ const msgType = ref('');
 
 const diceFaces = { 1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅' };
 
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
-
-async function bet() {
-  if (!choice.value) return;
-  if (!betAmount.value || betAmount.value <= 0) {
-    msg.value = '请输入有效金额';
-    msgType.value = 'error';
-    return;
-  }
+async function placeBet() {
   try {
     const d = await Api.post('/casino/bet', { amount: betAmount.value, choice: choice.value });
     result.value = { dice1: d.dice1, dice2: d.dice2, total: d.total, isBig: d.isBig, choice: d.choice, isWin: d.isWin };

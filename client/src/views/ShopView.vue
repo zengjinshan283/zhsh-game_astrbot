@@ -89,6 +89,7 @@ import { ref, reactive, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -101,14 +102,7 @@ const qtyMap = reactive({});
 const sellQtyMap = reactive({});
 const npcId = route.params.npcId || 1;
 
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
-
-async function loadShop() {
+async function load() {
   try { const d = await Api.get(`/npc/${npcId}/shop`); items.value = d.items || []; }
   catch (e) { error.value = e.message; }
 }

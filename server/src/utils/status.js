@@ -62,15 +62,17 @@ async function getStatusDef(id) {
 function computeStatMultipliers(statuses) {
   let atkMult = 1.0, defMult = 1.0, expMult = 1.0, moneyMult = 1.0, dropMult = 1.0, sailMult = 1.0;
   let fleePenalty = 0, accuracyPenalty = 0;
+  // 可叠加状态：属性倍率叠加（取最大），debuff 叠加取最小（更减益）
   for (const s of statuses) {
-    if (s.atk_multiplier != null && s.atk_multiplier > 1.0) atkMult = Math.max(atkMult, parseFloat(s.atk_multiplier));
-    if (s.def_multiplier != null && s.def_multiplier > 1.0) defMult = Math.max(defMult, parseFloat(s.def_multiplier));
-    if (s.exp_multiplier != null && s.exp_multiplier < 1.0) expMult = Math.min(expMult, parseFloat(s.exp_multiplier));
-    if (s.money_multiplier != null && s.money_multiplier > 1.0) moneyMult = Math.max(moneyMult, parseFloat(s.money_multiplier));
-    if (s.drop_multiplier != null && s.drop_multiplier > 1.0) dropMult = Math.max(dropMult, parseFloat(s.drop_multiplier));
-    if (s.sail_multiplier != null && s.sail_multiplier < 1.0) sailMult = Math.min(sailMult, parseFloat(s.sail_multiplier));
-    if (s.flee_penalty != null) fleePenalty = Math.min(fleePenalty, parseInt(s.flee_penalty));
-    if (s.accuracy_penalty != null) accuracyPenalty = Math.min(accuracyPenalty, parseInt(s.accuracy_penalty));
+    const stack = s.stack || 1;
+    if (s.atk_multiplier != null && s.atk_multiplier > 1.0) atkMult = Math.max(atkMult, parseFloat(s.atk_multiplier) + (stack - 1) * 0.05);
+    if (s.def_multiplier != null && s.def_multiplier > 1.0) defMult = Math.max(defMult, parseFloat(s.def_multiplier) + (stack - 1) * 0.05);
+    if (s.exp_multiplier != null && s.exp_multiplier < 1.0) expMult = Math.min(expMult, parseFloat(s.exp_multiplier) - (stack - 1) * 0.05);
+    if (s.money_multiplier != null && s.money_multiplier > 1.0) moneyMult = Math.max(moneyMult, parseFloat(s.money_multiplier) + (stack - 1) * 0.05);
+    if (s.drop_multiplier != null && s.drop_multiplier > 1.0) dropMult = Math.max(dropMult, parseFloat(s.drop_multiplier) + (stack - 1) * 0.05);
+    if (s.sail_multiplier != null && s.sail_multiplier < 1.0) sailMult = Math.min(sailMult, parseFloat(s.sail_multiplier) - (stack - 1) * 0.05);
+    if (s.flee_penalty != null) fleePenalty = Math.min(fleePenalty, parseInt(s.flee_penalty) * stack);
+    if (s.accuracy_penalty != null) accuracyPenalty = Math.min(accuracyPenalty, parseInt(s.accuracy_penalty) * stack);
   }
   return { atkMult, defMult, expMult, moneyMult, dropMult, sailMult, fleePenalty, accuracyPenalty };
 }
@@ -94,15 +96,16 @@ async function processTickEffects(userId, statuses, user, battle) {
     const lastTick = s.tick_at || s.start_at || now;
     if (now - lastTick < def.tick_seconds) continue;
 
-    // 扣血
+    // 扣血（叠加层数×每次伤害）
     if (def.tick_damage > 0) {
-      const dmg = Math.max(1, Math.floor(user.hp_max * def.tick_damage / 100));
+      const stack = s.stack || 1;
+      const dmg = Math.max(1, Math.floor(user.hp_max * def.tick_damage / 100 * stack));
       const newHp = Math.max(0, user.hp - dmg);
       await db.query('UPDATE `user` SET hp = ? WHERE `id` = ?', [newHp, userId]);
       user.hp = newHp;
       hpChanged = true;
       const icon = def.icon || '';
-      logs.push({ type: 'debuff', text: `${icon} ${def.name} 发作，造成 ${dmg} 点伤害！` });
+      logs.push({ type: 'debuff', text: `${icon} ${def.name}${stack > 1 ? 'x' + stack : ''} 发作，造成 ${dmg} 点伤害！` });
     }
 
     // 更新 tick_at

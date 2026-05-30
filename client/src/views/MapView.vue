@@ -456,6 +456,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useGameStore } from '../stores/game'
 import { Api } from '../composables/useApi'
+import { formatMoney } from '../utils/formatters';
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -582,13 +583,7 @@ function getMonsterEmoji(atk) {
   return '🐾'
 }
 
-function formatMoney(n) {
-  if (!n) return '0'
-  if (n >= 100000000) return (n/100000000).toFixed(1)+'亿'
-  if (n >= 10000) return (n/10000).toFixed(1)+'万'
-  return n.toLocaleString()
-}
-function truncate(s, n) { return s ? s.substring(0, n) : '' }
+
 function dangerColor(hp) { return hp >= 100 ? '#e74c3c' : hp >= 50 ? '#f39c12' : '#27ae60' }
 function dangerLabel(hp) { return hp >= 100 ? '危险' : hp >= 50 ? '普通' : '较弱' }
 

@@ -19,7 +19,17 @@ router.get('/wealth', authMiddleware, async (req, res, next) => {
 
 router.get('/power', authMiddleware, async (req, res, next) => {
   try {
-    const list = await db.getAll("SELECT u.id, u.username, u.sex, u.level, u.atk_max, u.def, u.agility, COALESCE(SUM(CASE WHEN i.subtype IN('weapon','armor') THEN ROUND((i.atk+i.def_val)*(1+inv.enhance_level*0.03)) ELSE 0 END),0) AS equip_bonus FROM `user` u LEFT JOIN `inventory` inv ON inv.user_id=u.id AND inv.equipped=1 LEFT JOIN `item` i ON inv.item_id=i.id GROUP BY u.id ORDER BY (u.atk_max+u.def+u.agility+COALESCE(SUM(CASE WHEN i.subtype IN('weapon','armor') THEN ROUND((i.atk+i.def_val)*(1+inv.enhance_level*0.03)) ELSE 0 END),0)) DESC LIMIT 20");
+    // 战力 = ATK×3 + DEF×2 + AGI×1 + HP÷10×2（含装备加成）
+    const list = await db.getAll(`
+      SELECT u.id, u.username, u.sex, u.level, u.atk_max, u.def, u.agility, u.hp_max,
+             COALESCE(SUM(CASE WHEN i.subtype IN('weapon','armor') THEN ROUND((i.atk+i.def_val)*(1+inv.enhance_level*0.03)) ELSE 0 END),0) AS equip_bonus,
+             (u.atk_max*3 + u.def*2 + u.agility + FLOOR(u.hp_max/10)*2) AS power
+      FROM \`user\` u
+      LEFT JOIN \`inventory\` inv ON inv.user_id=u.id AND inv.equipped=1
+      LEFT JOIN \`item\` i ON inv.item_id=i.id
+      GROUP BY u.id
+      ORDER BY power DESC
+      LIMIT 20`);
     res.json({ list });
   } catch(e){next(e);}
 });

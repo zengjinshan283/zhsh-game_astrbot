@@ -144,6 +144,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const data = ref({user:{}, stats:{}, equips:[], battleCount:0, winCount:0, pet:null, invCount:0, shortcuts:[], consumables:[], place:{}, statuses:[]});
 const activeStatuses = computed(() => (data.value.statuses||[]).filter(s => s.type === 1 || s.type === 2));
@@ -157,15 +158,11 @@ const now = ref(Date.now());
 const hpPct = computed(() => data.value.user?.hp_max > 0 ? Math.round(data.value.user.hp / data.value.user.hp_max * 100) : 0);
 const expPct = computed(() => data.value.user?.exp_max > 0 ? Math.round(data.value.user.exp / data.value.user.exp_max * 100) : 0);
 
-function formatMoney(n) { if (!n) return '0'; if (n >= 100000000) return (n/100000000).toFixed(1)+'亿'; if (n >= 10000) return (n/10000).toFixed(1)+'万'; return n.toLocaleString(); }
-function fmtTime(s) {
-  if (!s.end_time) return '';
-  const sec = Math.max(0, Math.floor((new Date(s.end_time) - now.value) / 1000));
-  if (sec === 0) return '已结束';
-  const m = Math.floor(sec/60); const h = Math.floor(m/60);
-  if (h > 0) return `${h}时${m%60}分`;
-  if (m > 0) return `${m}分`;
-  return `${sec}秒`;
+function formatDuration(seconds) {
+  if (!seconds) return '0秒';
+  if (seconds >= 3600) return Math.floor(seconds / 3600) + '小时' + Math.floor((seconds % 3600) / 60) + '分钟';
+  if (seconds >= 60) return Math.floor(seconds / 60) + '分' + (seconds % 60) + '秒';
+  return seconds + '秒';
 }
 
 async function load() {

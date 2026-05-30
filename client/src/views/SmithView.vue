@@ -218,6 +218,7 @@ import { globalConfirm, globalAlert } from '../composables/useConfirm';
 import { ref, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const userStore = useUserStore();
 const tab = ref('enhance');
@@ -228,14 +229,7 @@ const refineItems = ref([]);
 const msg = ref('');
 const msgType = ref('');
 
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
 
-function getRate(l) { return l >= 9 ? 30 : l >= 6 ? 70 : 90; }
 function getCost(l) { return (l + 1) * 200; }
 function getEnhColor(l) {
   return l >= 9 ? '#b85a3a' : l >= 7 ? '#6f5632' : l >= 5 ? '#9b59b6' : l >= 3 ? '#3f6a4a' : '#2e5a3b';

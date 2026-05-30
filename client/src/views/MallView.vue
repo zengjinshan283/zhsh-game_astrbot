@@ -79,6 +79,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 
 const userStore = useUserStore();
 const allItems = ref([]);
@@ -113,13 +114,6 @@ const ITEM_DESC = {
   91005: '宠物学习「攻击强化·中级」', 91006: '宠物学习「攻击强化·高级」',
   91007: '宠物学习「防御强化·初级」', 91008: '宠物学习「防御强化·中级」',
 };
-
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
 
 function getItemIcon(item) {
   const icons = { weapon: '⚔️', armor: '🛡️', accessory: '💍', consumable: '💊', material: '📦' };

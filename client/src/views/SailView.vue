@@ -129,6 +129,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 import { useGameStore } from '../stores/game';
 import { useRouter } from 'vue-router';
 
@@ -157,15 +158,6 @@ const treasureAmount = ref(0);
 const gameStore = useGameStore();
 const router = useRouter();
 let pollTimer = null;
-
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return Number(n).toLocaleString();
-}
-
-function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
 function syncPolling() {
   stopPolling();

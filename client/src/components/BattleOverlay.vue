@@ -26,7 +26,7 @@
         <div class="ec-top">
           <div class="ec-avatar">{{ userStore.user?.sex === 2 ? '♀' : '♂' }}</div>
           <div class="ec-info">
-            <div class="ec-name">{{ userStore.username }}</div>
+            <div class="ec-name">{{ userStore.user?.username }}</div>
             <div class="ec-hp-text">❤️ {{ battle.player_hp }}/{{ battle.player_hp_max }}</div>
           </div>
         </div>

@@ -170,6 +170,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
+import { formatMoney } from '../utils/formatters';
 import { globalAlert } from '../composables/useConfirm';
 
 const loading = ref(true);
@@ -200,15 +201,7 @@ function skillTypeIcon(type) {
 function skillTypeLabel(type) {
   return { 1: '攻击技能', 2: '防御技能', 3: '被动技能' }[type] || '通用';
 }
-function formatMoney(n) {
-  if (!n) return '0';
-  if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-  return n.toLocaleString();
-}
-function getCost(s) {
-  return s.level_req * 500 * s.level;
-}
+
 function fmtCd(sec) {
   if (sec >= 3600) return Math.floor(sec / 3600) + '小时';
   if (sec >= 60) return Math.floor(sec / 60) + '分';
