@@ -287,6 +287,25 @@ async function buildScene(placeId, userId) {
     }
   }
 
+  // ── 城门(type=5)：提供野外区域列表 ──
+  let gateInfo = null;
+  if (place.type === 5) {
+    gateInfo = {
+      isGate: true,
+      wildAreas: {}
+    };
+    // 加载4个方向的野外区域
+    for (const dir of ['n', 's', 'e', 'w']) {
+      const wilds = await db.getAll(
+        'SELECT id, city_id, direction, level, name, description, monster_ids, level_req FROM wild_map WHERE city_id = ? AND direction = ? ORDER BY level',
+        [place.city_id, dir]
+      );
+      if (wilds.length > 0) {
+        gateInfo.wildAreas[dir] = wilds;
+      }
+    }
+  }
+
   // 同场景在线玩家
   const onlineUsers = await db.getAll(
     'SELECT id, username, sex, level FROM `user` WHERE `place_id` = ? AND `lastdate` > ? AND `id` != ? AND (sail_time = 0 OR sail_time IS NULL)',
@@ -303,10 +322,10 @@ async function buildScene(placeId, userId) {
   }
 
   // 返回数据（已在第214行 buildScene 返回）
-  return { place, city, monsters, npcs: npcsPlain, onlineUsers, exits };
+  return { place, city, monsters, npcs: npcsPlain, onlineUsers, exits, gateInfo };
 }
 
 // place.type 含义（兼容 CityMapView）
-// 0=普通野外 1=码头 2=广场 3=功能NPC(银行/铁匠) 4=酒馆 5=商店
+// 0=普通野外 1=码头 2=广场 3=功能NPC(银行/铁匠) 4=酒馆 5=城门(可进野外)
 
 module.exports = router;

@@ -54,6 +54,7 @@ app.use('/api/vip', require('./routes/vip'));
 app.use('/api/invite', require('./routes/invite'));
 app.use('/api/codex', require('./routes/codex'));
 app.use('/api/wild', require('./routes/wild'));
+app.use('/api/gate', require('./routes/gate'));
 app.use('/api/fishing', require('./routes/fishing'));
 app.use('/api/treasure', require('./routes/treasure'));
 

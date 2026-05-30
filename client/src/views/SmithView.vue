@@ -237,6 +237,7 @@ const msgType = ref('');
 
 
 function getCost(l) { return (l + 1) * 200; }
+function getRate(l) { return l >= 9 ? 30 : l >= 7 ? 70 : 90; }
 function getEnhColor(l) {
   return l >= 9 ? '#b85a3a' : l >= 7 ? '#6f5632' : l >= 5 ? '#9b59b6' : l >= 3 ? '#3f6a4a' : '#2e5a3b';
 }

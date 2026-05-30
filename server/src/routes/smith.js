@@ -174,8 +174,24 @@ function getEnhanceMaterialItemId() {
 
 router.get('/items', authMiddleware, async (req, res, next) => {
   try {
-    const items = await db.getAll("SELECT inv.id AS inv_id, inv.enhance_level, inv.item_id, i.* FROM `inventory` inv JOIN `item` i ON inv.item_id = i.id WHERE inv.user_id = ? AND inv.equipped = 0 AND i.subtype IN ('weapon','armor') ORDER BY inv.enhance_level DESC, i.atk+i.def_val DESC", [req.user.id]);
-    res.json({ items });
+    const items = await db.getAll(
+      `SELECT inv.id AS inv_id, inv.enhance_level, inv.item_id, inv.is_identified, inv.identify_affixes,
+              i.name, i.subtype, i.atk, i.def_val, i.level_req, i.quality, i.price_buy
+       FROM inventory inv JOIN item i ON inv.item_id = i.id
+       WHERE inv.user_id = ? AND inv.equipped = 0 AND i.subtype IN ('weapon','armor')
+       ORDER BY inv.enhance_level DESC, i.atk+i.def_val DESC`,
+      [req.user.id]
+    );
+    // 附加强化后有效属性
+    const result = items.map(inv => ({
+      ...inv,
+      eff_atk: Math.round((inv.atk || 0) * (1 + (inv.enhance_level || 0) * 0.03)),
+      eff_def: Math.round((inv.def_val || 0) * (1 + (inv.enhance_level || 0) * 0.03)),
+      cost: (inv.enhance_level || 0 + 1) * 200,
+      rate: (inv.enhance_level || 0) >= 9 ? 30 : (inv.enhance_level || 0) >= 7 ? 70 : 90,
+      is_max: (inv.enhance_level || 0) >= 10,
+    }));
+    res.json({ items: result });
   } catch(e){next(e);}
 });
 

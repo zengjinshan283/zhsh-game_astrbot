@@ -849,7 +849,20 @@ INSERT IGNORE INTO `game_config` (`category`, `config_key`, `config_value`, `des
 -- 师徒配置
 ('mentor',  'apprentice_max_level',  '30', '徒弟出师等级'),
 ('mentor',  'apprentice_reward',  '1000', '徒弟出师给师父铜币奖励'),
-('mentor',  'mentor_contribution', '10',   '徒弟出师给师父贡献度');
+('mentor',  'mentor_contribution', '10',   '徒弟出师给师父贡献度'),
+-- 鉴定配置
+('identify', 'cost_base',         '500', '鉴定费用基数（按装备等级计算）'),
+('identify', 'cost_per_level',    '100', '鉴定费用每级增加铜币'),
+('identify', 'normal_affix_count','1',  '普通装备鉴定后词缀数量'),
+('identify', 'elite_affix_count', '2',   '精英装备鉴定后词缀数量'),
+('identify', 'boss_affix_count', '3',   'BOSS装备鉴定后词缀数量'),
+-- 精炼配置
+('refine',    'cost_multiplier',   '300', '精炼费用系数（强化等级×此值=铜币费用）'),
+('refine',    'min_level',         '3',   '精炼最低强化等级要求'),
+('refine',    'affix_add_count',   '2',   '精炼每次新增词缀数量'),
+-- 强化保护符配置
+('enhance',   'protect_item_id',   '95090', '强化护符道具ID（+7以上强化失败保护）'),
+('enhance',   'protect_cost',      '0',    '强化护符使用费用');
 
 -- ============================================================
 -- 物品数据扩充
@@ -968,13 +981,14 @@ INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `pric
 (127, '船舶修复包',     1, 'consumable', '恢复船只100点HP',           1500, 750, 0, 0, 0),
 (128, '幸运星',         1, 'buff',      '30分钟内经验值+20%',         600, 300, 0, 0, 0),
 (129, '水下呼吸草',     1, 'consumable', '在水下呼吸30分钟',           300, 150, 0, 0, 0),
-(130, '夜视草',         1, 'consumable', '黑暗中视物30分钟',           250, 125, 0, 0, 0);
+(130, '夜视草',         1, 'consumable', '黑暗中视物30分钟',           250, 125, 0, 0, 0),
+(95090,'强化护符',      1, 'consumable', '强化+7以上必备，失败时保护装备不降级', 5000, 2500, 0, 0, 0);
 
 INSERT IGNORE INTO `npc_shop_item` (`npc_id`, `item_id`) VALUES
 -- 威尼斯·东方商人（酒馆NPC 5）
 (5, 1), (5, 2), (5, 3), (5, 19), (5, 20), (5, 21),
--- 威尼斯·安芬尼奥（铁匠NPC 2）：强化材料
-(2, 50), (2, 74), (2, 51), (2, 52), (2, 53), (2, 54), (2, 94),
+-- 威尼斯·安芬尼奥（铁匠NPC 2）：强化材料 + 强化护符
+(2, 50), (2, 74), (2, 51), (2, 52), (2, 53), (2, 54), (2, 94), (2, 95090),
 -- 威尼斯·银行家（NPC 3）
 (3, 1), (3, 3), (3, 4);
 
