@@ -119,10 +119,7 @@ function getItemIcon(item) {
   const icons = { weapon: '⚔️', armor: '🛡️', accessory: '💍', consumable: '💊', material: '📦' };
   return icons[item.category] || '📦';
 }
-
-function getItemDesc(item) {
-  return ITEM_DESC[item.item_id] || '';
-}
+const getItemDesc = (item) => ITEM_DESC[item.item_id] || '';
 
 const filteredItems = computed(() => allItems.value.filter(i => i.category === activeTab.value));
 
