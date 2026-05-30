@@ -48,7 +48,7 @@
         <div class="ic-icon">{{ getItemIcon(item) }}</div>
       </div>
       <div class="ic-body">
-        <div class="ic-name">{{ item.name }}</div>
+        <div class="ic-name">{{ getItemName(item) }}</div>
         <div class="ic-desc">{{ getItemDesc(item) }}</div>
         <div class="ic-stats">
           <span v-if="item.atk_min > 0" class="ic-stat">⚔️ +{{ item.atk_min }}</span>
@@ -120,6 +120,8 @@ function getItemIcon(item) {
   return icons[item.category] || '📦';
 }
 const getItemDesc = (item) => ITEM_DESC[item.item_id] || '';
+const qualityPrefix = {0:'',1:'〖精良〗',2:'〖史诗〗',3:'〖传说〗'};
+const getItemName = (item) => (qualityPrefix[item.quality] || '') + item.name;
 
 const filteredItems = computed(() => allItems.value.filter(i => i.category === activeTab.value));
 

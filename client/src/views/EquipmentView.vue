@@ -92,7 +92,7 @@
           <div class="sm-tier-title">套装部件</div>
           <div v-for="piece in setDetail.pieces" :key="piece.inv_id || piece.item_id" class="sm-piece" :class="{equipped: piece.equipped}">
             <span class="sp-icon">{{ piece.subtype === 'weapon' ? '🗡️' : piece.subtype === 'armor' ? '🛡️' : piece.subtype === 'boots' ? '👢' : piece.subtype === 'helmet' ? '⛑️' : piece.subtype === 'legs' ? '🦵' : '💎' }}</span>
-            <span class="sp-name">{{ piece.name }}</span>
+            <span class="sp-name">{{ getItemName(piece) }}</span>
             <span v-if="piece.enhance_level > 0" class="sp-enh">+{{ piece.enhance_level }}</span>
             <span v-if="piece.equipped" class="sp-badge sp-equipped">已装备</span>
             <span v-else class="sp-badge sp-backpack">背包</span>
@@ -118,7 +118,7 @@
     </div>
     <div class="eqc-body">
       <div class="eqc-name">
-        {{ eq.name }}
+        {{ getItemName(eq) }}
         <span v-if="eq.enhance_level > 0" class="eqc-enh">+{{ eq.enhance_level }}</span>
         <span v-if="eq.set_name" class="eqc-set">[{{ eq.set_name }}]</span>
       </div>
@@ -151,6 +151,10 @@ const activeSets = ref([]);
 const setOverview = ref([]);
 const setDetail = ref(null);
 
+const qualityPrefix = {0:'',1:'〖精良〗',2:'〖史诗〗',3:'〖传说〗'};
+function getItemName(item) {
+  return (qualityPrefix[item.quality] || '') + item.name;
+}
 async function openSetDetail(s) {
   try { setDetail.value = await Api.get('/user/set-detail/' + encodeURIComponent(s.name)); }
   catch (e) { setDetail.value = null; }

@@ -28,7 +28,7 @@
         <div v-for="item in filterItems(cat.key)" :key="item.inv_id" class="inv-card">
           <div class="inc-icon">{{ cat.icon }}</div>
           <div class="inc-body">
-            <div class="inc-name">{{ item.name }}<span v-if="item.enhance_level > 0" class="inc-enh">+{{ item.enhance_level }}</span></div>
+            <div class="inc-name">{{ getItemName(item) }}<span v-if="item.enhance_level > 0" class="inc-enh">+{{ item.enhance_level }}</span></div>
             <div class="inc-stats">
               <template v-if="item.subtype === 'weapon' || item.subtype === 'armor'">
                 <span class="is-atk">⚔️ {{ calcStat(item.atk, item.enhance_level) }}</span>
@@ -83,6 +83,11 @@ function filterItems(key) {
     i.subtype === key ||
     (key === 'misc' && !['weapon','armor','consumable','material','pet_food'].includes(i.subtype))
   );
+}
+const qualityPrefix = {0:'',1:'〖精良〗',2:'〖史诗〗',3:'〖传说〗'};
+function getItemName(item) {
+  const pre = qualityPrefix[item.quality] || '';
+  return pre + item.name;
 }
 function calcStat(base, level) { return base ? Math.round(base * (1 + (level || 0) * 0.03)) : 0; }
 
