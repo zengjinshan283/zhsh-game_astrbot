@@ -50,6 +50,7 @@
       <div class="ic-body">
         <div class="ic-name">{{ getItemName(item) }}</div>
         <div class="ic-desc">{{ getItemDesc(item) }}</div>
+        <div class="ic-type" v-if="getItemTypeLabel(item)">{{ getItemTypeLabel(item) }}</div>
         <div class="ic-stats">
           <span v-if="item.atk_min > 0" class="ic-stat">⚔️ +{{ item.atk_min }}</span>
           <span v-if="item.def > 0" class="ic-stat">🛡️ +{{ item.def }}</span>
@@ -119,6 +120,12 @@ function getItemIcon(item) {
   const icons = { weapon: '⚔️', armor: '🛡️', accessory: '💍', consumable: '💊', material: '📦' };
   return icons[item.category] || '📦';
 }
+// 中文类型名映射
+const CATEGORY_LABELS = {
+  weapon: '武器', armor: '防具', accessory: '饰品',
+  consumable: '消耗品', material: '材料',
+};
+const getItemTypeLabel = (item) => CATEGORY_LABELS[item.category] || item.category || '';
 const getItemDesc = (item) => ITEM_DESC[item.item_id] || '';
 const qualityPrefix = {0:'',1:'〖精良〗',2:'〖史诗〗',3:'〖传说〗'};
 const getItemName = (item) => (qualityPrefix[item.quality] || '') + item.name;
@@ -270,6 +277,7 @@ onMounted(loadItems);
 .ic-body { flex: 1; min-width: 0; }
 .ic-name { font-size: 13px; font-weight: 600; color: #f0f0f0; margin-bottom: 3px; }
 .ic-desc { font-size: 10px; color: #7f8c8d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
+.ic-type { font-size: 10px; color: #95a5a6; background: rgba(255,255,255,0.06); padding: 2px 5px; border-radius: 4px; display: inline-block; }
 .ic-stats { display: flex; flex-wrap: wrap; gap: 4px; }
 .ic-stat { font-size: 10px; color: #95a5a6; background: rgba(255,255,255,0.04); padding: 2px 5px; border-radius: 4px; }
 .ic-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }

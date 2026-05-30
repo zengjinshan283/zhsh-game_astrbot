@@ -72,6 +72,7 @@
             <div class="ec-info">
               <div class="ec-name">
                 {{ item.name }}<span class="ec-enh" v-if="item.enhance_level > 0" :style="{ color: getEnhColor(item.enhance_level) }">+{{ item.enhance_level }}</span>
+                <span class="type-badge">{{ getSubtypeLabel(item.subtype) }}</span>
               </div>
               <div class="ec-stats">
                 <span class="ec-atk" v-if="item.atk">⚔️ {{ item.atk }} → {{ calcStat(item.atk, item.enhance_level) }}</span>
@@ -108,6 +109,7 @@
               <div class="ec-name">
                 {{ item.name }}
                 <span class="q-badge" :class="'q-' + item.quality">{{ qualityName(item.quality) }}</span>
+                <span class="type-badge">{{ getSubtypeLabel(item.subtype) }}</span>
                 <span class="ec-lv">Lv.{{ item.level_req }}</span>
               </div>
               <div class="ec-stats">
@@ -138,7 +140,10 @@
           <div class="ec-top">
             <div class="ec-icon">{{ item.subtype === 'weapon' ? '🗡️' : '🛡️' }}</div>
             <div class="ec-info">
-              <div class="ec-name">{{ item.name }}</div>
+              <div class="ec-name">
+                {{ item.name }}
+                <span class="type-badge">{{ getSubtypeLabel(item.subtype) }}</span>
+              </div>
               <div class="ec-dur">
                 <span>耐久 {{ item.durability }}/{{ item.durability_max }}</span>
                 <div class="dur-bar-track">
@@ -188,6 +193,7 @@
               <div class="ec-name">
                 {{ item.name }}<span class="ec-enh">+{{ item.enhance_level }}</span>
                 <span class="q-badge" :class="'q-' + item.quality">{{ qualityName(item.quality) }}</span>
+                <span class="type-badge">{{ getSubtypeLabel(item.subtype) }}</span>
               </div>
               <div class="ec-stats">
                 <span class="ec-atk" v-if="item.atk">⚔️ {{ item.atk }}</span>
@@ -236,6 +242,13 @@ function getEnhColor(l) {
 }
 function calcStat(base, level) { return Math.round((base || 0) * (1 + level * 0.03)); }
 function qualityName(q) { return ['', '白', '绿', '蓝', '紫', '橙'][q] || '白'; }
+// 中文类型名映射
+const SUBTYPE_LABELS = {
+  weapon: '武器', armor: '防具', accessory: '饰品',
+  consumable: '消耗品', material: '材料', helmet: '头盔',
+  boots: '靴子', legs: '护腿', bracer: '护腕',
+};
+const getSubtypeLabel = (subtype) => SUBTYPE_LABELS[subtype] || subtype || '';
 function getIdCost(lv) { return 500 + (parseInt(lv) || 1) * 100; }
 function getIdCount(q) { return q >= 5 ? 3 : q >= 4 ? 2 : 1; }
 function getAffixRarity(a) {
@@ -373,6 +386,7 @@ watch(tab, (t) => { msg.value = ''; if (t === 'repair') loadRepairItems(); if (t
 .ec-info { flex: 1; min-width: 0; }
 .ec-name { font-size: 14px; font-weight: 600; color: #f0f0f0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .ec-enh { font-weight: 800; }
+.type-badge { font-size: 9px; padding: 1px 5px; border-radius: 4px; color: #95a5a6; background: rgba(255,255,255,0.08); font-weight: 600; }
 .ec-stats { display: flex; gap: 8px; margin-top: 2px; font-size: 11px; color: #7f8c8d; }
 .ec-atk { color: #e74c3c; }
 .ec-def { color: #3498db; }

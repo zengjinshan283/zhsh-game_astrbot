@@ -96,6 +96,31 @@ async function computeEquipBonus(userId) {
   return { bonusAtk, bonusDef, bonusHp };
 }
 
+// ─── 装备图鉴加成（根据已解锁图鉴数量给予战斗属性加成）───
+async function computeCodexBonus(userId) {
+  try {
+    // 统计已解锁图鉴数量
+    const row = await db.getOne('SELECT COUNT(*) as cnt FROM user_codex WHERE user_id = ?', [userId]);
+    const count = row?.cnt || 0;
+    if (count === 0) return { bonusAtk: 0, bonusDef: 0, bonusHp: 0 };
+
+    // 查找满足解锁数量的最高档奖励（按 require_count 升序，取最后一条满足条件的）
+    const rows = await db.getAll(
+      'SELECT bonus_atk, bonus_def, bonus_hp FROM codex_reward WHERE require_count <= ? ORDER BY require_count DESC LIMIT 1',
+      [count]
+    );
+    if (rows.length === 0) return { bonusAtk: 0, bonusDef: 0, bonusHp: 0 };
+    const r = rows[0];
+    return {
+      bonusAtk: r.bonus_atk || 0,
+      bonusDef: r.bonus_def || 0,
+      bonusHp: r.bonus_hp || 0,
+    };
+  } catch (e) {
+    return { bonusAtk: 0, bonusDef: 0, bonusHp: 0 };
+  }
+}
+
 // Apply durability loss to an equipped item (weapon or armor), returns { broken, name }
 async function applyDurabilityLoss(userId, subtype, loss) {
   const inv = await db.getOne(
@@ -182,8 +207,12 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
 
     // Compute equip bonus (强化 + 鉴定词缀 + 套装)
     const { bonusAtk, bonusDef, bonusHp } = await computeEquipBonus(req.user.id);
-    const eAtkMin = Math.max(1, Number(user.atk_min) + bonusAtk);
-    const eAtkMax = Math.max(1, Number(user.atk_max) + bonusAtk);
+    const { bonusAtk: codexAtk, bonusDef: codexDef, bonusHp: codexHp } = await computeCodexBonus(req.user.id);
+    const totalBonusAtk = bonusAtk + codexAtk;
+    const totalBonusDef = bonusDef + codexDef;
+    const totalBonusHp = bonusHp + codexHp;
+    const eAtkMin = Math.max(1, Number(user.atk_min) + totalBonusAtk);
+    const eAtkMax = Math.max(1, Number(user.atk_max) + totalBonusAtk);
 
     let battle = {
       monster_id: pirate.id, monster_name: pirate.name,
@@ -197,7 +226,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       from_sail: true, sail_remaining_sec: Number(user.sail_remaining_sec || 0),
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
       log: [{ type: 'info', text: '🏴‍☠️ 海盗船逼近！战斗开始！' }],
-      equip_bonus: { bonusAtk, bonusDef, bonusHp },
+      equip_bonus: { bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp },
       talent_bonus: talentBonus,
       e_atk_min: eAtkMin, e_atk_max: eAtkMax,
     };
@@ -243,8 +272,12 @@ router.post('/start', authMiddleware, async (req, res, next) => {
     }
     // Compute equip bonus (强化 + 鉴定词缀 + 套装)
     const { bonusAtk, bonusDef, bonusHp } = await computeEquipBonus(req.user.id);
-    const eAtkMin = Math.max(1, Number(user.atk_min) + bonusAtk);
-    const eAtkMax = Math.max(1, Number(user.atk_max) + bonusAtk);
+    const { bonusAtk: codexAtk, bonusDef: codexDef, bonusHp: codexHp } = await computeCodexBonus(req.user.id);
+    const totalBonusAtk = bonusAtk + codexAtk;
+    const totalBonusDef = bonusDef + codexDef;
+    const totalBonusHp = bonusHp + codexHp;
+    const eAtkMin = Math.max(1, Number(user.atk_min) + totalBonusAtk);
+    const eAtkMax = Math.max(1, Number(user.atk_max) + totalBonusAtk);
 
     let battle = {
       monster_id, monster_name: monster.name,
@@ -257,7 +290,7 @@ router.post('/start', authMiddleware, async (req, res, next) => {
       round: 1, result: null, finished: false,
       pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
       log: [{ type: 'info', text: `你遭遇了${monster.name}！` }],
-      equip_bonus: { bonusAtk, bonusDef, bonusHp },
+      equip_bonus: { bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp },
       talent_bonus: talentBonus,
       e_atk_min: eAtkMin, e_atk_max: eAtkMax,
     };
