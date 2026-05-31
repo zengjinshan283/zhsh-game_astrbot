@@ -174,6 +174,18 @@
     <div class="move-error-msg" v-if="moveError">⚠️ {{ moveError }}</div>
   </div>
 
+  <!-- 城门出城面板 -->
+  <div v-if="scene.gateInfo" class="gate-panel">
+    <div class="gate-header">🚪 出城冒险</div>
+    <div class="gate-grid">
+      <div v-for="(wilds, dir) in scene.gateInfo.wildAreas" :key="dir" class="gate-dir" @click="goWild(dir)">
+        <div class="gd-arrow">{{ dir === 'n' ? '⬆️' : dir === 's' ? '⬇️' : dir === 'e' ? '➡️' : '⬅️' }}</div>
+        <div class="gd-label">{{ DIR_LABEL[dir] }}</div>
+        <div class="gd-count">{{ wilds.length }}区</div>
+      </div>
+    </div>
+  </div>
+
   <!-- 城市入口按钮（右上角浮动） -->
   <router-link v-if="scene.city && scene.city.type === 1" :to="'/citymap/' + scene.city.id" class="float-city-btn">
     🏛️ 进入城市
@@ -638,6 +650,16 @@ async function move(dir) {
     scene.value = data
     gameStore.setScene(data)
   } catch (e) { moveError.value = e.message }
+}
+
+const DIR_LABEL = { n: '北境', s: '南疆', e: '东洲', w: '西域' };
+
+async function goWild(dir) {
+  try {
+    const data = await Api.post('/gate/go-wild', { direction: dir })
+    scene.value = data
+    gameStore.setScene(data)
+  } catch (e) { showMsg('❌', e.message, '#e74c3c') }
 }
 
 function openModal(type, data) { modalType.value = type; modalData.value = data; modal.value = true; document.body.style.overflow = 'hidden' }
@@ -1245,6 +1267,30 @@ watch(() => gameStore.inBattle, (val, oldVal) => {
 }
 .cr-refresh:hover { opacity: 0.8; transform: translate(-50%, -50%) rotate(180deg); }
 .move-error-msg { font-size: 10px; color: #e74c3c; text-align: center; }
+
+/* ===== 城门出城面板 ===== */
+.gate-panel {
+  position: relative; z-index: 2;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; padding: 10px 14px; margin: 0 10px;
+}
+.gate-header {
+  font-size: 13px; font-weight: 700; color: #f0f0f0;
+  margin-bottom: 8px; text-align: center;
+}
+.gate-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+}
+.gate-dir {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: rgba(255,255,255,0.04); border-radius: 8px;
+  padding: 8px 4px; cursor: pointer; transition: background 0.2s;
+}
+.gate-dir:hover { background: rgba(52,152,219,0.2); }
+.gd-arrow { font-size: 20px; }
+.gd-label { font-size: 11px; color: #a0a0a0; font-weight: 600; }
+.gd-count { font-size: 9px; color: #666; }
 
 /* ===== 浮动城市入口 ===== */
 .float-city-btn {

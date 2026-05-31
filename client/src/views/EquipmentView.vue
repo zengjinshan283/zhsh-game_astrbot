@@ -91,7 +91,7 @@
         <div class="sm-pieces" v-if="setDetail.pieces && setDetail.pieces.length">
           <div class="sm-tier-title">套装部件</div>
           <div v-for="piece in setDetail.pieces" :key="piece.inv_id || piece.item_id" class="sm-piece" :class="{equipped: piece.equipped}">
-            <span class="sp-icon">{{ piece.subtype === 'weapon' ? '🗡️' : piece.subtype === 'armor' ? '🛡️' : piece.subtype === 'boots' ? '👢' : piece.subtype === 'helmet' ? '⛑️' : piece.subtype === 'legs' ? '🦵' : '💎' }}</span>
+            <span class="sp-icon">{{ SUBTYPE_ICON[piece.subtype] || '💎' }}</span>
             <span class="sp-name">{{ getItemName(piece) }}</span>
             <span v-if="piece.enhance_level > 0" class="sp-enh">+{{ piece.enhance_level }}</span>
             <span v-if="piece.equipped" class="sp-badge sp-equipped">已装备</span>
@@ -114,7 +114,7 @@
   <div v-if="!equipped.length" class="eq-empty">没有装备任何物品</div>
   <div v-for="eq in equipped" :key="eq.inv_id" class="eq-card">
     <div class="eqc-left">
-      <div class="eqc-icon">{{ eq.subtype === 'weapon' ? '🗡️' : '🛡️' }}</div>
+      <div class="eqc-icon">{{ SUBTYPE_ICON[eq.subtype] || '📦' }}</div>
     </div>
     <div class="eqc-body">
       <div class="eqc-name">
@@ -151,6 +151,11 @@ const activeSets = ref([]);
 const setOverview = ref([]);
 const setDetail = ref(null);
 
+const SUBTYPE_ICON = {
+  weapon:'🗡️', armor:'🛡️', helmet:'⛑️', boots:'👢', legs:'🦵', shield:'🔰',
+  ring:'💍', necklace:'📿', bracelet:'🏌️', consumable:'🧪', material:'📦',
+  pet_food:'🐾', token:'🎫', quest:'📜', misc:'📋'
+};
 const qualityPrefix = {0:'',1:'〖精良〗',2:'〖史诗〗',3:'〖传说〗'};
 function getItemName(item) {
   return (qualityPrefix[item.quality] || '') + item.name;
