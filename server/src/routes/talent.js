@@ -5,7 +5,7 @@ const { authMiddleware } = require('../middleware/auth');
 
 // 计算天赋对属性的加成（异步，需 await）
 async function calcTalentBonuses(talents) {
-  const b = { atk_pct: 0, def_pct: 0, agi_pct: 0, hp_pct: 0, mp_pct: 0, crit_pct: 0, damage_reduce: 0, counter_pct: 0, sell_price: 0, buy_price: 0, tax_reduce: 0, trade_profit: 0, carry_capacity: 0, luxury_sell: 0, sail_speed: 0, treasure_rate: 0, pirate_avoid: 0, ocean_speed: 0, fish_rate: 0 };
+  const b = { atk_pct: 0, def_pct: 0, agi_pct: 0, hp_pct: 0, mp_pct: 0, crit_pct: 0, crit_damage: 0, lifesteal: 0, rage: 0, damage_reduce: 0, counter_pct: 0, sell_price: 0, buy_price: 0, tax_reduce: 0, trade_profit: 0, carry_capacity: 0, luxury_sell: 0, sail_speed: 0, treasure_rate: 0, pirate_avoid: 0, ocean_speed: 0, fish_rate: 0 };
   if (!talents || typeof talents !== 'object') return b;
   for (const [tid, level] of Object.entries(talents)) {
     const rows = await db.query('SELECT effect_type, effect_value, max_level FROM talent WHERE id = ?', [tid]);

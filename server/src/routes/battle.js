@@ -327,15 +327,21 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       // Apply atk multiplier from status
       const atkBoost = (battle.temp_atk_boost || 1) * (statusEffects.atkMult || 1.0);
       const defReduction = 1.0 - Math.max(0, (statusEffects.defMult || 1.0) - 1.0);
+      // 怒气（rage）：每成功攻击一次增加层数，atk加成 = 层数 × rage_pct/100
+      const rageMult = (talentBonus.rage > 0 && battle.rage_stacks > 0)
+        ? (1 + battle.rage_stacks * talentBonus.rage / 100)
+        : 1.0;
       // 天赋攻击加成（atk_pct）
       const atkPct = (talentBonus.atk_pct || 0) / 100;
-      const pAtk = Math.floor(randInt(battle.e_atk_min, battle.e_atk_max) * atkBoost * (1 + atkPct));
+      const pAtk = Math.floor(randInt(battle.e_atk_min, battle.e_atk_max) * atkBoost * rageMult * (1 + atkPct));
       const pDmgBase = Math.floor((pAtk - battle.monster_def * (1 - defReduction)));
       const pDmg = Math.max(Math.floor(pAtk * 0.1), pDmgBase);
       // 暴击检测（基础 agility/10 + 天赋暴击率，上限50%）
       const critRate = Math.min(50, Math.floor((user.agility || 0) / 10) + (talentBonus.crit_pct || 0));
       const isCrit = randInt(1, 100) <= critRate;
-      const finalDmg = isCrit ? pDmg * 2 : pDmg;
+      // 暴击伤害倍率：基础2倍 + 天赋暴击伤害加成（如crit_damage=50则暴击伤害为2.5倍）
+      const critDmgMult = isCrit ? (2 + (talentBonus.crit_damage || 0) / 100) : 1.0;
+      const finalDmg = Math.floor(pDmg * critDmgMult);
       // 天赋反击率（受怪物攻击时固定概率反击）
       if (talentBonus.counter_pct > 0 && randInt(1, 100) <= talentBonus.counter_pct) {
         const counterDmg = Math.max(1, Math.floor(pDmg * 0.5));
@@ -346,6 +352,24 @@ router.post('/action', authMiddleware, async (req, res, next) => {
       battle.log.push({ type: 'attack', text: isCrit
         ? `💥 你发动暴击！对${battle.monster_name}造成 ${finalDmg} 点伤害！`
         : `你挥剑攻击${battle.monster_name}，造成 ${pDmg} 点伤害！` });
+      // 吸血：根据造成的伤害百分比恢复生命（lifesteal为百分比值，如20代表20%）
+      if (talentBonus.lifesteal > 0 && finalDmg > 0) {
+        const healAmt = Math.floor(finalDmg * talentBonus.lifesteal / 100);
+        if (healAmt > 0) {
+          const newHp = Math.min(Number(user.hp_max), Number(user.hp) + healAmt);
+          await db.query('UPDATE `user` SET hp = ? WHERE `id` = ?', [newHp, req.user.id]);
+          user.hp = newHp;
+          battle.log.push({ type: 'heal', text: `🩸 吸血效果恢复 ${healAmt} 点生命！` });
+        }
+      }
+      // 怒气（rage）：每成功攻击一次增加层数，atk加成 = 层数 × rage_pct/100
+      if (talentBonus.rage > 0) {
+        battle.rage_stacks = (battle.rage_stacks || 0) + 1;
+        const rageBonus = battle.rage_stacks * talentBonus.rage / 100;
+        if (battle.rage_stacks > 1) {
+          battle.log.push({ type: 'buff', text: `🔥 怒气蓄积（${battle.rage_stacks}层），攻击提升 ${Math.round(rageBonus * 100)}%！` });
+        }
+      }
 
       // Weapon durability -1 to -2
       const weaponLoss = randInt(1, 2);
@@ -493,13 +517,24 @@ router.post('/action', authMiddleware, async (req, res, next) => {
           const pAtk = randInt(battle.e_atk_min, battle.e_atk_max);
           const pDmgBase = Math.floor((pAtk * Number(userSkill.atk_multiplier)) - battle.monster_def);
           const pDmg = Math.max(Math.floor(pAtk * 0.1), pDmgBase);
-          const critRate = Math.min(50, Math.floor((user.agility || 0) / 10));
+          const critRate = Math.min(50, Math.floor((user.agility || 0) / 10) + (talentBonus.crit_pct || 0));
           const isCrit = randInt(1, 100) <= critRate;
-          const finalDmg = isCrit ? pDmg * 2 : pDmg;
+          const critDmgMult = isCrit ? (2 + (talentBonus.crit_damage || 0) / 100) : 1.0;
+          const finalDmg = Math.floor(pDmg * critDmgMult);
           battle.monster_hp -= finalDmg;
           battle.log.push({ type: 'skill', text: isCrit
             ? `💥 你施展了${userSkill.name}，暴击造成 ${finalDmg} 点伤害！`
             : `你施展了${userSkill.name}，造成 ${pDmg} 点伤害！` });
+          // 技能攻击也触发吸血
+          if (talentBonus.lifesteal > 0 && finalDmg > 0) {
+            const healAmt = Math.floor(finalDmg * talentBonus.lifesteal / 100);
+            if (healAmt > 0) {
+              const newHp = Math.min(Number(user.hp_max), Number(user.hp) + healAmt);
+              await db.query('UPDATE `user` SET hp = ? WHERE `id` = ?', [newHp, req.user.id]);
+              user.hp = newHp;
+              battle.log.push({ type: 'heal', text: `🩸 吸血效果恢复 ${healAmt} 点生命！` });
+            }
+          }
         }
       } else if (userSkill.type === 2) {
         // Defense skill - temporarily boost def (handled in retaliation calc via battle state)
@@ -970,7 +1005,7 @@ async function buildBattleResponse(battle, user) {
     resp.player_atk_max = battle.e_atk_max;
     resp.player_def = user.def;
     resp.equip_bonus = battle.equip_bonus || { bonusAtk: 0, bonusDef: 0, bonusHp: 0 };
-    resp.talent_bonus = battle.talent_bonus || { crit_pct: 0, damage_reduce: 0, counter_pct: 0 };
+    resp.talent_bonus = battle.talent_bonus || { crit_pct: 0, crit_damage: 0, lifesteal: 0, rage: 0, damage_reduce: 0, counter_pct: 0 };
     resp.player_mp = user.mp || 0;
     resp.player_mp_max = user.mp_max || 100;
     resp.pet_name = battle.pet_name;
