@@ -815,6 +815,14 @@ async function handleMonsterKill(user, battle) {
         const contribRow = await db.getOne("SELECT config_value FROM `game_config` WHERE `config_key`='mentor_contribution' AND `category`='mentor'");
         const contrib = contribRow ? parseInt(contribRow.config_value) : 10;
         const mentor_id = user.mentor_id;
+        const now = Math.floor(Date.now() / 1000);
+
+        // 更新 mentor_relation 表
+        await db.query(
+          'UPDATE mentor_relation SET status=2, graduated_at=?, mentor_contribution=? WHERE apprentice_id=? AND status=1',
+          [now, contrib, user.id]
+        );
+
         await db.query('UPDATE `user` SET mentor_id=0 WHERE `id`=?', [user.id]);
         await db.query('UPDATE `user` SET apprentice_count=GREATEST(apprentice_count-1,0), mentor_contribution=mentor_contribution+? WHERE `id`=?', [contrib, mentor_id]);
         await db.query('UPDATE `user` SET money=money+? WHERE `id`=?', [reward, mentor_id]);

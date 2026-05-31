@@ -816,6 +816,20 @@ INSERT IGNORE INTO `dungeon` (`name`, `place_id`, `floor`, `level_req`, `entry_f
 ('四象圣殿-朱雀宫', 9002,  4, 100, 0, 37, '朱雀骨妖（精英）');
 
 -- ============================================================
+-- 师徒关系表
+CREATE TABLE IF NOT EXISTS `mentor_relation` (
+  `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `mentor_id` INT NOT NULL COMMENT '师父用户ID',
+  `apprentice_id` INT NOT NULL COMMENT '徒弟用户ID',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态: 1=师徒中 2=已出师 3=已解除',
+  `created_at` INT NOT NULL DEFAULT 0 COMMENT '拜师时间戳',
+  `graduated_at` INT NOT NULL DEFAULT 0 COMMENT '出师时间戳',
+  `mentor_contribution` INT NOT NULL DEFAULT 0 COMMENT '师父从该徒弟获得的贡献度',
+  UNIQUE KEY `uk_mentor_apprentice` (`mentor_id`, `apprentice_id`),
+  KEY `idx_apprentice` (`apprentice_id`),
+  KEY `idx_mentor` (`mentor_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 师徒系统：user 表增加 mentor_id 相关字段（MySQL 8 手动执行）
 -- ALTER TABLE user ADD COLUMN mentor_id int NOT NULL DEFAULT 0 AFTER shortcut_slot_3;
 -- ALTER TABLE user ADD COLUMN mentor_contribution int NOT NULL DEFAULT 0 AFTER mentor_id;
@@ -847,9 +861,14 @@ INSERT IGNORE INTO `game_config` (`category`, `config_key`, `config_value`, `des
 ('dungeon', 'niutou_level',    '30', '牛头山等级要求'),
 ('dungeon', 'sixiang_level',  '100', '四象圣殿等级要求'),
 -- 师徒配置
-('mentor',  'apprentice_max_level',  '30', '徒弟出师等级'),
-('mentor',  'apprentice_reward',  '1000', '徒弟出师给师父铜币奖励'),
-('mentor',  'mentor_contribution', '10',   '徒弟出师给师父贡献度'),
+('mentor',  'apprentice_max_level',    '30',   '徒弟出师等级'),
+('mentor',  'apprentice_reward',       '1000', '徒弟出师给师父铜币奖励'),
+('mentor',  'mentor_contribution',     '10',   '徒弟出师给师父贡献度'),
+('mentor',  'max_apprentices',         '5',    '师父最多徒弟数量'),
+('mentor',  'mentor_min_level',        '50',   '成为师父的最低等级要求'),
+('mentor',  'daily_contribution_limit','5',    '每日师父贡献度上限'),
+('mentor',  'graduate_bonus_type',     'money', '出师奖励类型: money=铜币, gold=黄金'),
+('mentor',  'graduate_bonus_amount',   '500',  '出师额外奖励数额');
 -- 鉴定配置
 ('identify', 'cost_base',         '500', '鉴定费用基数（按装备等级计算）'),
 ('identify', 'cost_per_level',    '100', '鉴定费用每级增加铜币'),

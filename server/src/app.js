@@ -58,6 +58,7 @@ app.use('/api/gate', require('./routes/gate'));
 app.use('/api/fishing', require('./routes/fishing'));
 app.use('/api/treasure', require('./routes/treasure'));
 app.use('/api/auction', require('./routes/auction'));
+app.use('/api/quiz', require('./routes/quiz'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));

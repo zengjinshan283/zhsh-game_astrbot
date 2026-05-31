@@ -40,6 +40,7 @@ const routes = [
   { path: '/achievement', name: 'achievement', component: () => import('../views/AchievementView.vue'), meta: { auth: true } },
   { path: '/codex', name: 'codex', component: () => import('../views/CodexView.vue'), meta: { auth: true } },
   { path: '/auction', name: 'auction', component: () => import('../views/AuctionView.vue'), meta: { auth: true } },
+  { path: '/quiz', name: 'quiz', component: () => import('../views/QuizView.vue'), meta: { auth: true } },
   { path: '/skill-upgrade', name: 'skill-upgrade', component: () => import('../views/SkillUpgradeView.vue'), meta: { auth: true } },
   { path: '/invite', name: 'invite', component: () => import('../views/InviteView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
