@@ -600,10 +600,10 @@ function dangerColor(hp) { return hp >= 100 ? '#e74c3c' : hp >= 50 ? '#f39c12' :
 function dangerLabel(hp) { return hp >= 100 ? '危险' : hp >= 50 ? '普通' : '较弱' }
 
 const npcTypes = {
-  icon: { 0:'💬', 1:'🏪', 2:'⚒️', 3:'🏦', 4:'🎰', 5:'📋' },
-  cls: { 0:'talk', 1:'shop', 2:'craft', 3:'bank', 4:'danger', 5:'quest' },
-  action: { 0:'交谈', 1:'购物', 2:'锻造', 3:'兑换', 4:'挑战', 5:'交谈' },
-  color: { 0:'#3498db', 1:'#c9a758', 2:'#6f5632', 3:'#2ecc71', 4:'#e74c3c', 5:'#9b59b6' },
+  icon: { 0:'💬', 1:'🏪', 2:'⚒️', 3:'🏦', 4:'🎰', 5:'🏛️', 6:'🔮' },
+  cls: { 0:'talk', 1:'shop', 2:'craft', 3:'bank', 4:'danger', 5:'auction', 6:'quiz' },
+  action: { 0:'交谈', 1:'购物', 2:'锻造', 3:'兑换', 4:'挑战', 5:'拍卖', 6:'答题' },
+  color: { 0:'#3498db', 1:'#c9a758', 2:'#6f5632', 3:'#2ecc71', 4:'#e74c3c', 5:'#3498db', 6:'#9b59b6' },
 }
 function npcIcon(t) { return npcTypes.icon[t] || '💬' }
 function npcTypeClass(t) { return npcTypes.cls[t] || 'talk' }

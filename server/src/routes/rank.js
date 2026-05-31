@@ -19,14 +19,33 @@ router.get('/wealth', authMiddleware, async (req, res, next) => {
 
 router.get('/power', authMiddleware, async (req, res, next) => {
   try {
-    // 战力 = ATK×3 + DEF×2 + AGI×1 + HP÷10×2（含装备加成）
+    // 战力 = (ATK+装备ATK+图鉴ATK)×3 + (DEF+装备DEF+图鉴DEF)×2 + AGI×1 + (HP+图鉴HP)÷10×2
+    // 天赋 lifesteal/crit_damage/damage_reduce/counter/rage 等影响直接体现在属性表字段
     const list = await db.getAll(`
-      SELECT u.id, u.username, u.sex, u.level, u.atk_max, u.def, u.agility, u.hp_max,
+      SELECT u.id, u.username, u.sex, u.level,
+             u.atk_max, u.def, u.agility, u.hp_max,
              COALESCE(SUM(CASE WHEN i.subtype IN('weapon','armor') THEN ROUND((i.atk+i.def_val)*(1+inv.enhance_level*0.03)) ELSE 0 END),0) AS equip_bonus,
-             (u.atk_max*3 + u.def*2 + u.agility + FLOOR(u.hp_max/10)*2) AS power
+             COALESCE(cx.bonus_atk,0) AS codex_atk,
+             COALESCE(cx.bonus_def,0) AS codex_def,
+             COALESCE(cx.bonus_hp,0) AS codex_hp,
+             ( (u.atk_max + COALESCE(SUM(CASE WHEN i.subtype='weapon' THEN ROUND(i.atk*(1+inv.enhance_level*0.03)) ELSE 0 END),0) + COALESCE(cx.bonus_atk,0) ) * 3
+           + ( (u.def    + COALESCE(SUM(CASE WHEN i.subtype='armor'  THEN ROUND(i.def_val*(1+inv.enhance_level*0.03)) ELSE 0 END),0) + COALESCE(cx.bonus_def,0) ) * 2
+           + u.agility
+           + FLOOR( (u.hp_max + COALESCE(cx.bonus_hp,0)) / 10 ) * 2
+             AS power
       FROM \`user\` u
       LEFT JOIN \`inventory\` inv ON inv.user_id=u.id AND inv.equipped=1
       LEFT JOIN \`item\` i ON inv.item_id=i.id
+      LEFT JOIN (
+        SELECT uc.user_id,
+               COALESCE(MAX(cr.bonus_atk),0) AS bonus_atk,
+               COALESCE(MAX(cr.bonus_def),0) AS bonus_def,
+               COALESCE(MAX(cr.bonus_hp),0) AS bonus_hp
+        FROM user_codex uc
+        JOIN codex_reward cr ON cr.require_count <= (SELECT COUNT(*) FROM user_codex uc2 WHERE uc2.user_id = uc.user_id)
+        WHERE uc.user_id = u.id
+        GROUP BY uc.user_id
+      ) cx ON cx.user_id = u.id
       GROUP BY u.id
       ORDER BY power DESC
       LIMIT 20`);
