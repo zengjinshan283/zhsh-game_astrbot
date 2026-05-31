@@ -11278,6 +11278,267 @@ CREATE TABLE IF NOT EXISTS `user_activity_reward` (
 );
 
 -- ============================================================
+-- 拍卖行系统 6张表
+-- ============================================================
+
+-- 1. 拍卖分类配置
+CREATE TABLE IF NOT EXISTS `auction_category` (
+  `id`         INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `name`       VARCHAR(30) NOT NULL COMMENT '分类名称',
+  `icon`       VARCHAR(20) NOT NULL DEFAULT '📦' COMMENT '图标',
+  `sort_order` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '排序',
+  `is_active`  TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '是否启用'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='拍卖分类配置';
+
+INSERT INTO `auction_category` (`id`, `name`, `icon`, `sort_order`, `is_active`) VALUES
+(1, '武器',   '⚔️', 10, 1),
+(2, '防具',   '🛡️', 20, 1),
+(3, '饰品',   '💍', 30, 1),
+(4, '消耗品', '💊', 40, 1),
+(5, '材料',   '📦', 50, 1),
+(6, '宠物',   '🐾', 60, 1),
+(7, '其他',   '🎁', 99, 1);
+
+-- 2. 拍卖物品主表
+CREATE TABLE IF NOT EXISTS `auction` (
+  `id`             INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `item_id`       INT UNSIGNED NOT NULL COMMENT '物品ID(item.id)',
+  `seller_id`     INT UNSIGNED NOT NULL COMMENT '卖家用户ID',
+  `category_id`   INT UNSIGNED NOT NULL DEFAULT 7 COMMENT '分类ID',
+  `title`         VARCHAR(100) NOT NULL COMMENT '拍卖标题',
+  `description`  TEXT COMMENT '物品描述',
+  `starting_price` INT UNSIGNED NOT NULL COMMENT '起拍价(铜币)',
+  `current_price`  INT UNSIGNED NOT NULL COMMENT '当前价(铜币)',
+  `buyout_price`   INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '一口价(0=无)',
+  `highest_bidder_id` INT UNSIGNED DEFAULT NULL COMMENT '当前最高出价者ID',
+  `bid_count`     INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '总出价次数',
+  `start_time`    DATETIME NOT NULL COMMENT '开始时间',
+  `end_time`      DATETIME NOT NULL COMMENT '结束时间(CST)',
+  `status`        TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0=进行中 1=已成交 2=流拍 3=已取消',
+  `winner_id`     INT UNSIGNED DEFAULT NULL COMMENT '最终获得者ID',
+  `final_price`   INT UNSIGNED DEFAULT NULL COMMENT '最终成交价',
+  `created_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_status_endtime` (`status`, `end_time`),
+  INDEX `idx_seller`          (`seller_id`),
+  INDEX `idx_highest_bidder`  (`highest_bidder_id`),
+  INDEX `idx_category`       (`category_id`),
+  INDEX `idx_item`            (`item_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='拍卖物品主表';
+
+-- 3. 竞拍出价记录
+CREATE TABLE IF NOT EXISTS `auction_bid` (
+  `id`          INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `auction_id`  INT UNSIGNED NOT NULL COMMENT '拍卖ID',
+  `bidder_id`   INT UNSIGNED NOT NULL COMMENT '出价者ID',
+  `bid_price`   INT UNSIGNED NOT NULL COMMENT '出价金额(铜币)',
+  `is_winning` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '是否为当前最高 0=否 1=是',
+  `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_auction` (`auction_id`),
+  INDEX `idx_bidder`  (`bidder_id`),
+  FOREIGN KEY (`auction_id`) REFERENCES `auction`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='竞拍出价记录';
+
+-- 4. 用户关注的拍卖
+CREATE TABLE IF NOT EXISTS `auction_watch` (
+  `id`         INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `user_id`    INT UNSIGNED NOT NULL COMMENT '用户ID',
+  `auction_id` INT UNSIGNED NOT NULL COMMENT '拍卖ID',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_user_auction` (`user_id`, `auction_id`),
+  INDEX `idx_user`    (`user_id`),
+  INDEX `idx_auction` (`auction_id`),
+  FOREIGN KEY (`auction_id`) REFERENCES `auction`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户关注的拍卖';
+
+-- ============================================================
+-- 星座答题活动 4张表
+-- ============================================================
+
+-- 类别表：12星座
+CREATE TABLE IF NOT EXISTS `quiz_category` (
+  `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `name`       VARCHAR(20) NOT NULL COMMENT '星座名',
+  `icon`       VARCHAR(10) NOT NULL DEFAULT '⭐' COMMENT '图标',
+  `sort_order` TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '排序'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 题目表
+CREATE TABLE IF NOT EXISTS `quiz_question` (
+  `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `category_id` INT UNSIGNED NOT NULL COMMENT '所属分类',
+  `question`   TEXT NOT NULL COMMENT '题目',
+  `option_a`   VARCHAR(100) NOT NULL,
+  `option_b`   VARCHAR(100) NOT NULL,
+  `option_c`   VARCHAR(100) NOT NULL,
+  `option_d`   VARCHAR(100) NOT NULL,
+  `correct`    CHAR(1) NOT NULL COMMENT '正确答案 A/B/C/D',
+  `difficulty` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '难度1-3',
+  `points`     INT UNSIGNED NOT NULL DEFAULT 10 COMMENT '答对加分',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`category_id`) REFERENCES `quiz_category`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 答题会话表
+CREATE TABLE IF NOT EXISTS `quiz_session` (
+  `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id`      INT UNSIGNED NOT NULL,
+  `category_id`  INT UNSIGNED NULL COMMENT 'NULL表示综合题库',
+  `status`       TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0进行中 1已完成',
+  `score`        INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '总分',
+  `correct_count` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '答对题数',
+  `total_count`  INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '总题数',
+  `reward_money` INT UNSIGNED NOT NULL DEFAULT 0 COMMENT '奖励铜币',
+  `started_at`   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `finished_at`  TIMESTAMP NULL,
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`),
+  FOREIGN KEY (`category_id`) REFERENCES `quiz_category`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 答题记录表
+CREATE TABLE IF NOT EXISTS `quiz_answer_log` (
+  `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `session_id`  INT UNSIGNED NOT NULL,
+  `question_id` INT UNSIGNED NOT NULL,
+  `user_answer` CHAR(1) NOT NULL,
+  `is_correct` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  `answered_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`session_id`) REFERENCES `quiz_session`(`id`),
+  FOREIGN KEY (`question_id`) REFERENCES `quiz_question`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12星座分类数据
+INSERT INTO `quiz_category` (`id`, `name`, `icon`, `sort_order`) VALUES
+(1, '白羊座', '♈', 1),
+(2, '金牛座', '♉', 2),
+(3, '双子座', '♊', 3),
+(4, '巨蟹座', '♋', 4),
+(5, '狮子座', '♌', 5),
+(6, '处女座', '♍', 6),
+(7, '天秤座', '♎', 7),
+(8, '天蝎座', '♏', 8),
+(9, '射手座', '♐', 9),
+(10, '摩羯座', '♑', 10),
+(11, '水瓶座', '♒', 11),
+(12, '双鱼座', '♓', 12);
+
+-- 60题星座知识题
+INSERT INTO `quiz_question` (`category_id`, `question`, `option_a`, `option_b`, `option_c`, `option_d`, `correct`, `difficulty`, `points`) VALUES
+(1, '白羊座的日期范围是？', '3月21日-4月19日', '4月20日-5月20日', '2月19日-3月20日', '5月21日-6月20日', 'A', 1, 10),
+(1, '白羊座的守护星是？', '金星', '火星', '木星', '水星', 'B', 1, 10),
+(1, '白羊座属于哪个元素？', '水象', '火象', '风象', '土象', 'B', 1, 10),
+(1, '白羊座的人通常性格特点是什么？', '温柔内敛', '冲动勇敢', '冷静理性', '神秘深沉', 'B', 2, 15),
+(1, '白羊座的幸运色是什么？', '蓝色', '红色', '绿色', '紫色', 'B', 2, 15),
+(2, '金牛座的日期范围是？', '3月21日-4月19日', '4月20日-5月20日', '2月19日-3月20日', '5月21日-6月20日', 'B', 1, 10),
+(2, '金牛座的守护星是？', '火星', '金星', '土星', '木星', 'B', 1, 10),
+(2, '金牛座属于哪个元素？', '火象', '土象', '风象', '水象', 'B', 1, 10),
+(2, '金牛座最重视什么？', '自由', '稳定与安全感', '刺激', '社交', 'B', 2, 15),
+(2, '金牛座的幸运石是什么？', '蓝宝石', '翡翠', '红宝石', '钻石', 'B', 2, 15),
+(3, '双子座的日期范围是？', '5月21日-6月20日', '4月20日-5月20日', '6月21日-7月22日', '3月21日-4月19日', 'A', 1, 10),
+(3, '双子座的守护星是？', '水星', '金星', '火星', '木星', 'A', 1, 10),
+(3, '双子座属于哪个元素？', '火象', '土象', '风象', '水象', 'C', 1, 10),
+(3, '双子座的人通常擅长什么？', '稳定执行', '多才多艺、善于沟通', '体力劳动', '财务管理', 'B', 2, 15),
+(3, '双子座的幸运数字是？', '6', '3和5', '8', '2', 'B', 2, 15),
+(4, '巨蟹座的日期范围是？', '6月21日-7月22日', '5月21日-6月20日', '7月23日-8月22日', '4月20日-5月20日', 'A', 1, 10),
+(4, '巨蟹座的守护星是？', '月亮', '太阳', '火星', '水星', 'A', 1, 10),
+(4, '巨蟹座属于哪个元素？', '火象', '土象', '风象', '水象', 'D', 1, 10),
+(4, '巨蟹座的人通常重视什么？', '事业成功', '家庭与情感', '个人自由', '社交名望', 'B', 2, 15),
+(4, '巨蟹座的符号象征什么？', '狮子', '螃蟹', '天蝎', '双子', 'B', 2, 15),
+(5, '狮子座的日期范围是？', '7月23日-8月22日', '6月21日-7月22日', '8月23日-9月22日', '5月21日-6月20日', 'A', 1, 10),
+(5, '狮子座的守护星是？', '月亮', '太阳', '火星', '金星', 'B', 1, 10),
+(5, '狮子座属于哪个元素？', '水象', '火象', '风象', '土象', 'B', 1, 10),
+(5, '狮子座的人通常性格特点是？', '内向敏感', '自信慷慨', '冷静低调', '随和懒散', 'B', 2, 15),
+(5, '狮子座的幸运色是什么？', '黑色', '金色和黄色', '蓝色', '绿色', 'B', 2, 15),
+(6, '处女座的日期范围是？', '8月23日-9月22日', '7月23日-8月22日', '9月23日-10月22日', '6月21日-7月22日', 'A', 1, 10),
+(6, '处女座的守护星是？', '金星', '水星', '火星', '土星', 'B', 1, 10),
+(6, '处女座属于哪个元素？', '火象', '土象', '风象', '水象', 'B', 1, 10),
+(6, '处女座的人通常最注重什么？', '享受娱乐', '完美与细节', '冒险自由', '社交人际', 'B', 2, 15),
+(6, '处女座的幸运石是什么？', '红宝石', '蓝宝石', '祖母绿', '钻石', 'B', 2, 15),
+(7, '天秤座的日期范围是？', '9月23日-10月22日', '8月23日-9月22日', '10月23日-11月21日', '7月23日-8月22日', 'A', 1, 10),
+(7, '天秤座的守护星是？', '火星', '金星', '木星', '水星', 'B', 1, 10),
+(7, '天秤座属于哪个元素？', '火象', '土象', '风象', '水象', 'C', 1, 10),
+(7, '天秤座的人通常追求什么？', '独立自主', '和谐与平衡', '权力控制', '精神自由', 'B', 2, 15),
+(7, '天秤座的幸运数字是？', '4', '6和9', '3', '7', 'B', 2, 15),
+(8, '天蝎座的日期范围是？', '10月23日-11月21日', '9月23日-10月22日', '11月22日-12月21日', '8月23日-9月22日', 'A', 1, 10),
+(8, '天蝎座的守护星是？', '金星', '火星和冥王星', '木星', '土星', 'B', 1, 10),
+(8, '天蝎座属于哪个元素？', '火象', '土象', '风象', '水象', 'D', 1, 10),
+(8, '天蝎座的人通常性格特点是？', '随和随意', '神秘专注、意志坚定', '冲动急躁', '优柔寡断', 'B', 2, 15),
+(8, '天蝎座的幸运色是什么？', '黄色', '深红色和黑色', '白色', '蓝色', 'B', 2, 15),
+(9, '射手座的日期范围是？', '11月22日-12月21日', '10月23日-11月21日', '12月22日-1月19日', '9月23日-10月22日', 'A', 1, 10),
+(9, '射手座的守护星是？', '火星', '木星', '土星', '金星', 'B', 1, 10),
+(9, '射手座属于哪个元素？', '水象', '火象', '风象', '土象', 'B', 1, 10),
+(9, '射手座的人通常追求什么？', '稳定安全', '自由与探索', '完美秩序', '社交名望', 'B', 2, 15),
+(9, '射手座的幸运石是什么？', '蓝宝石', '紫水晶', '绿宝石', '红宝石', 'B', 2, 15),
+(10, '摩羯座的日期范围是？', '12月22日-1月19日', '11月22日-12月21日', '1月20日-2月18日', '10月23日-11月21日', 'A', 1, 10),
+(10, '摩羯座的守护星是？', '木星', '土星', '火星', '金星', 'B', 1, 10),
+(10, '摩羯座属于哪个元素？', '火象', '土象', '风象', '水象', 'B', 1, 10),
+(10, '摩羯座的人通常性格特点是？', '随性浪漫', '务实有责任心', '冲动冒险', '神秘多变', 'B', 2, 15),
+(10, '摩羯座的幸运色是什么？', '红色', '黑色和棕色', '黄色', '绿色', 'B', 2, 15),
+(11, '水瓶座的日期范围是？', '1月20日-2月18日', '12月22日-1月19日', '2月19日-3月20日', '11月22日-12月21日', 'A', 1, 10),
+(11, '水瓶座的守护星是？', '土星', '天王星', '木星', '火星', 'B', 1, 10),
+(11, '水瓶座属于哪个元素？', '火象', '土象', '风象', '水象', 'C', 1, 10),
+(11, '水瓶座的人通常最重视什么？', '传统稳定', '创新与人道主义', '感官享受', '情感归属', 'B', 2, 15),
+(11, '水瓶座的幸运数字是？', '5', '11和22', '8', '3', 'B', 2, 15),
+(12, '双鱼座的日期范围是？', '2月19日-3月20日', '1月20日-2月18日', '3月21日-4月19日', '12月22日-1月19日', 'A', 1, 10),
+(12, '双鱼座的守护星是？', '海王星和木星', '金星', '火星', '水星', 'A', 1, 10),
+(12, '双鱼座属于哪个元素？', '火象', '土象', '风象', '水象', 'D', 1, 10),
+(12, '双鱼座的人通常性格特点是？', '理性冷静', '浪漫敏感的梦想家', '强势霸道', '刻板固执', 'B', 2, 15),
+(12, '双鱼座的幸运色是什么？', '橙色', '海蓝色和紫色', '红色', '金色', 'B', 2, 15);
+
+-- ============================================================
+-- 城门独立表 gate
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `gate` (
+  `id`             INT NOT NULL COMMENT '地点id(对应place.id)',
+  `city_id`        INT NOT NULL COMMENT '所属城市id',
+  `direction`      ENUM('n','s','e','w') NOT NULL COMMENT '城门方向',
+  `name`           VARCHAR(64) NOT NULL COMMENT '城门名称',
+  `target_wild_id` INT DEFAULT NULL COMMENT '点击后进入的野外区域id(wild_map.id)',
+  `level_req`      INT DEFAULT 1 COMMENT '进入等级要求',
+  `enabled`        TINYINT DEFAULT 1 COMMENT '是否启用 0禁用 1启用',
+  PRIMARY KEY (`id`),
+  INDEX `idx_city_id`    (`city_id`),
+  INDEX `idx_direction` (`direction`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 迁移已有城门数据
+INSERT IGNORE INTO `gate` (`id`, `city_id`, `direction`, `name`, `level_req`, `enabled`)
+SELECT 
+  p.id,
+  p.city_id,
+  CASE 
+    WHEN p.name LIKE '%北城门%' OR p.name LIKE '%北门%' THEN 'n'
+    WHEN p.name LIKE '%南城门%' OR p.name LIKE '%南门%' THEN 's'
+    WHEN p.name LIKE '%东城门%' OR p.name LIKE '%东门%' THEN 'e'
+    WHEN p.name LIKE '%西城门%' OR p.name LIKE '%西门%' THEN 'w'
+    ELSE 'n'
+  END AS direction,
+  p.name,
+  1 AS level_req,
+  1 AS enabled
+FROM `place` p
+WHERE p.type = 5 
+  AND (p.name LIKE '%城门%' OR p.name LIKE '%门%');
+
+-- 为已有城门设置 target_wild_id
+UPDATE gate g
+JOIN (
+  SELECT wm.id, wm.city_id, wm.direction
+  FROM wild_map wm
+  INNER JOIN (
+    SELECT city_id, direction, MAX(level) as max_level
+    FROM wild_map
+    GROUP BY city_id, direction
+  ) sub ON wm.city_id = sub.city_id 
+       AND wm.direction = sub.direction 
+       AND wm.level = sub.max_level
+) wild ON g.city_id = wild.city_id AND g.direction = wild.direction
+SET g.target_wild_id = wild.id
+WHERE g.target_wild_id IS NULL;
+
+
+-- ============================================================
 -- 每日活动任务数据
 -- ============================================================
 INSERT IGNORE INTO `daily_activity` (`key`, `name`, `description`, `target`, `active_point`) VALUES
