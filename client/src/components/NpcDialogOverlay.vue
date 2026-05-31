@@ -19,6 +19,7 @@
         <button v-for="topic in chatTopics" :key="topic.key" class="topic-btn"
           @click="currentDialog = topic.text">💬 {{ topic.text.substring(0, 8) }}{{ topic.text.length > 8 ? '…' : '' }}</button>
         <button v-if="npc?.type === 5" class="topic-btn shop-topic" @click="openShop">💎 查看商品</button>
+        <button class="topic-btn auction-topic" @click="goAuction">🏛 拍卖行</button>
       </div>
 
       <!-- 任务区域 -->
@@ -80,6 +81,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { Api } from '../composables/useApi';
+import router from '../router';
 
 const props = defineProps({
   npcId: { type: Number, required: true },
@@ -154,6 +156,8 @@ async function claimQuest(q) {
   } catch (e) { alert(e.message); }
 }
 
+function goAuction() { router.push('/auction'); }
+
 function close() { emit('close'); }
 
 watch(() => props.npcId, (id) => { if (id) load(); }, { immediate: true });
@@ -201,6 +205,7 @@ watch(() => props.npcId, (id) => { if (id) load(); }, { immediate: true });
 }
 .topic-btn:hover { background: rgba(255, 255, 255, 0.09); color: #ddd; }
 .shop-topic { border-color: rgba(201, 167, 88, 0.3); color: #c9a758; }
+.auction-topic { border-color: rgba(52,152,219,0.3); color: #3498db; }
 .npc-section { display: flex; flex-direction: column; gap: 8px; }
 .ns-title { font-size: 12px; font-weight: 700; color: #7f8c8d; margin-bottom: 2px; }
 .ns-loading { font-size: 12px; color: #555; padding: 8px 0; }
