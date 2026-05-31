@@ -18,17 +18,6 @@
     <router-link to="/quest" class="btn btn-primary" style="margin-top:16px;display:inline-block;">📋 查看所有任务</router-link>
   </div>
 
-  <!-- 开场剧情（step=0） -->
-  <div v-else-if="guideStep === 0" class="card intro-card" style="padding:20px;">
-    <div style="font-size:24px;text-align:center;margin-bottom:12px;">⚓</div>
-    <div style="text-align:center;font-size:15px;color:#c9a758;font-weight:bold;margin-bottom:10px;">欢迎来到纵横四海</div>
-    <div style="font-size:13px;color:#8b7355;line-height:1.7;text-align:center;margin-bottom:16px;">
-      大航海时代的冒险即将开始<br>在开始之前，让我们先了解一下这个世界的故事……
-    </div>
-    <button class="btn btn-primary btn-block" @click="startIntro">📖 观看开场剧情</button>
-    <button class="btn btn-secondary btn-block" style="margin-top:8px;" @click="skipIntro">跳过，直接开始</button>
-  </div>
-
   <!-- 主线引导进行中 -->
   <template v-else>
     <!-- 当前任务卡片 -->
