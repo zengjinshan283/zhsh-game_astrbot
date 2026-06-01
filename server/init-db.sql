@@ -11566,3 +11566,77 @@ INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `pric
 (3001, '千银矿石', 4, 'material', '蕴含千倍银光的珍稀矿石，可用于强化', 500, 250, 0, 0, 0),
 (2001, '月华密令', 4, 'token', '月光凝炼的令牌，传说可召唤神秘力量', 2000, 1000, 0, 0, 0),
 (2002, '龙门镖旗', 4, 'token', '龙门镖局的信物，江湖人皆知', 3000, 1500, 0, 0, 0);
+
+-- ============================================================
+-- 藏宝图系统：道具 + 挖掘地点 + 奖励池
+-- ============================================================
+
+-- 藏宝图与碎片道具（id 90001-90005）
+INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `price_buy`, `price_sell`, `atk`, `def_val`, `hp`, `level_req`, `quality`, `effect_key`, `effect_value`) VALUES
+(90001, '藏宝图', 9, 'treasure_map', '标注着神秘宝藏位置的古老地图，在野外使用可开始挖掘。', 50, 20, 0, 0, 0, 1, 0, NULL, 0),
+(90002, '藏宝图碎片·左', 9, 'treasure_fragment', '藏宝图的左半部分，上面画着海岸线和奇怪的符号。', 0, 5, 0, 0, 0, 1, 0, NULL, 0),
+(90003, '藏宝图碎片·中', 9, 'treasure_fragment', '藏宝图的中段部分，记载着危险的警告。', 0, 5, 0, 0, 0, 1, 0, NULL, 0),
+(90004, '藏宝图碎片·右', 9, 'treasure_fragment', '藏宝图的右半部分，标注着终点的 X 标记。', 0, 5, 0, 0, 0, 1, 0, NULL, 0),
+(90005, '古老的藏宝图', 9, 'treasure_map_elite', '由三块碎片拼合而成的古老藏宝图，闪烁着神秘的光芒。', 0, 100, 0, 0, 0, 10, 2, NULL, 0);
+
+-- 挖掘地点表
+CREATE TABLE IF NOT EXISTS `treasure_location` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `map_id` int NOT NULL COMMENT '所属海域/地图ID',
+  `name` varchar(64) NOT NULL COMMENT '地点名称',
+  `x` int NOT NULL COMMENT 'X坐标',
+  `y` int NOT NULL COMMENT 'Y坐标',
+  `min_level` int DEFAULT '1' COMMENT '最低等级要求',
+  `max_level` int DEFAULT '99' COMMENT '最高等级要求',
+  `quality` tinyint DEFAULT '0' COMMENT '0=普通,1=精致,2=古老',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 奖励池表
+CREATE TABLE IF NOT EXISTS `treasure_reward` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `type` varchar(20) NOT NULL COMMENT 'money/silver/item/goods',
+  `value` varchar(64) NOT NULL COMMENT '数量或物品ID',
+  `weight` int NOT NULL DEFAULT '1' COMMENT '权重',
+  `min_level` int DEFAULT '1' COMMENT '最低玩家等级要求',
+  `quality` tinyint DEFAULT '0' COMMENT '0=普通藏宝图奖励, 1=精致, 2=古老',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- 初始挖掘地点（12 个，覆盖 1-45 级）
+INSERT IGNORE INTO `treasure_location` (`id`, `map_id`, `name`, `x`, `y`, `min_level`, `max_level`, `quality`) VALUES
+(1, 2, '荒废渔村废墟', 10, 20, 1, 15, 0),
+(2, 2, '珊瑚礁浅滩', 35, 15, 1, 10, 0),
+(3, 2, '沉船遗骸', 50, 40, 5, 20, 1),
+(4, 3, '密林深处', 15, 30, 8, 25, 1),
+(5, 3, '古代神庙遗迹', 45, 25, 12, 30, 1),
+(6, 3, '蛇岛礁石', 60, 50, 15, 35, 1),
+(7, 4, '海蚀洞穴', 20, 35, 10, 28, 1),
+(8, 4, '漂流者墓地', 55, 20, 18, 38, 2),
+(9, 5, '沉没商船', 25, 45, 20, 40, 1),
+(10, 5, '冰封海湾', 40, 30, 25, 45, 2),
+(11, 6, '迷雾海峡', 30, 25, 5, 18, 0),
+(12, 6, '海寇藏身处', 55, 45, 15, 30, 2);
+
+-- 奖励池（20 条，3 档品质各覆盖铜币/银币/物品）
+INSERT IGNORE INTO `treasure_reward` (`id`, `type`, `value`, `weight`, `min_level`, `quality`) VALUES
+(1, 'money', '300', 30, 1, 0),
+(2, 'money', '500', 25, 1, 0),
+(3, 'money', '800', 15, 1, 0),
+(4, 'silver', '1', 8, 1, 0),
+(5, 'silver', '2', 4, 5, 0),
+(6, 'item', '20011', 5, 5, 0),
+(7, 'item', '20012', 3, 8, 0),
+(8, 'money', '1000', 20, 5, 1),
+(9, 'money', '2000', 15, 5, 1),
+(10, 'silver', '3', 15, 5, 1),
+(11, 'silver', '5', 10, 5, 1),
+(12, 'item', '20011', 10, 5, 1),
+(13, 'item', '20012', 8, 8, 1),
+(14, 'item', '20013', 4, 12, 1),
+(15, 'silver', '10', 15, 10, 2),
+(16, 'silver', '20', 10, 10, 2),
+(17, 'item', '20012', 15, 8, 2),
+(18, 'item', '20013', 12, 12, 2),
+(19, 'item', '30001', 8, 15, 2),
+(20, 'item', '30002', 5, 18, 2);

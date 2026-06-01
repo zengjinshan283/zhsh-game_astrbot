@@ -39,6 +39,7 @@
             <router-link to="/dungeon" class="func-btn" @click="showMore = false"><span class="func-emoji">🏔️</span><span class="func-label">副本</span></router-link>
             <router-link to="/vip" class="func-btn" @click="showMore = false"><span class="func-emoji">👑</span><span class="func-label">月卡</span></router-link>
             <router-link to="/invite" class="func-btn" @click="showMore = false"><span class="func-emoji">🎯</span><span class="func-label">推广</span></router-link>
+            <router-link to="/treasure" class="func-btn" @click="showMore = false"><span class="func-emoji">🗺️</span><span class="func-label">宝图</span></router-link>
           </div>
           <div v-if="dynamicBtns.length" class="func-grid" style="margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(226,183,20,0.1);">
             <template v-for="(b, idx) in dynamicBtns" :key="idx">

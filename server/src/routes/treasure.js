@@ -19,7 +19,9 @@ router.post('/use', authMiddleware, async (req, res, next) => {
     if (!inv) return res.status(400).json({ error: '背包中没有此藏宝图' });
 
     const item = await db.getOne('SELECT * FROM `item` WHERE `id`=?', [item_id]);
-    if (!item || item.subtype !== 'treasure_map') return res.status(400).json({ error: '这不是藏宝图' });
+    if (!item || (item.subtype !== 'treasure_map' && item.subtype !== 'treasure_map_elite')) {
+      return res.status(400).json({ error: '这不是藏宝图' });
+    }
 
     // 等级检查
     const user = await db.getOne('SELECT level FROM `user` WHERE `id`=?', [req.user.id]);
