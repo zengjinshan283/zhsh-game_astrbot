@@ -219,13 +219,13 @@ async function buyShip(id) {
     msgType.value = 'error';
     return;
   }
-  try { const d = await Api.post('/sail/buy-ship', { ship_id: id }); msg.value = d.msg || (d.switched ? '切换成功' : '购买成功'); msgType.value = 'success'; await load(); }
+  try { const d = await Api.post('/sail/buy-ship', { ship_id: id }); msg.value = d.msg || (d.switched ? '切换成功' : '购买成功'); msgType.value = 'success'; await load(); Api.post('/guide/ship-bought').catch(()=>{}); }
   catch (e) { msg.value = e?.response?.data?.error || e.message || '操作失败'; msgType.value = 'error'; }
 }
 
 async function depart() {
   if (!targetCityId.value) return;
-  try { await Api.post('/sail/depart', { target_city_id: targetCityId.value }); msg.value = '⛵ 已出航'; msgType.value = 'success'; await load(false); }
+  try { await Api.post('/sail/depart', { target_city_id: targetCityId.value }); msg.value = '⛵ 已出航'; msgType.value = 'success'; await load(false); Api.post('/guide/sail-started').catch(()=>{}); }
   catch (e) { msg.value = e?.response?.data?.error || e.message || '出航失败'; msgType.value = 'error'; }
 }
 

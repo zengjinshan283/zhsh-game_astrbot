@@ -39,6 +39,8 @@
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { Api } from '../composables/useApi';
+
 const router = useRouter();
 const step = ref(1);
 const stories = {
@@ -50,8 +52,8 @@ const stories = {
   6: { title: '第五幕：未知的旅途', text: '大海的深处隐藏着无数的宝藏和危险——海盗、风暴、神秘的岛屿……但同样也有无尽的荣耀和财富等待着你。', bg: '你深吸一口气，感受着海风的气息。纵横四海的冒险，从今天开始！' },
   7: { title: '尾声：新的开始', text: '你回到了威尼斯酒店，这里将是你的起点。走出酒店，去探索这个广阔的世界吧！', bg: '威尼斯城中有许多可以去的地方——广场、商店、铁匠铺、码头……城外还有森林、荒野等着你去冒险。祝你一路顺风，年轻的冒险者！' }
 };
-function next(){ if(step.value>=7)router.push('/citymap');else step.value++; }
-function skip(){ router.push('/citymap'); }
+function next(){ if(step.value>=7){Api.post('/guide/intro-complete').then(()=>router.push('/citymap'));}else{step.value++;} }
+function skip(){ Api.post('/guide/intro-complete').then(()=>router.push('/citymap')); }
 </script>
 
 <style scoped>
