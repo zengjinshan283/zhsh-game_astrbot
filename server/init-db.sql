@@ -836,6 +836,9 @@ CREATE TABLE IF NOT EXISTS `mentor_relation` (
 -- ALTER TABLE user ADD COLUMN apprentice_count int NOT NULL DEFAULT 0 AFTER mentor_contribution;
 -- ALTER TABLE user ADD COLUMN is_mentor tinyint NOT NULL DEFAULT 0 AFTER apprentice_count;
 
+-- 藏宝图系统：user 表增加挖掘次数统计（成就阶梯用）
+ALTER TABLE `user` ADD COLUMN `treasure_dig_count` INT NOT NULL DEFAULT 0 COMMENT '藏宝图挖掘次数统计' AFTER `is_mentor`;
+
 -- ============================================================
 
 -- ============================================================
@@ -11567,6 +11570,32 @@ INSERT IGNORE INTO `item` (`id`, `name`, `type`, `subtype`, `description`, `pric
 (2001, '月华密令', 4, 'token', '月光凝炼的令牌，传说可召唤神秘力量', 2000, 1000, 0, 0, 0),
 (2002, '龙门镖旗', 4, 'token', '龙门镖局的信物，江湖人皆知', 3000, 1500, 0, 0, 0);
 
+-- 藏宝图主题支线任务（合成碎片链）
+INSERT IGNORE INTO `quest` (`id`, `name`, `description`, `category`, `type`, `target_id`, `require_value`, `npc_id`, `pre_quest_id`, `level_req`, `reward_exp`, `reward_money`, `reward_gold`, `reward_item_id`, `reward_item_qty`, `sort_order`) VALUES
+(1232, '藏宝图的线索', '赏金猎人手中有张残缺的藏宝图，找他聊聊看能否讨到一份。', 1, 8, 1006, 1, 1006, 0, 5, 200, 300, 0, 90002, 1, 232),
+(1233, '寻宝者笔记', '击杀海盗，搜寻他们遗落的藏宝图碎片。', 1, 1, 31, 8, 1006, 1232, 8, 500, 600, 0, 90003, 1, 233),
+(1234, '寻回失落的碎片', '前往古代神庙遗迹探险，寻回最后一块藏宝图碎片。', 1, 5, 5, 1, 1006, 1233, 12, 800, 1000, 0, 90004, 1, 234);
+
+-- 商城藏宝图池
+INSERT IGNORE INTO `mall_item_pool` (`item_id`, `category`, `weight`, `min_level`, `max_level`, `is_special`) VALUES
+(90005, 'material', 3,  10, 99, 0),
+(90002, 'material', 8,   5, 99, 0),
+(90004, 'material', 8,   5, 99, 0);
+
+-- 怪物掉落藏宝图碎片（3 种海盗各掉一种，5% 概率）
+INSERT IGNORE INTO `monster_drop` (`monster_id`, `item_id`, `quantity_min`, `quantity_max`, `drop_rate`) VALUES
+(1013, 90002, 1, 1, 5),
+(1016, 90003, 1, 1, 5),
+(1056, 90004, 1, 1, 5);
+
+-- 宝图成就（trigger_type=treasure_dig）
+INSERT IGNORE INTO `achievement` (`key`, `name`, `description`, `trigger_type`, `target_value`, `reward_type`, `reward_value`, `title`, `sort_order`) VALUES
+('treasure_dig_1',   '初探宝藏',     '完成 1 次藏宝图挖掘',         'treasure_dig', 1,    'money',  300,    '寻宝新人',   60),
+('treasure_dig_10',  '小有所成',     '完成 10 次藏宝图挖掘',        'treasure_dig', 10,   'money',  1000,   '寻宝学徒',   61),
+('treasure_dig_50',  '寻宝达人',     '完成 50 次藏宝图挖掘',        'treasure_dig', 50,   'money',  3000,   '寻宝达人',   62),
+('treasure_dig_200', '寻宝大师',     '完成 200 次藏宝图挖掘',       'treasure_dig', 200,  'money',  10000,  '寻宝大师',   63),
+('treasure_dig_1000','宝藏猎人',     '完成 1000 次藏宝图挖掘',      'treasure_dig', 1000, 'silver', 50,     '宝藏猎人',   64);
+
 -- ============================================================
 -- 藏宝图系统：道具 + 挖掘地点 + 奖励池
 -- ============================================================
@@ -11640,3 +11669,77 @@ INSERT IGNORE INTO `treasure_reward` (`id`, `type`, `value`, `weight`, `min_leve
 (18, 'item', '20013', 12, 12, 2),
 (19, 'item', '30001', 8, 15, 2),
 (20, 'item', '30002', 5, 18, 2);
+
+-- ============================================================
+-- 帮派 BOSS 系统（guild_boss + guild_boss_damage）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `guild_boss` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `guild_id` INT NOT NULL UNIQUE,
+  `boss_hp` INT NOT NULL DEFAULT 1000000 COMMENT '当前剩余HP',
+  `boss_hp_max` INT NOT NULL DEFAULT 1000000 COMMENT '最大HP',
+  `boss_level` INT NOT NULL DEFAULT 10 COMMENT 'BOSS等级',
+  `last_reset_date` VARCHAR(10) NOT NULL DEFAULT '' COMMENT '上次重置日期 YYYY-MM-DD',
+  `defeated_by` INT NOT NULL DEFAULT 0 COMMENT '终结者用户ID',
+  `defeated_at` INT NOT NULL DEFAULT 0,
+  `created_at` INT NOT NULL,
+  INDEX idx_guild (guild_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `guild_boss_damage` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `guild_id` INT NOT NULL,
+  `user_id` INT NOT NULL,
+  `damage` INT NOT NULL DEFAULT 0,
+  `attack_count` INT NOT NULL DEFAULT 0,
+  `reward_claimed` TINYINT NOT NULL DEFAULT 0 COMMENT '参与奖已领',
+  `reset_date` VARCHAR(10) NOT NULL,
+  `updated_at` INT NOT NULL,
+  UNIQUE KEY uk_gu_date (guild_id, user_id, reset_date),
+  INDEX idx_damage (guild_id, reset_date, damage)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- 邮件系统
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `mail` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `to_user_id` INT NOT NULL,
+  `from_user_id` INT NOT NULL DEFAULT 0,
+  `from_name` VARCHAR(64) NOT NULL DEFAULT '系统',
+  `title` VARCHAR(128) NOT NULL,
+  `content` TEXT NOT NULL,
+  `rewards` JSON DEFAULT NULL,
+  `claimed` TINYINT NOT NULL DEFAULT 0,
+  `read_at` INT NOT NULL DEFAULT 0,
+  `created_at` INT NOT NULL,
+  `expires_at` INT NOT NULL DEFAULT 0,
+  INDEX `idx_to_user` (`to_user_id`, `claimed`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- 世界 BOSS（每日全服挑战，每周一三五 21:00 重置）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `world_boss` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `boss_name` VARCHAR(64) NOT NULL DEFAULT '远古海皇',
+  `boss_hp` INT NOT NULL DEFAULT 5000000,
+  `boss_hp_max` INT NOT NULL DEFAULT 5000000,
+  `boss_level` INT NOT NULL DEFAULT 20,
+  `reset_date` VARCHAR(16) NOT NULL,
+  `defeated_by` INT NOT NULL DEFAULT 0,
+  `defeated_at` INT NOT NULL DEFAULT 0,
+  `created_at` INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `world_boss_damage` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `damage` INT NOT NULL DEFAULT 0,
+  `attack_count` INT NOT NULL DEFAULT 0,
+  `reset_date` VARCHAR(16) NOT NULL,
+  `reward_claimed` TINYINT NOT NULL DEFAULT 0,
+  `updated_at` INT NOT NULL DEFAULT 0,
+  UNIQUE KEY `uk_user_date` (`user_id`, `reset_date`),
+  INDEX `idx_damage` (`reset_date`, `damage` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,4 +1,5 @@
 const express = require('express');
+const { authMiddleware } = require('../middleware/auth');
 const db = require('../db');
 const router = express.Router();
 
@@ -60,7 +61,7 @@ async function triggerAchievements(userId, triggerType, currentValue = 0) {
 }
 
 // GET /api/achievement/list  成就列表（含用户进度）
-router.get('/list', async (req, res, next) => {
+router.get('/list', authMiddleware, async (req, res, next) => {
   try {
     const userId = parseInt(req.query.user_id || req.user?.id || 0);
     const all = await db.getAll('SELECT * FROM achievement ORDER BY sort_order');
@@ -80,8 +81,65 @@ router.get('/list', async (req, res, next) => {
       reward_value: a.reward_value,
       title: a.title,
       achieved: !!achMap[a.key],
-      achieved_at: achMap[a.key] || null
+      achieved_at: achMap[a.key] || null,
+      // 进度：不同 trigger_type 用不同数据源统计
+      progress: 0
     }));
+
+    // 一次性查用户的统计源
+    const userStats = await db.getOne(
+      'SELECT level, treasure_dig_count, money, silver FROM `user` WHERE id=?', [userId]
+    );
+
+    // 按 trigger_type 分组查 user_achievement 计数（仅 target=1 的成就用同 trigger_type 计数有 bug，改用 N+1 单独查 trigger_count，量小可接受）
+    const triggerCountCache = {};
+    async function getTriggerCount(triggerType) {
+      if (triggerCountCache[triggerType] !== undefined) return triggerCountCache[triggerType];
+      // 找该 trigger_type 下 target_value=1 的成就（一次性成就）
+      // 用 user_achievement 计数这些成就 = 一次性成就达成数
+      const c = await db.getOne(
+        `SELECT COUNT(*) AS c FROM user_achievement ua
+         JOIN achievement a2 ON ua.achievement_id = a2.id
+         WHERE ua.user_id=? AND a2.trigger_type=? AND a2.target_value=1`,
+        [userId, triggerType]
+      );
+      const v = c?.c || 0;
+      triggerCountCache[triggerType] = v;
+      return v;
+    }
+
+    for (const a of list) {
+      if (a.achieved) {
+        a.progress = a.target;
+        continue;
+      }
+      const achDef = all.find(x => x.key === a.key);
+      const tt = achDef?.trigger_type;
+      switch (tt) {
+        case 'level_up':
+          a.progress = Math.min(userStats?.level || 1, a.target);
+          break;
+        case 'treasure_dig':
+          a.progress = Math.min(userStats?.treasure_dig_count || 0, a.target);
+          break;
+        case 'sail':
+        case 'dungeon':
+        case 'battle_win':
+        case 'enhance':
+        case 'identify':
+        case 'quest_complete':
+        case 'item_get':
+        case 'arena_win':
+        case 'mentor_take':
+        case 'mentor_graduate':
+          // target=1 的一次性成就（如 equip_rare/arena_win_1）= 0；阶梯式成就用同 trigger_type 计数
+          a.progress = Math.min(await getTriggerCount(tt), a.target);
+          break;
+        default:
+          a.progress = 0;
+      }
+    }
+
     res.json({ list });
   } catch (e) { next(e); }
 });

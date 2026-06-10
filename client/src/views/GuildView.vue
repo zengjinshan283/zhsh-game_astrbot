@@ -31,6 +31,9 @@
     <div class="guild-tabs">
       <button class="gt-btn" :class="{active: tab === 'members'}" @click="tab = 'members'">👥 成员</button>
       <button class="gt-btn" :class="{active: tab === 'list'}" @click="loadGuilds(); tab = 'list'">🏰 列表</button>
+      <button class="gt-btn" :class="{active: tab === 'territory'}" @click="tab = 'territory'; loadTerritory()">🗺️ 领地</button>
+      <button class="gt-btn" :class="{active: tab === 'war'}" @click="tab = 'war'; loadWars()">⚔️ 战争</button>
+      <button class="gt-btn" :class="{active: tab === 'boss'}" @click="tab = 'boss'; loadBoss()">🐲 帮派BOSS</button>
     </div>
 
     <!-- 成员列表 -->
@@ -73,6 +76,128 @@
           <div class="gc-body">
             <div class="gc-name">{{ g.id === myGuild.guild_id ? '⭐ ' : '' }}{{ g.name }}</div>
             <div class="gc-meta">Lv.{{ g.level }} · {{ g.member_count }}人</div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- 帮派 BOSS -->
+    <template v-if="tab === 'boss'">
+      <div v-if="!boss" class="boss-loading">🐲 BOSS 正在刷新...</div>
+      <div v-else class="boss-panel">
+        <div class="boss-banner">
+          <div class="bb-icon">🐲</div>
+          <div class="bb-info">
+            <div class="bb-name">深海龙龟</div>
+            <div class="bb-meta">每日重置 · 今日已打 {{ boss.my.attack_count }} / {{ boss.config.attack_limit }} 次</div>
+          </div>
+        </div>
+
+        <div class="boss-hp">
+          <div class="bh-label">
+            <span>❤️ BOSS 血量</span>
+            <span class="bh-pct">{{ boss.boss.hp_pct }}%</span>
+          </div>
+          <div class="bh-bar"><div class="bh-fill" :style="{width: boss.boss.hp_pct + '%'}"></div></div>
+          <div class="bh-num">{{ boss.boss.hp.toLocaleString() }} / 1,000,000</div>
+        </div>
+
+        <div v-if="boss.boss.defeated" class="boss-killed">
+          ✅ 已被击杀！本轮结束，明天 0 点重置
+        </div>
+
+        <div v-else class="boss-action">
+          <button class="boss-btn" :disabled="bossAttacking || boss.my.remaining <= 0" @click="attackBoss">
+            {{ bossAttacking ? '⚔️ 出战中...' : (boss.my.remaining <= 0 ? '今日次数已尽' : '⚔️ 攻击') }}
+          </button>
+          <button v-if="boss.my.damage > 0 && !boss.my.reward_claimed" class="boss-btn boss-btn-claim" @click="claimBossReward">
+            🎁 领取奖励
+          </button>
+        </div>
+
+        <div v-if="boss.my.reward_claimed" class="boss-reward-claimed">
+          ✅ 今日奖励已领取
+        </div>
+
+        <div v-if="lastAttack" class="boss-log" :class="lastAttack.crit ? 'log-crit' : 'log-hit'">
+          {{ lastAttack.crit ? '💥' : '⚔️' }} {{ lastAttack.damage.toLocaleString() }} 伤害
+          <span class="log-meta">累计 {{ lastAttack.totalDamage.toLocaleString() }} · 剩 {{ lastAttack.remaining }} 次</span>
+        </div>
+
+        <div class="boss-rank">
+          <div class="br-title">🏆 今日伤害榜</div>
+          <div v-if="!boss.rank?.length" class="br-empty">暂无伤害记录</div>
+          <div v-for="(r, i) in boss.rank" :key="r.user_id" class="br-row" :class="{me: r.user_id === userStore.user?.id}">
+            <span class="br-rank">{{ ['🥇','🥈','🥉'][i] || (i+1) }}</span>
+            <span class="br-name">{{ r.username }}</span>
+            <span class="br-dmg">{{ r.damage.toLocaleString() }}</span>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- 帮会领地 -->
+    <template v-if="tab === 'territory'">
+      <div class="terr-banner">
+        🗺️ 帮会占领的领地每周可领奖一次，先占领先得
+      </div>
+      <div v-if="!territories.length" class="terr-loading">加载中...</div>
+      <div v-else class="terr-list">
+        <div v-for="t in territories" :key="t.territory_key" class="terr-card" :class="{mine: t.guild_id === myGuild.guild_id}">
+          <div class="tc-icon">{{ t.icon || '🏝️' }}</div>
+          <div class="tc-body">
+            <div class="tc-name">{{ t.name }} <span class="tc-lv">Lv.{{ t.level_req }}+</span></div>
+            <div class="tc-reward">💰 {{ t.weekly_gold }}铜 · 💎 {{ t.weekly_silver }}银</div>
+            <div v-if="t.guild_id === myGuild.guild_id" class="tc-owner">⭐ 已被我帮会占领</div>
+            <div v-else-if="t.guild_id" class="tc-owner enemy">⚔️ {{ t.guild_name || '敌对帮会' }} 占领中</div>
+            <div v-else class="tc-owner free">🟢 无主之地</div>
+          </div>
+          <button v-if="t.guild_id === myGuild.guild_id" class="terr-btn" :disabled="terrClaiming" @click="claimTerritory(t.territory_key)">
+            {{ terrClaiming ? '领取中...' : '🎁 领取' }}
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- 帮会战争 -->
+    <template v-if="tab === 'war'">
+      <!-- 宣战入口（仅会长） -->
+      <div v-if="isLeader" class="war-declare">
+        <div class="wd-title">⚔️ 会长宣战</div>
+        <div class="wd-tip">宣战费 1000 铜币 · 需 ≥5 成员 · 战后冷却 24h</div>
+        <div class="wd-row">
+          <select v-model="declareTarget" class="wd-select">
+            <option value="">-- 选择目标帮会 --</option>
+            <option v-for="g in warTargetList" :key="g.id" :value="g.id">{{ g.name }} (Lv.{{ g.level }})</option>
+          </select>
+          <button class="wd-btn" :disabled="!declareTarget || declaring" @click="declareWar">
+            {{ declaring ? '宣战中...' : '⚔️ 宣战' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 战争列表 -->
+      <div class="war-list">
+        <div v-if="!wars.length" class="war-empty">暂无帮会战记录</div>
+        <div v-for="w in wars" :key="w.id" class="war-card" :class="'war-' + warStatusName(w.status).key">
+          <div class="wc-side wc-attack">
+            <div class="wc-avatar">⚔️</div>
+            <div class="wc-name">{{ w.attacker.name }}</div>
+            <div v-if="w.winnerId === w.attacker.id" class="wc-win">🏆 胜</div>
+          </div>
+          <div class="wc-vs">VS</div>
+          <div class="wc-side wc-defend">
+            <div class="wc-avatar">🛡️</div>
+            <div class="wc-name">{{ w.defender.name }}</div>
+            <div v-if="w.winnerId === w.defender.id" class="wc-win">🏆 胜</div>
+          </div>
+          <div class="wc-meta">
+            <div class="wc-status">{{ warStatusName(w.status).label }}</div>
+            <div v-if="w.mySide === w.attacker.name || w.mySide === 'attacker'" class="wc-side-tag my">我方进攻</div>
+            <div v-else class="wc-side-tag my">我方防守</div>
+            <div v-if="w.status === 1" class="wc-time">⏰ {{ formatWarTime(w.warTime, w.duration) }}</div>
+            <button v-if="w.status === 1 && canJoin(w)" class="wc-join" @click="joinWar(w.id)">加入战斗</button>
+            <button v-if="w.status === 1" class="wc-detail" @click="viewWarDetail(w.id)">战况</button>
           </div>
         </div>
       </div>
@@ -130,6 +255,9 @@ const msgType = ref('');
 const createName = ref('');
 const joinName = ref('');
 const noticeText = ref('');
+const boss = ref(null);
+const bossAttacking = ref(false);
+const lastAttack = ref(null);
 const roleNames = {0:'成员',1:'长老',2:'副会长',3:'会长'};
 const roleColors = {0:'#bdc3c7',1:'#27ae60',2:'#8e44ad',3:'#f1c40f'};
 const isLeader = computed(() => myGuild.value?.role === 3);
@@ -147,9 +275,164 @@ async function kick(uid) { if (!(await globalConfirm('踢出？'))) return; try 
 async function loadGuilds() { try { const d = await Api.get('/guild/my'); guildList.value = d.guildList||[]; } catch(e) {} }
 
 onMounted(load);
+
+async function loadBoss() {
+  try { boss.value = await Api.get('/guild/boss/status'); } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+async function attackBoss() {
+  if (bossAttacking.value) return;
+  bossAttacking.value = true;
+  try {
+    const d = await Api.post('/guild/boss/attack');
+    lastAttack.value = {damage: d.damage, totalDamage: d.totalDamage, remaining: d.remaining, crit: d.crit};
+    msg.value = d.crit ? `💥 暴击！造成 ${d.damage.toLocaleString()} 伤害` : `⚔️ 造成 ${d.damage.toLocaleString()} 伤害`;
+    msgType.value = 'success';
+    await loadBoss();
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+  finally { bossAttacking.value = false; }
+}
+async function claimBossReward() {
+  try {
+    const d = await Api.post('/guild/boss/claim');
+    msg.value = d.msg;
+    msgType.value = 'success';
+    await loadBoss();
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
+// === 帮会领地 ===
+const territories = ref([]);
+const terrClaiming = ref(false);
+
+async function loadTerritory() {
+  try {
+    const d = await Api.get('/guild/territory');
+    territories.value = d.territories || [];
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
+async function claimTerritory(key) {
+  if (terrClaiming.value) return;
+  terrClaiming.value = true;
+  try {
+    const d = await Api.post('/guild/claim-territory', { territory_key: key });
+    msg.value = d.msg;
+    msgType.value = 'success';
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+  finally { terrClaiming.value = false; }
+}
+
+// === 帮会战 ===
+const wars = ref([]);
+const declaring = ref(false);
+const declareTarget = ref('');
+const warTargetList = ref([]);
+
+async function loadWars() {
+  try {
+    const d = await Api.get('/guild/war-list');
+    wars.value = d.wars || [];
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+  // 同时拉取可宣战的目标帮会列表
+  if (isLeader.value) {
+    try {
+      const d = await Api.get('/guild/my');
+      warTargetList.value = (d.guildList || []).filter(g => g.id !== myGuild.value?.guild_id);
+    } catch(e) {}
+  }
+}
+
+function warStatusName(status) {
+  if (status === 0) return { key: 'declared', label: '🟡 宣战中' };
+  if (status === 1) return { key: 'fighting', label: '🔴 进行中' };
+  return { key: 'ended', label: '⚫ 已结束' };
+}
+
+function formatWarTime(warTime, duration) {
+  const now = Math.floor(Date.now() / 1000);
+  if (now < warTime) {
+    const sec = warTime - now;
+    return `${Math.floor(sec/60)}分${sec%60}秒后开始`;
+  } else if (now < warTime + duration) {
+    const left = warTime + duration - now;
+    return `还剩 ${Math.floor(left/3600)}小时${Math.floor((left%3600)/60)}分`;
+  }
+  return '已结束';
+}
+
+function canJoin(w) {
+  // 战争进行中即可加入
+  return w.status === 1;
+}
+
+async function declareWar() {
+  if (!declareTarget.value || declaring.value) return;
+  declaring.value = true;
+  try {
+    const d = await Api.post('/guild/declare-war', { target_guild_id: Number(declareTarget.value) });
+    msg.value = d.msg;
+    msgType.value = 'success';
+    declareTarget.value = '';
+    await loadWars();
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+  finally { declaring.value = false; }
+}
+
+async function joinWar(warId) {
+  try {
+    const d = await Api.post(`/guild/join-war/${warId}`);
+    msg.value = d.msg;
+    msgType.value = 'success';
+    await viewWarDetail(warId);
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
+async function viewWarDetail(warId) {
+  try {
+    const d = await Api.get(`/guild/war-status/${warId}`);
+    const myCount = (d.participants || []).length;
+    msg.value = `战况：双方共 ${myCount} 人参战`;
+    msgType.value = 'success';
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
 </script>
 
 <style scoped>
+/* BOSS 面板 */
+.boss-panel { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 12px; }
+.boss-loading { text-align: center; padding: 40px; color: rgba(255,255,255,0.6); position: relative; z-index: 2; }
+.boss-banner { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(135deg, rgba(231,76,60,0.25), rgba(192,57,43,0.15)); border: 1px solid rgba(231,76,60,0.4); border-radius: 12px; }
+.bb-icon { font-size: 48px; animation: bbPulse 2s ease-in-out infinite; }
+@keyframes bbPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.bb-info { flex: 1; }
+.bb-name { font-size: 18px; font-weight: 700; color: #fff; }
+.bb-meta { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+.boss-hp { padding: 14px 16px; background: rgba(0,0,0,0.3); border-radius: 12px; }
+.bh-label { display: flex; justify-content: space-between; color: #fff; font-size: 13px; margin-bottom: 8px; }
+.bh-pct { color: #f1c40f; font-weight: 700; }
+.bh-bar { height: 14px; background: rgba(0,0,0,0.5); border-radius: 7px; overflow: hidden; }
+.bh-fill { height: 100%; background: linear-gradient(90deg, #e74c3c, #f39c12, #f1c40f); border-radius: 7px; transition: width 0.5s ease; box-shadow: 0 0 8px rgba(241,196,15,0.5); }
+.bh-num { text-align: center; color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 6px; font-family: monospace; }
+.boss-killed { padding: 12px; text-align: center; background: rgba(46,204,113,0.2); border: 1px solid rgba(46,204,113,0.4); border-radius: 10px; color: #2ecc71; font-weight: 700; }
+.boss-action { display: flex; gap: 10px; }
+.boss-btn { flex: 1; padding: 14px; background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; border: 0; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(231,76,60,0.3); transition: transform 0.15s; }
+.boss-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.boss-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.boss-btn-claim { background: linear-gradient(135deg, #f1c40f, #f39c12); box-shadow: 0 4px 12px rgba(241,196,15,0.4); }
+.boss-reward-claimed { padding: 10px 14px; text-align: center; background: rgba(46,204,113,0.15); border-radius: 8px; color: #2ecc71; font-size: 13px; }
+.boss-log { padding: 10px 14px; background: rgba(0,0,0,0.4); border-radius: 8px; color: #fff; font-weight: 700; }
+.log-hit { border-left: 3px solid #f39c12; }
+.log-crit { border-left: 3px solid #e74c3c; background: rgba(231,76,60,0.3); }
+.log-meta { display: block; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 400; margin-top: 4px; }
+.boss-rank { padding: 12px 14px; background: rgba(0,0,0,0.3); border-radius: 10px; }
+.br-title { color: #f1c40f; font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+.br-empty { color: rgba(255,255,255,0.5); font-size: 12px; text-align: center; padding: 12px; }
+.br-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; }
+.br-row.me { background: rgba(241,196,15,0.15); }
+.br-rank { font-size: 16px; width: 24px; text-align: center; }
+.br-name { flex: 1; color: #fff; font-size: 13px; }
+.br-dmg { color: #f39c12; font-weight: 700; font-size: 13px; font-family: monospace; }
+
 .guild-page {
   position: relative; display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
@@ -254,4 +537,51 @@ onMounted(load);
 .js-btn-create { background: linear-gradient(135deg, #4a1a1a, #c0392b); color: #fff; }
 .js-btn-join { background: linear-gradient(135deg, #1a4a2a, #27ae60); color: #fff; }
 .js-btn:hover { opacity: 0.9; }
+
+/* === 帮会领地 === */
+.terr-banner { position: relative; z-index: 2; padding: 10px 14px; background: rgba(52,152,219,0.1); border: 1px solid rgba(52,152,219,0.3); border-radius: 10px; color: #5dade2; font-size: 11px; text-align: center; }
+.terr-loading { text-align: center; padding: 30px; color: rgba(255,255,255,0.5); position: relative; z-index: 2; font-size: 12px; }
+.terr-list { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 6px; }
+.terr-card { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 12px; transition: all 0.2s; }
+.terr-card.mine { border-color: rgba(241,196,15,0.4); background: rgba(241,196,15,0.04); }
+.tc-icon { font-size: 28px; flex-shrink: 0; }
+.tc-body { flex: 1; min-width: 0; }
+.tc-name { font-size: 13px; font-weight: 700; color: #f0f0f0; }
+.tc-lv { font-size: 10px; color: #7f8c8d; font-weight: 400; margin-left: 4px; }
+.tc-reward { font-size: 11px; color: #f39c12; margin-top: 3px; }
+.tc-owner { font-size: 10px; margin-top: 2px; }
+.tc-owner:not(.enemy):not(.free) { color: #f1c40f; }
+.tc-owner.enemy { color: #e74c3c; }
+.tc-owner.free { color: #2ecc71; }
+.terr-btn { padding: 8px 12px; background: linear-gradient(135deg, #f1c40f, #f39c12); color: #000; border: 0; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.terr-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* === 帮会战争 === */
+.war-declare { position: relative; z-index: 2; padding: 12px 14px; background: linear-gradient(135deg, rgba(231,76,60,0.12), rgba(192,57,43,0.06)); border: 1px solid rgba(231,76,60,0.3); border-radius: 12px; margin-bottom: 8px; }
+.wd-title { font-size: 13px; font-weight: 700; color: #e74c3c; margin-bottom: 4px; }
+.wd-tip { font-size: 10px; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+.wd-row { display: flex; gap: 6px; }
+.wd-select { flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: #f0f0f0; outline: none; }
+.wd-btn { padding: 8px 14px; background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; border: 0; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+.wd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.war-list { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+.war-empty { text-align: center; padding: 30px; color: rgba(255,255,255,0.5); font-size: 12px; }
+.war-card { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 12px 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+.war-card.war-declared { border-color: rgba(241,196,15,0.3); }
+.war-card.war-fighting { border-color: rgba(231,76,60,0.4); background: rgba(231,76,60,0.05); }
+.wc-side { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.wc-attack { color: #e74c3c; }
+.wc-defend { color: #3498db; }
+.wc-avatar { font-size: 24px; }
+.wc-name { font-size: 12px; font-weight: 700; color: #f0f0f0; text-align: center; word-break: break-all; }
+.wc-win { font-size: 11px; color: #f1c40f; font-weight: 700; }
+.wc-vs { font-size: 14px; font-weight: 900; color: #f1c40f; padding: 0 4px; }
+.wc-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+.wc-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8); }
+.wc-side-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(241,196,15,0.15); color: #f1c40f; }
+.wc-time { font-size: 10px; color: #e74c3c; font-weight: 600; }
+.wc-join, .wc-detail { padding: 4px 10px; font-size: 10px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.wc-join { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+.wc-detail { background: rgba(255,255,255,0.08); color: #f0f0f0; border: 1px solid rgba(255,255,255,0.15); }
 </style>

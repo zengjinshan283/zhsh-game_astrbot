@@ -10,6 +10,16 @@ router.get('/level', authMiddleware, async (req, res, next) => {
   } catch(e){next(e);}
 });
 
+// 藏宝图挖掘排行（按挖掘次数）
+router.get('/treasure', authMiddleware, async (req, res, next) => {
+  try {
+    const list = await db.getAll(
+      "SELECT id, username, sex, level, treasure_dig_count AS dig_count FROM `user` WHERE treasure_dig_count > 0 ORDER BY treasure_dig_count DESC, level DESC LIMIT 20"
+    );
+    res.json({ list });
+  } catch(e){next(e);}
+});
+
 router.get('/wealth', authMiddleware, async (req, res, next) => {
   try {
     const list = await db.getAll("SELECT id, username, sex, money, bank_money FROM `user` ORDER BY (money + bank_money) DESC LIMIT 20");

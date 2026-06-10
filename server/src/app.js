@@ -46,6 +46,7 @@ app.use('/api/cdkey', require('./routes/cdkey'));
 app.use('/api/welfare', require('./routes/welfare'));
 app.use('/api/guide', require('./routes/guide'));
 app.use('/api/mall', require('./routes/mall'));
+app.use('/api/mail', require('./routes/mail'));
 app.use('/api/skill', require('./routes/skill'));
 app.use('/api/dungeon', require('./routes/dungeon'));
 app.use('/api/arena', require('./routes/arena'));
@@ -59,6 +60,7 @@ app.use('/api/fishing', require('./routes/fishing'));
 app.use('/api/treasure', require('./routes/treasure'));
 app.use('/api/auction', require('./routes/auction'));
 app.use('/api/quiz', require('./routes/quiz'));
+app.use('/api/worldboss', require('./routes/worldboss'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));

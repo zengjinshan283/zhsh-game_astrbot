@@ -14,11 +14,28 @@
       </div>
     </div>
 
-    <!-- 进度条 -->
-    <div class="progress-bar-wrap">
-      <div class="pb-label">已完成</div>
-      <div class="pb-bar">
-        <div class="pb-fill" :style="{ width: (achievedCount / Math.max(list.length, 1) * 100) + '%' }"></div>
+    <!-- 总体进度环 + 分类小计 -->
+    <div class="overall-card">
+      <div class="oc-ring">
+        <svg viewBox="0 0 80 80" class="oc-svg">
+          <circle cx="40" cy="40" r="34" class="oc-bg"/>
+          <circle cx="40" cy="40" r="34" class="oc-fg"
+            :stroke-dasharray="circumference"
+            :stroke-dashoffset="ringOffset"/>
+        </svg>
+        <div class="oc-center">
+          <div class="oc-pct">{{ overallPct }}%</div>
+          <div class="oc-sub">{{ achievedCount }}/{{ list.length }}</div>
+        </div>
+      </div>
+      <div class="oc-info">
+        <div class="oc-title">🏆 成就完成度</div>
+        <div class="oc-subtitle">{{ ringHint }}</div>
+        <div class="oc-cats">
+          <div class="oc-cat"><span class="oc-cat-dot" style="background:#c9a84c"></span>寻宝 {{ achievedCountOfKey('treasure_dig_') }}/5</div>
+          <div class="oc-cat"><span class="oc-cat-dot" style="background:#3498db"></span>等级 {{ achievedCountOfKey('lv') }}/6</div>
+          <div class="oc-cat"><span class="oc-cat-dot" style="background:#e74c3c"></span>战斗 {{ achievedCountOfKey('battle_') }}/3</div>
+        </div>
       </div>
     </div>
 
@@ -44,15 +61,24 @@
           <div class="ac-body">
             <div class="ac-name">{{ a.name }}</div>
             <div class="ac-desc">{{ a.description }}</div>
-            <div class="ac-target">进度：{{ a.achieved ? a.target : (a.progress || 0) }} / {{ a.target }}</div>
-            <div class="ac-progress-bar" v-if="!a.achieved">
-              <div class="ac-progress-fill" :style="{ width: (Math.min((a.progress || 0) / a.target, 1) * 100) + '%' }"></div>
+            <div class="ac-target">
+              <span class="act-text" :class="actClass(a)">
+                {{ a.achieved ? a.target : (a.progress || 0) }} / {{ a.target }}
+              </span>
+              <span class="act-pct" :class="actClass(a)">{{ progressPct(a) }}%</span>
             </div>
-            <div v-if="a.title" class="ac-title">称号：{{ a.title }}</div>
+            <div class="ac-progress-bar" v-if="!a.achieved">
+              <div class="ac-progress-fill" :class="actClass(a)" :style="{ width: progressPct(a) + '%' }"></div>
+            </div>
+            <div v-if="a.title" class="ac-title">🏅 称号：{{ a.title }}</div>
           </div>
           <div class="ac-reward">
             <div class="acr-label">奖励</div>
-            <div class="acr-val">{{ rewardText(a) }}</div>
+            <div class="acr-val">
+              <span class="acr-icon">{{ rewardIcon(a.reward_type) }}</span>
+              <span class="acr-num">+{{ a.reward_value }}</span>
+              <span class="acr-unit">{{ rewardUnit(a.reward_type) }}</span>
+            </div>
             <div v-if="a.achieved" class="acr-done">✅ 奖励已发放</div>
             <div v-else class="acr-btn">🔓 努力中</div>
           </div>
@@ -81,23 +107,68 @@ const activeFilter = ref('all');
 const filters = [
   { key: 'all', label: '🏆 全部' },
   { key: 'achieved', label: '✅ 已完成' },
-  { key: 'unachieved', label: '🔒 进行中' }
+  { key: 'unachieved', label: '🔒 进行中' },
+  { key: 'treasure', label: '🗺️ 寻宝' }
 ];
 
 const achievedCount = computed(() => list.value.filter(a => a.achieved).length);
 
+const overallPct = computed(() => {
+  if (!list.value.length) return 0;
+  return Math.round(achievedCount.value / list.value.length * 100);
+});
+
+const circumference = 2 * Math.PI * 34;
+const ringOffset = computed(() => {
+  if (!list.value.length) return 0;
+  return circumference * (1 - achievedCount.value / list.value.length);
+});
+
+const ringHint = computed(() => {
+  const left = list.value.length - achievedCount.value;
+  if (left === 0) return '🎉 已完成全部成就！';
+  if (left <= 3) return `还差 ${left} 个就圆满啦！`;
+  if (overallPct.value >= 50) return '已完成过半，继续加油！';
+  return '努力完成更多成就解锁称号';
+});
+
+function achievedCountOfKey(prefix) {
+  return list.value.filter(a => a.achieved && a.key?.startsWith(prefix)).length;
+}
+
 const filteredList = computed(() => {
   if (activeFilter.value === 'achieved') return list.value.filter(a => a.achieved);
   if (activeFilter.value === 'unachieved') return list.value.filter(a => !a.achieved);
+  if (activeFilter.value === 'treasure') return list.value.filter(a => a.key?.startsWith('treasure_dig_'));
   return list.value;
 });
 
-function rewardText(a) {
-  if (a.reward_type === 'money') return `💰 ${a.reward_value} 铜币`;
-  if (a.reward_type === 'exp') return `✨ ${a.reward_value} 经验`;
-  if (a.reward_type === 'title') return `🏅 称号：${a.title}`;
-  if (a.reward_type === 'item') return `🎁 物品×${a.reward_value}`;
-  return '—';
+function rewardIcon(t) {
+  if (t === 'money') return '💰';
+  if (t === 'exp') return '✨';
+  if (t === 'title') return '🏅';
+  if (t === 'item') return '🎁';
+  if (t === 'silver') return '🪙';
+  return '🎯';
+}
+function rewardUnit(t) {
+  if (t === 'money') return '铜币';
+  if (t === 'exp') return '经验';
+  if (t === 'title') return '称号';
+  if (t === 'item') return '物品';
+  if (t === 'silver') return '银币';
+  return '';
+}
+function progressPct(a) {
+  if (a.achieved) return 100;
+  return Math.min(Math.round((a.progress || 0) / a.target * 100), 100);
+}
+function actClass(a) {
+  if (a.achieved) return 'pct-done';
+  const p = progressPct(a);
+  if (p >= 80) return 'pct-near';
+  if (p >= 30) return 'pct-mid';
+  return 'pct-low';
 }
 
 async function load() {
@@ -153,6 +224,56 @@ onMounted(() => load());
   border-radius: 3px; transition: width 0.5s ease;
 }
 
+/* ====== 总体进度环 + 分类 ====== */
+.overall-card {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 14px;
+  background: rgba(13,17,23,0.88);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.oc-ring {
+  position: relative; flex-shrink: 0;
+  width: 80px; height: 80px;
+}
+.oc-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.oc-bg { fill: none; stroke: rgba(255,255,255,0.06); stroke-width: 6; }
+.oc-fg {
+  fill: none;
+  stroke: url(#oc-grad);
+  stroke: #c9a84c;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 6px rgba(201,168,76,0.4));
+}
+.oc-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.oc-pct {
+  font-size: 20px; font-weight: 700; color: #f1c40f;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.oc-sub { font-size: 10px; color: #7f8c8d; }
+
+.oc-info { flex: 1; min-width: 0; }
+.oc-title { font-size: 14px; font-weight: 700; color: #f0f0f0; margin-bottom: 2px; }
+.oc-subtitle { font-size: 11px; color: #c9a84c; margin-bottom: 6px; }
+.oc-cats { display: flex; flex-direction: column; gap: 2px; }
+.oc-cat {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: #bdc3c7;
+}
+.oc-cat-dot {
+  display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 4px currentColor;
+}
+
 .loading-card { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 40px; }
 .loading-spinner { width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #c9a84c; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -180,13 +301,28 @@ onMounted(() => load());
 .ac-body { flex: 1; min-width: 0; }
 .ac-name { font-size: 13px; font-weight: 700; color: #f0f0f0; margin-bottom: 2px; }
 .ac-desc { font-size: 11px; color: #7f8c8d; margin-bottom: 4px; }
-.ac-target { font-size: 10px; color: #555; margin-bottom: 4px; }
+.ac-target {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 10px; margin-bottom: 4px;
+}
+.act-text { color: #7f8c8d; font-weight: 600; }
+.act-pct { font-weight: 700; font-size: 11px; }
+
+/* 进度文字/条颜色档 */
+.act-text.pct-low, .act-pct.pct-low, .ac-progress-fill.pct-low { color: #7f8c8d; background: #7f8c8d; }
+.act-text.pct-mid, .act-pct.pct-mid, .ac-progress-fill.pct-mid { color: #c9a84c; background: linear-gradient(90deg, #c9a84c, #f1c40f); }
+.act-text.pct-near, .act-pct.pct-near, .ac-progress-fill.pct-near { color: #27ae60; background: linear-gradient(90deg, #27ae60, #2ecc71); }
+.act-text.pct-done, .act-pct.pct-done, .ac-progress-fill.pct-done { color: #f1c40f; background: linear-gradient(90deg, #c9a84c, #f1c40f); }
+
 .ac-progress-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; margin-bottom: 4px; }
-.ac-progress-fill { height: 100%; background: #c9a84c; border-radius: 2px; transition: width 0.4s; }
+.ac-progress-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
 .ac-title { font-size: 10px; color: #c9a84c; }
 .ac-reward { text-align: right; flex-shrink: 0; }
 .acr-label { font-size: 9px; color: #555; }
-.acr-val { font-size: 11px; color: #f1c40f; font-weight: 600; }
+.acr-val { display: flex; flex-direction: column; align-items: center; gap: 1px; margin-top: 2px; }
+.acr-icon { font-size: 16px; line-height: 1; }
+.acr-num { font-size: 12px; color: #f1c40f; font-weight: 700; }
+.acr-unit { font-size: 9px; color: #7f8c8d; }
 .acr-done { font-size: 10px; color: #27ae60; margin-top: 2px; }
 .acr-btn { font-size: 10px; color: #555; margin-top: 2px; }
 

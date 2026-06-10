@@ -190,13 +190,16 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       capture_rate: 0
     };
 
-    let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0;
+    let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0, petSpeciesId = 0, petType = 0, petSkillName = '';
     if (user.pet_id > 0) {
-      const up = await db.getOne('SELECT up.id, up.level, up.exp, up.satiety, up.hp, up.hp_max, up.atk, up.def_val, up.nickname, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
+      const up = await db.getOne('SELECT up.id, up.level, up.exp, up.satiety, up.hp, up.hp_max, up.atk, up.def_val, up.nickname, p.name as species_name, p.id as species_id, p.type, p.skill_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
       if (up) {
         petUpId = up.id;
         petSatiety = up.satiety;
         petName = up.nickname || up.species_name || '';
+        petSpeciesId = up.species_id;
+        petType = up.type;
+        petSkillName = up.skill_name || '';
         if (up.satiety > 0) {
           petAtk = up.atk;
         } else {
@@ -224,7 +227,7 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
       captureable: 0, capture_rate: 0,
       round: 1, result: null, finished: false,
       from_sail: true, sail_remaining_sec: Number(user.sail_remaining_sec || 0),
-      pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
+      pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety, pet_species_id: petSpeciesId, pet_type: petType, pet_skill_name: petSkillName,
       log: [{ type: 'info', text: '🏴‍☠️ 海盗船逼近！战斗开始！' }],
       equip_bonus: { bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp },
       talent_bonus: talentBonus,
@@ -256,13 +259,16 @@ router.post('/start', authMiddleware, async (req, res, next) => {
     const placeMonsters = await db.getAll('SELECT id FROM `monster` WHERE (`place_id` = ? OR `place_id` = 0)', [user.place_id]);
     if (!placeMonsters.some(m => m.id === monster.id)) return res.status(400).json({ error: '无法与该怪物战斗' });
 
-    let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0;
+    let petName = '', petAtk = 0, petUpId = 0, petSatiety = 0, petSpeciesId = 0, petType = 0, petSkillName = '';
     if (user.pet_id > 0) {
-      const up = await db.getOne('SELECT up.id, up.level, up.exp, up.satiety, up.hp, up.hp_max, up.atk, up.def_val, up.nickname, p.name as species_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
+      const up = await db.getOne('SELECT up.id, up.level, up.exp, up.satiety, up.hp, up.hp_max, up.atk, up.def_val, up.nickname, p.name as species_name, p.id as species_id, p.type, p.skill_name FROM user_pet up JOIN pet p ON up.pet_id = p.id WHERE up.user_id = ? AND up.is_active = 1', [req.user.id]);
       if (up) {
         petUpId = up.id;
         petSatiety = up.satiety;
         petName = up.nickname || up.species_name || '';
+        petSpeciesId = up.species_id;
+        petType = up.type;
+        petSkillName = up.skill_name || '';
         if (up.satiety > 0) {
           petAtk = up.atk;
         } else {
@@ -288,7 +294,7 @@ router.post('/start', authMiddleware, async (req, res, next) => {
       monster_desc: monster.description || '',
       captureable: Number(monster.captureable) || 0, capture_rate: Number(monster.capture_rate) || 0,
       round: 1, result: null, finished: false,
-      pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety,
+      pet_name: petName, pet_atk: petAtk, pet_up_id: petUpId, pet_satiety: petSatiety, pet_species_id: petSpeciesId, pet_type: petType, pet_skill_name: petSkillName,
       log: [{ type: 'info', text: `你遭遇了${monster.name}！` }],
       equip_bonus: { bonusAtk: totalBonusAtk, bonusDef: totalBonusDef, bonusHp: totalBonusHp },
       talent_bonus: talentBonus,
@@ -1018,6 +1024,11 @@ async function buildBattleResponse(battle, user) {
     resp.player_mp_max = user.mp_max || 100;
     resp.pet_name = battle.pet_name;
     resp.pet_satiety = battle.pet_satiety || 0;
+    resp.pet_atk = battle.pet_atk || 0;
+    resp.pet_up_id = battle.pet_up_id || 0;
+    resp.pet_species_id = battle.pet_species_id || 0;
+    resp.pet_type = battle.pet_type || 0;
+    resp.pet_skill_name = battle.pet_skill_name || '';
     // Active status effects (buffs/debuffs) with definitions for frontend rendering
     try {
       const rawEffects = user.status_effects ? (typeof user.status_effects === 'string' ? JSON.parse(user.status_effects) : user.status_effects) : [];

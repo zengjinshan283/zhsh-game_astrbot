@@ -42,6 +42,19 @@
         </div>
       </div>
 
+      <!-- 出战宠物 -->
+      <div v-if="battle.pet_name" class="pet-companion" :class="{ attacking: petAttacking, exhausted: (battle.pet_satiety || 0) <= 0 }">
+        <div class="pc-avatar" :class="petTypeClass">{{ petEmoji }}</div>
+        <div class="pc-info">
+          <div class="pc-name">🐾 {{ battle.pet_name }} <span v-if="(battle.pet_satiety || 0) <= 0" class="pc-tired">（疲惫）</span></div>
+          <div class="pc-meta">
+            <span class="pc-atk">⚔️ {{ battle.pet_atk }}</span>
+            <span class="pc-satiety">🍖 {{ battle.pet_satiety || 0 }}/100</span>
+          </div>
+        </div>
+        <div class="pc-skill" v-if="battle.pet_skill_name">「{{ battle.pet_skill_name }}」</div>
+      </div>
+
       <!-- 战斗日志 -->
       <div class="log-card">
         <div class="log-header">📜 日志</div>
@@ -158,6 +171,23 @@ let countdownTimer = null;
 const battle = computed(() => gameStore.battleData);
 const showResult = computed(() => battle.value?.finished === true && !!battle.value?.result);
 
+// 宠物相关
+const petAttacking = ref(false);
+const petEmojis = { 1: '🐱', 2: '🦅', 3: '🦊', 4: '🐻', 5: '🐲', 6: '🦄', 7: '🐙', 8: '🐢', 9: '🐍', 10: '🐵' };
+const petEmoji = computed(() => {
+  const p = battle.value?.pet_up_id ? null : (battle.value?.pet_name || '');
+  return petEmojis[battle.value?.pet_species_id] || '🐾';
+});
+const petTypeClass = computed(() => {
+  const t = battle.value?.pet_type || 0;
+  if (t === 1) return 'pt-fly';
+  if (t === 2) return 'pt-beast';
+  if (t === 3) return 'pt-bear';
+  if (t === 4) return 'pt-sea';
+  if (t === 5) return 'pt-spirit';
+  return 'pt-other';
+});
+
 const monsterHpPct = computed(() => {
   if (!battle.value) return 0;
   return Math.max(0, Math.round(Math.max(0, battle.value.monster_hp) / battle.value.monster_hp_max * 100));
@@ -213,7 +243,17 @@ watch(battle, (val) => { if (val) { loadShortcuts(); loadPetCount(); } }, { imme
 async function loadPetCount() { try { const d = await Api.get('/pet/info'); petCount.value = (d.pets || []).length; } catch (e) {} }
 
 async function doAction(action) {
-  try { const data = await Api.post('/battle/action', { action }); gameStore.setBattle(data); const me = await Api.get('/auth/me'); userStore.updateUser(me.user); if (data.finished) loadShortcuts(); }
+  try {
+    const data = await Api.post('/battle/action', { action });
+    // 触发宠物攻击动画（如果有宠物+造成伤害）
+    if (action === 'attack' && data.pet_atk > 0) {
+      petAttacking.value = true;
+      setTimeout(() => { petAttacking.value = false; }, 600);
+    }
+    gameStore.setBattle(data);
+    const me = await Api.get('/auth/me'); userStore.updateUser(me.user);
+    if (data.finished) loadShortcuts();
+  }
   catch (e) { await globalAlert(e.message); }
 }
 
@@ -333,4 +373,29 @@ async function tryCapture() { if (await globalConfirm(`尝试捕捉？(成功率
 .continue-btn { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
 .exit-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #7f8c8d; }
 .result-btn:hover { transform: scale(1.05); }
+.pt-spirit { filter: drop-shadow(0 0 4px rgba(241,196,15,0.5)); }
+
+/* 出战宠物 */
+.pet-companion { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: linear-gradient(135deg, rgba(155,89,182,0.18), rgba(142,68,173,0.1)); border: 1px solid rgba(155,89,182,0.35); border-radius: 10px; }
+.pet-companion.exhausted { opacity: 0.5; filter: grayscale(0.6); }
+.pet-companion.attacking .pc-avatar { animation: petLunge 0.6s ease-out; }
+@keyframes petLunge {
+  0% { transform: translateX(0) scale(1); }
+  30% { transform: translateX(20px) scale(1.15) rotate(8deg); }
+  60% { transform: translateX(35px) scale(1.05); }
+  100% { transform: translateX(0) scale(1); }
+}
+.pc-avatar { font-size: 32px; flex-shrink: 0; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+.pc-info { flex: 1; min-width: 0; }
+.pc-name { color: #fff; font-size: 13px; font-weight: 700; }
+.pc-tired { color: #e74c3c; font-size: 11px; font-weight: 400; margin-left: 4px; }
+.pc-meta { display: flex; gap: 10px; font-size: 11px; margin-top: 3px; }
+.pc-atk { color: #f39c12; }
+.pc-satiety { color: #f1c40f; }
+.pc-skill { font-size: 10px; color: rgba(255,255,255,0.5); padding: 2px 8px; background: rgba(0,0,0,0.3); border-radius: 4px; white-space: nowrap; }
+.pt-fly { filter: drop-shadow(0 0 4px rgba(52,152,219,0.5)); }
+.pt-beast { filter: drop-shadow(0 0 4px rgba(39,174,96,0.5)); }
+.pt-bear { filter: drop-shadow(0 0 4px rgba(155,89,182,0.5)); }
+.pt-sea { filter: drop-shadow(0 0 4px rgba(52,73,94,0.5)); }
+.pt-spirit { filter: drop-shadow(0 0 4px rgba(241,196,15,0.5)); }
 </style>

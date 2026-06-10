@@ -252,3 +252,204 @@ module.exports = router;
     )`);
   } catch(e) { console.error('[guild] init table error:', e.message); }
 })();
+
+// ============================================================
+// 帮派 BOSS 系统（每日重置，全员协作击败拿奖励）
+// ============================================================
+
+const BOSS_CONFIG = {
+  hp_max: 1000000,           // BOSS 总血量
+  level: 10,                 // BOSS 等级（影响奖励）
+  daily_attack_limit: 5,     // 每人每天攻击次数
+  damage_base: 500,          // 基础伤害（战力 100 时）
+  damage_per_power: 8,       // 每点战力系数
+  damage_jitter: 0.3,        // 伤害浮动 ±30%
+  // 3 档奖励
+  reward_last_hit: { money: 50000, silver: 20, label: '终结者' },
+  reward_top3:    { money: 20000, silver: 10, label: '伤害TOP3' },
+  reward_top10:   { money: 8000,  silver: 5,  label: '伤害TOP10' },
+  reward_participate: { money: 2000, silver: 1, label: '参与奖' }
+};
+
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+async function getOrCreateBoss(guildId) {
+  const today = getTodayStr();
+  let boss = await db.getOne('SELECT * FROM `guild_boss` WHERE `guild_id`=?', [guildId]);
+  if (!boss) {
+    await db.insert('guild_boss', {
+      guild_id: guildId, boss_hp: BOSS_CONFIG.hp_max, boss_hp_max: BOSS_CONFIG.hp_max,
+      boss_level: BOSS_CONFIG.level, last_reset_date: today, defeated_by: 0, defeated_at: 0,
+      created_at: Math.floor(Date.now()/1000)
+    });
+    boss = await db.getOne('SELECT * FROM `guild_boss` WHERE `guild_id`=?', [guildId]);
+  }
+  // 跨天重置
+  if (boss.last_reset_date !== today) {
+    await db.update('guild_boss',
+      { boss_hp: BOSS_CONFIG.hp_max, boss_hp_max: BOSS_CONFIG.hp_max, boss_level: BOSS_CONFIG.level,
+        last_reset_date: today, defeated_by: 0, defeated_at: 0 },
+      'id=?', [boss.id]);
+    boss.boss_hp = BOSS_CONFIG.hp_max; boss.defeated_by = 0; boss.defeated_at = 0;
+  }
+  return boss;
+}
+
+// 获取 BOSS 状态 + 我的今日伤害 + 排行
+router.get('/boss/status', authMiddleware, async (req, res, next) => {
+  try {
+    const my = await db.getOne('SELECT guild_id FROM `guild_member` WHERE `user_id`=?', [req.user.id]);
+    if (!my) return res.status(400).json({ error: '未加入帮会' });
+    const today = getTodayStr();
+    const boss = await getOrCreateBoss(my.guild_id);
+    const myDamage = await db.getOne(
+      'SELECT * FROM `guild_boss_damage` WHERE guild_id=? AND user_id=? AND reset_date=?',
+      [my.guild_id, req.user.id, today]
+    );
+    const rank = await db.getAll(
+      `SELECT gbd.user_id, gbd.damage, gbd.attack_count, u.username, u.level
+       FROM guild_boss_damage gbd JOIN user u ON gbd.user_id=u.id
+       WHERE gbd.guild_id=? AND gbd.reset_date=? ORDER BY gbd.damage DESC LIMIT 10`,
+      [my.guild_id, today]
+    );
+    res.json({
+      boss: {
+        hp: boss.boss_hp, hp_max: boss.boss_hp_max, level: boss.boss_level,
+        hp_pct: Math.round(boss.boss_hp / boss.boss_hp_max * 100),
+        defeated: boss.defeated_by > 0,
+        defeated_by: boss.defeated_by
+      },
+      my: myDamage ? {
+        damage: myDamage.damage, attack_count: myDamage.attack_count,
+        remaining: BOSS_CONFIG.daily_attack_limit - myDamage.attack_count,
+        reward_claimed: myDamage.reward_claimed
+      } : { damage: 0, attack_count: 0, remaining: BOSS_CONFIG.daily_attack_limit, reward_claimed: 0 },
+      rank,
+      config: { attack_limit: BOSS_CONFIG.daily_attack_limit }
+    });
+  } catch(e) { next(e); }
+});
+
+// 攻击 BOSS
+router.post('/boss/attack', authMiddleware, async (req, res, next) => {
+  try {
+    const my = await db.getOne('SELECT guild_id FROM `guild_member` WHERE `user_id`=?', [req.user.id]);
+    if (!my) return res.status(400).json({ error: '未加入帮会' });
+    const boss = await getOrCreateBoss(my.guild_id);
+    if (boss.boss_hp <= 0) return res.status(400).json({ error: 'BOSS 已被击败，明日再来！' });
+
+    const today = getTodayStr();
+    let dmg = await db.getOne(
+      'SELECT * FROM `guild_boss_damage` WHERE guild_id=? AND user_id=? AND reset_date=?',
+      [my.guild_id, req.user.id, today]
+    );
+    const used = dmg ? dmg.attack_count : 0;
+    if (used >= BOSS_CONFIG.daily_attack_limit) return res.status(400).json({ error: `今日攻击次数已用完（${BOSS_CONFIG.daily_attack_limit}/${BOSS_CONFIG.daily_attack_limit}）` });
+
+    // 计算伤害：基于玩家战力
+    const user = await db.getOne('SELECT level, money, silver FROM `user` WHERE `id`=?', [req.user.id]);
+    const power = user.level * 100;
+    const base = BOSS_CONFIG.damage_base + power * BOSS_CONFIG.damage_per_power;
+    const jitter = 1 + (Math.random() * 2 - 1) * BOSS_CONFIG.damage_jitter;
+    let damage = Math.max(50, Math.floor(base * jitter));
+    // 暴击 15% 概率 x1.8
+    let crit = false;
+    if (Math.random() < 0.15) { damage = Math.floor(damage * 1.8); crit = true; }
+    // 不超过 BOSS 剩余 HP
+    damage = Math.min(damage, boss.boss_hp);
+
+    // 写入/累加
+    const now = Math.floor(Date.now()/1000);
+    if (dmg) {
+      await db.query('UPDATE `guild_boss_damage` SET damage=damage+?, attack_count=attack_count+1, updated_at=? WHERE id=?',
+        [damage, now, dmg.id]);
+    } else {
+      await db.insert('guild_boss_damage',
+        { guild_id: my.guild_id, user_id: req.user.id, damage, attack_count: 1, reset_date: today, updated_at: now });
+    }
+
+    // 扣 BOSS HP
+    const newHp = boss.boss_hp - damage;
+    const defeatedNow = newHp <= 0;
+    await db.update('guild_boss', { boss_hp: Math.max(0, newHp), defeated_by: defeatedNow ? req.user.id : boss.defeated_by, defeated_at: defeatedNow ? now : boss.defeated_at },
+      'id=?', [boss.id]);
+
+    // 终结 BOSS：发世界广播
+    if (defeatedNow) {
+      try {
+        const userRow = await db.getOne('SELECT username, level FROM `user` WHERE `id`=?', [req.user.id]);
+        const guildRow = await db.getOne('SELECT name FROM `guild` WHERE `id`=?', [my.guild_id]);
+        const lastShare = await db.getOne('SELECT created_at FROM `chat` WHERE user_id=? AND type=3 ORDER BY id DESC LIMIT 1', [req.user.id]);
+        if (!lastShare || now - lastShare.created_at >= 60) {
+          await db.insert('chat', {
+            user_id: req.user.id, target_id: 0,
+            message: `🐲【${userRow?.username || '勇者'}】与帮会「${guildRow?.name || '?'}」联手击杀了深海龙龟！`,
+            type: 3, created_at: now
+          });
+        }
+      } catch(e) { console.error('[guild] boss share error:', e.message); }
+    }
+
+    res.json({
+      success: true, damage, crit, totalDamage: (dmg?.damage || 0) + damage,
+      boss_hp: Math.max(0, newHp), boss_hp_max: boss.boss_hp_max,
+      defeated: defeatedNow, defeated_by: defeatedNow ? req.user.id : boss.defeated_by,
+      remaining: BOSS_CONFIG.daily_attack_limit - (used + 1)
+    });
+  } catch(e) { next(e); }
+});
+
+// 领奖：参与奖 + TOP10/3/终结者（按排名一次领完）
+router.post('/boss/claim', authMiddleware, async (req, res, next) => {
+  try {
+    const my = await db.getOne('SELECT guild_id FROM `guild_member` WHERE `user_id`=?', [req.user.id]);
+    if (!my) return res.status(400).json({ error: '未加入帮会' });
+    const today = getTodayStr();
+    const dmg = await db.getOne(
+      'SELECT * FROM `guild_boss_damage` WHERE guild_id=? AND user_id=? AND reset_date=?',
+      [my.guild_id, req.user.id, today]
+    );
+    if (!dmg || dmg.damage <= 0) return res.status(400).json({ error: '今日未参与 BOSS 战' });
+    if (dmg.reward_claimed) return res.status(400).json({ error: '今日奖励已领取' });
+
+    // 查 TOP10 排名
+    const rankRow = await db.getOne(
+      `SELECT COUNT(*) AS rk FROM guild_boss_damage
+       WHERE guild_id=? AND reset_date=? AND damage > ?`,
+      [my.guild_id, today, dmg.damage]
+    );
+    const myRank = rankRow.rk + 1; // 我排第几（1=第一）
+
+    const boss = await db.getOne('SELECT * FROM `guild_boss` WHERE `guild_id`=?', [my.guild_id]);
+    let totalMoney = 0, totalSilver = 0, label = '参与奖';
+    if (boss.defeated_by === req.user.id) {
+      totalMoney += BOSS_CONFIG.reward_last_hit.money; totalSilver += BOSS_CONFIG.reward_last_hit.silver; label = '终结者';
+    } else if (myRank <= 3) {
+      totalMoney += BOSS_CONFIG.reward_top3.money; totalSilver += BOSS_CONFIG.reward_top3.silver; label = '伤害TOP3';
+    } else if (myRank <= 10) {
+      totalMoney += BOSS_CONFIG.reward_top10.money; totalSilver += BOSS_CONFIG.reward_top10.silver; label = '伤害TOP10';
+    }
+    totalMoney += BOSS_CONFIG.reward_participate.money; totalSilver += BOSS_CONFIG.reward_participate.silver;
+
+    await db.query('UPDATE `user` SET money=money+?, silver=silver+? WHERE `id`=?', [totalMoney, totalSilver, req.user.id]);
+    await db.query('UPDATE `guild_boss_damage` SET reward_claimed=1 WHERE id=?', [dmg.id]);
+    // 同步发邮件留底
+    try {
+      const { sendMail } = require('./mail');
+      await sendMail({
+        to_user_id: req.user.id,
+        from_name: '帮派 BOSS',
+        title: `🐲 帮派 BOSS 战报 - ${label}`,
+        content: `你在帮派 BOSS 战中获得 ${label} 奖励。\n\n伤害: ${myDamage.damage.toLocaleString()}\n奖励: +${totalMoney} 铜币 +${totalSilver} 银币`,
+        rewards: [
+          { type: 'money', amount: totalMoney },
+          { type: 'silver', amount: totalSilver }
+        ]
+      });
+    } catch(e) {}
+    res.json({ success: true, msg: `🎁 ${label}奖励已领取：+${totalMoney}铜币 +${totalSilver}银币`, label, money: totalMoney, silver: totalSilver });
+  } catch(e) { next(e); }
+});

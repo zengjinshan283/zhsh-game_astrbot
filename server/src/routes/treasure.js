@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { triggerAchievements } = require('./achievement');
 const router = express.Router();
 
 // ============================================================
@@ -47,6 +48,33 @@ router.post('/use', authMiddleware, async (req, res, next) => {
 });
 
 // 执行挖掘
+/**
+ * 宝图分享/世界广播
+ * @param {string} text 分享文本（不含用户名）
+ */
+async function shareToWorld(userId, mapItem, loc, text) {
+  try {
+    // 防刷：每用户每 60 秒最多 1 条世界广播
+    const now = Math.floor(Date.now() / 1000);
+    const last = await db.getOne('SELECT created_at FROM `chat` WHERE user_id=? AND type IN (1,3) ORDER BY id DESC LIMIT 1', [userId]);
+    if (last && now - last.created_at < 60) return;
+
+    const user = await db.getOne('SELECT username, level FROM `user` WHERE `id`=?', [userId]);
+    if (!user) return;
+    // type=3 表示宝图分享（带特殊前缀方便前端识别）
+    const msgText = `🗺️【${user.username}】在「${loc.name}」${text}`;
+    await db.insert('chat', {
+      user_id: userId,
+      target_id: 0,
+      message: msgText,
+      type: 3, // 0=普通聊天 1=世界广播 2=系统 3=宝图分享
+      created_at: now
+    });
+  } catch(e) {
+    console.error('[treasure] shareToWorld error:', e.message);
+  }
+}
+
 async function doDig(userId, loc, item, inv, res) {
   const quality = item.quality || 0;
   const user = await db.getOne('SELECT level FROM `user` WHERE `id`=?', [userId]);
@@ -87,11 +115,15 @@ async function doDig(userId, loc, item, inv, res) {
       await db.query('UPDATE `user` SET money = money + ? WHERE `id`=?', [amt, userId]);
       msg = `🎉 挖掘成功！在你眼前出现了一个宝箱，内有 ${amt} 铜币！`;
       rewards.push({ type: 'money', value: selected.value });
+      // ≥100 铜币发世界广播（防止 spam）
+      if (amt >= 100) await shareToWorld(userId, item, loc, `挖到了 ${amt} 铜币`);
     } else if (selected.type === 'silver') {
       const amt = parseInt(selected.value);
       await db.query('UPDATE `user` SET silver = silver + ? WHERE `id`=?', [amt, userId]);
       msg = `🎉 挖掘成功！在地点「${loc.name}」挖出了一个古代钱币窖藏，获得 ${amt} 银币！`;
       rewards.push({ type: 'silver', value: selected.value });
+      // 银币必分享（数量稀少）
+      await shareToWorld(userId, item, loc, `挖到了 ${amt} 银币！`);
     } else if (selected.type === 'item') {
       const itemRow = await db.getOne('SELECT * FROM `item` WHERE `id`=?', [selected.value]);
       if (itemRow) {
@@ -99,6 +131,12 @@ async function doDig(userId, loc, item, inv, res) {
         const qualLabel = ['', '精致', '古老'][itemRow.quality] || '';
         msg = `🎉 挖掘成功！发现了一个 ${qualLabel}${itemRow.name}！`;
         rewards.push({ type: 'item', value: itemRow.name });
+        // 道具必分享 + 邮件
+        await shareToWorld(userId, item, loc, `发现${qualLabel}【${itemRow.name}】`);
+        try {
+          const { sendMail } = require('./mail');
+          await sendMail({ to: userId, from: 0, title: `🗺️ 宝图发掘：${itemRow.name}`, content: `你在「${loc.name}」挖掘【${item.name}】，获得了 ${qualLabel}·${itemRow.name}。愿你在纵横四海的旅程中继续收获惊喜！`, rewards: [{ type: 'item', value: itemRow.name, item_id: itemRow.id, quantity: 1 }] });
+        } catch(e) {}
       }
     } else if (selected.type === 'goods') {
       await db.query('INSERT INTO `cargo` (user_id, goods_id, quantity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE quantity=quantity+?',
@@ -106,6 +144,7 @@ async function doDig(userId, loc, item, inv, res) {
       const g = await db.getOne('SELECT name FROM `goods` WHERE `id`=?', [selected.value]);
       msg = `🎉 挖掘成功！发现了大量${g?.name || '货物'}！`;
       rewards.push({ type: 'goods', value: selected.value });
+      await shareToWorld(userId, item, loc, `发现大量【${g?.name || '货物'}】`);
     }
 
     // 触发每日活跃
@@ -128,7 +167,16 @@ async function doDig(userId, loc, item, inv, res) {
   }
 
   const updatedUser = await db.getOne('SELECT money, silver FROM `user` WHERE `id`=?', [userId]);
-  res.json({ success: true, msg, location: loc.name, rewards, money: updatedUser.money, silver: updatedUser.silver });
+
+  // 触发宝图成就（成功失败都计数，累加统计后按阶梯解锁）
+  let achievements = [];
+  try {
+    const newCount = (user.treasure_dig_count || 0) + 1;
+    await db.query('UPDATE `user` SET treasure_dig_count = ? WHERE id = ?', [newCount, userId]);
+    achievements = await triggerAchievements(userId, 'treasure_dig', newCount);
+  } catch(e) { /* 非关键 */ }
+
+  res.json({ success: true, msg, location: loc.name, rewards, money: updatedUser.money, silver: updatedUser.silver, achievements });
 }
 
 // 合成碎片：3块碎片（左右中）→ 古老藏宝图

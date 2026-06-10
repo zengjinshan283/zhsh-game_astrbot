@@ -106,6 +106,35 @@
       </div>
     </div>
 
+    <!-- 宝图榜 -->
+    <div class="rank-card" v-if="tab === 'treasure'">
+      <div class="rc-header">🗺️ 寻宝达人榜 TOP20</div>
+      <div class="rc-list">
+        <div
+          v-for="(t, idx) in treasureList"
+          :key="t.id"
+          class="rank-row"
+          :class="{ 'row-me': isMe(t.id), 'row-top': idx < 3 }"
+        >
+          <div class="rank-rank">
+            <span class="rank-medal">{{ idx < 3 ? ['🥇','🥈','🥉'][idx] : '' }}</span>
+            <span class="rank-num" v-if="idx >= 3">{{ idx + 1 }}</span>
+          </div>
+          <div class="rank-info">
+            <span class="rank-sex">{{ t.sex === 2 ? '♀' : '♂' }}</span>
+            <span class="rank-name" :class="{ 'name-me': isMe(t.id) }">{{ t.username }}</span>
+            <span class="rank-lv">Lv.{{ t.level }}</span>
+          </div>
+          <div class="rank-val">
+            <span class="rank-power">⛏ {{ t.dig_count || 0 }} 次</span>
+          </div>
+        </div>
+        <div v-if="treasureList.length === 0" style="padding:40px;text-align:center;color:#7f8c8d;font-size:12px;">
+          🏜️ 暂无寻宝者，快去挖宝吧！
+        </div>
+      </div>
+    </div>
+
     <!-- 帮会榜 -->
     <div class="rank-card" v-if="tab === 'guild'">
       <div class="rc-header">🏰 帮会排行榜 TOP10</div>
@@ -148,12 +177,14 @@ const tab = ref('level');
 const levelList = ref([]);
 const wealthList = ref([]);
 const powerList = ref([]);
+const treasureList = ref([]);
 const guildList = ref([]);
 
 const tabs = [
   { key: 'level', label: '等级', icon: '⭐' },
   { key: 'wealth', label: '财富', icon: '💰' },
   { key: 'power', label: '战力', icon: '⚔️' },
+  { key: 'treasure', label: '宝图', icon: '🗺️' },
   { key: 'guild', label: '帮会', icon: '🏰' }
 ];
 
@@ -164,6 +195,7 @@ async function loadTab(t) {
     if (t === 'level') { const d = await Api.get('/rank/level'); levelList.value = d.list || []; }
     else if (t === 'wealth') { const d = await Api.get('/rank/wealth'); wealthList.value = d.list || []; }
     else if (t === 'power') { const d = await Api.get('/rank/power'); powerList.value = d.list || []; }
+    else if (t === 'treasure') { const d = await Api.get('/rank/treasure'); treasureList.value = d.list || []; }
     else if (t === 'guild') { const d = await Api.get('/rank/guild'); guildList.value = d.list || []; }
   } catch (e) {}
 }
@@ -214,7 +246,7 @@ onMounted(() => loadTab('level'));
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 0;
   background: rgba(13, 17, 23, 0.88);
   backdrop-filter: blur(16px);

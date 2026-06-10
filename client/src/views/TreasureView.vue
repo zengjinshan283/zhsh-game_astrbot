@@ -132,6 +132,48 @@
       </div>
     </div>
   </div>
+
+  <!-- 挖掘动画全屏层 -->
+  <transition name="dig-fade">
+    <div v-if="digStage" class="dig-mask" @click.self="digStage === 'done' && (digStage = null)">
+      <div class="dig-stage" :class="'dig-' + digStage">
+
+        <!-- 阶段 1：挖地（⛏️ 抖动 + 灰尘粒子） -->
+        <template v-if="digStage === 'digging'">
+          <div class="dig-soil">
+            <div class="dig-soil-dirt"></div>
+            <div class="dig-soil-dig">.</div>
+            <div class="dig-soil-dig">.</div>
+            <div class="dig-soil-dig">.</div>
+          </div>
+          <div class="dig-pickaxe" :class="{shake: digStage === 'digging'}">⛏️</div>
+          <div class="dig-dust" v-for="i in 6" :key="i" :style="{ '--i': i }">💨</div>
+          <div class="dig-text">挖掘中...</div>
+        </template>
+
+        <!-- 阶段 2：揭示（成功/失败效果） -->
+        <template v-else-if="digStage === 'reveal' || digStage === 'done'">
+          <div class="dig-chest" :class="digResult?.success ? 'chest-open' : 'chest-fail'">
+            {{ digResult?.success ? '🎁' : '📭' }}
+          </div>
+          <div class="dig-result-title" :class="digResult?.success ? 'rs-ok' : 'rs-fail'">
+            {{ digResult?.success ? '挖掘成功！' : '挖掘失败' }}
+          </div>
+          <div v-if="digResult?.success && digResult.rewards?.length" class="dig-reward-list">
+            <div v-for="(rw, i) in digResult.rewards" :key="i" class="dig-reward-item">
+              <template v-if="rw.type === 'money'">💰 +{{ Number(rw.value).toLocaleString() }} 铜币</template>
+              <template v-else-if="rw.type === 'silver'">🪙 +{{ rw.value }} 银币</template>
+              <template v-else-if="rw.type === 'item'">🎁 {{ rw.name || '物品' }} ×{{ rw.value || 1 }}</template>
+              <template v-else>{{ rw.type }} +{{ rw.value }}</template>
+            </div>
+          </div>
+          <div v-if="digResult?.location" class="dig-loc">📍 {{ digResult.location }}</div>
+          <div v-if="digStage === 'done'" class="dig-tip">点击任意处关闭</div>
+        </template>
+
+      </div>
+    </div>
+  </transition>
 </div>
 </template>
 
@@ -161,6 +203,10 @@ const selectedItemId = ref(null);
 const selectedLocId = ref(null);
 const digging = ref(false);
 const assembling = ref(false);
+// 挖掘动画状态
+const digStage = ref(null); // null | 'digging' | 'reveal' | 'done'
+const digResult = ref(null); // 后端返回的完整结果
+const digElapsed = ref(0);   // 动画用计时
 
 const canDig = computed(() => selectedItemId.value && selectedLocId.value);
 
@@ -200,23 +246,51 @@ async function loadLocations() {
 }
 
 async function doDig() {
-  if (!canDig.value) return;
-  digging.value = true;
+  if (!canDig.value || digStage.value) return;
   error.value = ''; success.value = '';
+  digResult.value = null;
+
+  // 阶段 1：挖地（1.2s）
+  digStage.value = 'digging';
+  digElapsed.value = 0;
+  const digTimer = setInterval(() => { digElapsed.value += 0.1; }, 100);
+
+  // 阶段 2：发请求（在 600ms 后发，让玩家先看挖掘动作）
+  await new Promise(r => setTimeout(r, 600));
+
+  let result = null;
   try {
-    const r = await Api.post('/treasure/use', {
+    result = await Api.post('/treasure/use', {
       item_id: selectedItemId.value,
       location_id: selectedLocId.value
     });
-    flashMsg('ok', r.msg || '挖掘完成');
-    if (r.money !== undefined) userStore.updateUser({ money: r.money });
-    if (r.silver !== undefined) userStore.updateUser({ silver: r.silver });
-    // 重新载入库存
-    await loadInventory();
-    // 清除选择（如果藏宝图用完了）
-    if (!maps.value.find(m => m.id === selectedItemId.value)) selectedItemId.value = null;
-  } catch (e) { flashMsg('err', e.message || '挖掘失败'); }
-  finally { digging.value = false; }
+  } catch (e) {
+    clearInterval(digTimer);
+    digStage.value = null;
+    flashMsg('err', e.message || '挖掘失败');
+    return;
+  }
+
+  // 等挖掘动画满 1.2s
+  await new Promise(r => setTimeout(r, 600));
+  clearInterval(digTimer);
+
+  // 阶段 3：揭示结果（1.5s）
+  digStage.value = 'reveal';
+  digResult.value = result;
+  if (result.money !== undefined) userStore.updateUser({ money: result.money });
+  if (result.silver !== undefined) userStore.updateUser({ silver: result.silver });
+
+  await new Promise(r => setTimeout(r, 1500));
+
+  // 阶段 4：完成，关闭动画层
+  digStage.value = 'done';
+  flashMsg('ok', result.msg || '挖掘完成');
+  await loadInventory();
+  if (!maps.value.find(m => m.id === selectedItemId.value)) selectedItemId.value = null;
+
+  // 让 done 状态短暂保留让玩家看到 ✅，然后清掉
+  setTimeout(() => { digStage.value = null; digResult.value = null; }, 800);
 }
 
 async function doAssemble() {
@@ -390,4 +464,150 @@ onMounted(() => {
 .th-body { font-size: 12px; color: #ccc; line-height: 1.7; }
 .th-row { font-size: 12px; color: #ccc; line-height: 1.8; display: flex; align-items: center; gap: 8px; }
 .th-row .q-tag { flex-shrink: 0; }
+
+/* ====== 挖掘动画层 ====== */
+.dig-mask {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.dig-stage {
+  position: relative; width: 280px; height: 320px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px;
+}
+
+/* 阶段 1：挖地 */
+.dig-soil {
+  position: relative; width: 180px; height: 60px;
+  background: linear-gradient(180deg, #6b4423 0%, #4a2e16 100%);
+  border-radius: 50% 50% 30% 30% / 80% 80% 20% 20%;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.5), inset 0 -4px 8px rgba(0,0,0,0.3);
+  overflow: visible;
+}
+.dig-soil-dirt {
+  position: absolute; left: 0; right: 0; top: 0; height: 8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+  border-radius: 50%;
+}
+.dig-soil-dig {
+  position: absolute; width: 4px; height: 4px;
+  background: #2a1808; border-radius: 50%;
+  top: 50%; left: 50%;
+  animation: dig-clod 1.2s ease-out forwards;
+  opacity: 0;
+}
+.dig-soil-dig:nth-child(2) { top: 30%; left: 30%; animation-delay: 0.2s; }
+.dig-soil-dig:nth-child(3) { top: 30%; right: 30%; left: auto; animation-delay: 0.4s; }
+.dig-soil-dig:nth-child(4) { top: 50%; left: 30%; animation-delay: 0.6s; }
+@keyframes dig-clod {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--tx, 20px), var(--ty, -30px)) scale(1.2); }
+}
+.dig-soil-dig:nth-child(2) { --tx: -25px; --ty: -20px; }
+.dig-soil-dig:nth-child(3) { --tx: 25px; --ty: -25px; }
+.dig-soil-dig:nth-child(4) { --tx: -15px; --ty: -35px; }
+
+.dig-pickaxe {
+  position: absolute;
+  top: 80px; left: 50%;
+  font-size: 56px;
+  transform-origin: 50% 90%;
+  z-index: 2;
+}
+.dig-pickaxe.shake { animation: pickaxe-shake 0.25s ease-in-out infinite; }
+@keyframes pickaxe-shake {
+  0%, 100% { transform: translate(-50%, 0) rotate(-25deg); }
+  50% { transform: translate(-50%, 8px) rotate(15deg); }
+}
+
+.dig-dust {
+  position: absolute; top: 120px; left: 50%;
+  font-size: 16px; opacity: 0;
+  pointer-events: none;
+  animation: dust-fly 1.2s ease-out infinite;
+  animation-delay: calc(var(--i) * 0.15s);
+}
+@keyframes dust-fly {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  30% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(calc(-50% + (var(--i) - 3) * 18px), -40px) scale(1.2); }
+}
+
+.dig-text {
+  margin-top: 80px;
+  font-size: 15px; color: #c9a758; font-weight: 600;
+  letter-spacing: 2px;
+  animation: text-blink 0.8s ease-in-out infinite;
+}
+@keyframes text-blink {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* 阶段 2：揭示 */
+.dig-chest {
+  font-size: 100px; line-height: 1;
+  animation: chest-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: drop-shadow(0 8px 24px rgba(201, 168, 76, 0.4));
+}
+.dig-chest.chest-fail {
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4)) grayscale(0.3);
+  animation: chest-shake 0.4s ease-in-out 2;
+}
+@keyframes chest-pop {
+  0% { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@keyframes chest-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  25% { transform: translate(-6px, 0) rotate(-3deg); }
+  75% { transform: translate(6px, 0) rotate(3deg); }
+}
+
+.dig-result-title {
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+  animation: title-fadein 0.4s ease-out 0.3s both;
+}
+.dig-result-title.rs-ok { color: #f1c40f; text-shadow: 0 0 12px rgba(241,196,15,0.5); }
+.dig-result-title.rs-fail { color: #95a5a6; }
+@keyframes title-fadein {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.dig-reward-list {
+  display: flex; flex-direction: column; gap: 6px; align-items: center;
+  animation: reward-slidein 0.5s ease-out 0.6s both;
+}
+.dig-reward-item {
+  background: linear-gradient(135deg, rgba(201,168,76,0.2), rgba(241,196,15,0.1));
+  border: 1px solid rgba(201,168,76,0.4);
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-size: 14px; font-weight: 600; color: #f1c40f;
+  min-width: 180px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+@keyframes reward-slidein {
+  0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dig-loc {
+  font-size: 12px; color: #bdc3c7;
+  animation: title-fadein 0.4s ease-out 0.8s both;
+}
+.dig-tip {
+  position: absolute; bottom: 24px; left: 0; right: 0;
+  text-align: center; font-size: 11px; color: #7f8c8d;
+  animation: text-blink 1.2s ease-in-out infinite;
+}
+
+/* 遮罩淡入淡出 */
+.dig-fade-enter-active, .dig-fade-leave-active { transition: opacity 0.3s; }
+.dig-fade-enter-from, .dig-fade-leave-to { opacity: 0; }
 </style>

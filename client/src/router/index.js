@@ -44,6 +44,8 @@ const routes = [
   { path: '/skill-upgrade', name: 'skill-upgrade', component: () => import('../views/SkillUpgradeView.vue'), meta: { auth: true } },
   { path: '/invite', name: 'invite', component: () => import('../views/InviteView.vue'), meta: { auth: true } },
   { path: '/treasure', name: 'treasure', component: () => import('../views/TreasureView.vue'), meta: { auth: true } },
+  { path: '/mail', name: 'mail', component: () => import('../views/MailView.vue'), meta: { auth: true } },
+  { path: '/worldboss', name: 'worldboss', component: () => import('../views/WorldBossView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ];
 
