@@ -11743,3 +11743,29 @@ CREATE TABLE IF NOT EXISTS `world_boss_damage` (
   UNIQUE KEY `uk_user_date` (`user_id`, `reset_date`),
   INDEX `idx_damage` (`reset_date`, `damage` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+-- VIP / 累充 系统（2026-06-11）
+-- ============================================================
+ALTER TABLE `user` ADD COLUMN `charge_total` INT NOT NULL DEFAULT 0 COMMENT '累计充值金币' AFTER `monthly_card_expire`;
+
+CREATE TABLE IF NOT EXISTS `charge_order` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `gold` INT NOT NULL COMMENT '充值金币数',
+  `amount_rmb` DECIMAL(10,2) NOT NULL COMMENT '人民币金额',
+  `pay_method` VARCHAR(32) NOT NULL DEFAULT 'mock' COMMENT '支付方式',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '0=待支付 1=已支付 2=已退款',
+  `created_at` INT NOT NULL,
+  KEY `idx_user` (`user_id`, `created_at`),
+  KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='充值订单';
+
+CREATE TABLE IF NOT EXISTS `charge_reward_record` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `tier` INT NOT NULL COMMENT '累充档位',
+  `rewards` JSON NOT NULL COMMENT '档位奖励',
+  `claimed_at` INT NOT NULL,
+  UNIQUE KEY `uk_user_tier` (`user_id`, `tier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='累充奖励领取记录';

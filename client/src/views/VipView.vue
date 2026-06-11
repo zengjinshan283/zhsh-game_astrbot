@@ -114,12 +114,72 @@
             <span class="mvs-value" :style="{ color: currentVipColor }">{{ currentVipName }}</span>
           </div>
           <div class="mvs-item">
+            <span class="mvs-label">累计充值</span>
+            <span class="mvs-value">{{ chargeTotal }} 金币</span>
+          </div>
+          <div class="mvs-item">
             <span class="mvs-label">剩余天数</span>
             <span class="mvs-value">{{ vipRemainDays }} 天</span>
           </div>
           <div class="mvs-item">
             <span class="mvs-label">到期时间</span>
             <span class="mvs-value">{{ fmtDate(vipExpire) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 充值档位 -->
+      <div class="charge-card">
+        <div class="cc-header">
+          <span class="cc-title">💎 充值金币</span>
+          <span class="cc-tip">累充解锁VIP</span>
+        </div>
+        <div class="charge-grid">
+          <div v-for="t in chargeTiers" :key="t.rmb" class="charge-item" @click="doCharge(t)" :class="{ charging: chargingTier===t.rmb }">
+            <div class="ci-rmb">¥ {{ t.rmb }}</div>
+            <div class="ci-gold">{{ t.gold }}🪙</div>
+            <div v-if="t.bonus > 0" class="ci-bonus">送 {{ t.bonus }}</div>
+            <div class="ci-label">{{ t.label }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 累充奖励 -->
+      <div class="charge-reward-card">
+        <div class="cc-header">
+          <span class="cc-title">🎁 累充福利</span>
+          <span class="cc-tip">累计充值领取</span>
+        </div>
+        <div class="cr-list">
+          <div v-for="r in chargeRewards" :key="r.tier" class="cr-item" :class="{ done: r.claimed, active: r.achieved && !r.claimed }">
+            <div class="cr-need">{{ r.need }}🪙</div>
+            <div class="cr-info">
+              <div class="cr-label">{{ r.label }}</div>
+              <div class="cr-rewards">
+                <span v-if="r.rewards.silver">💰 {{ r.rewards.silver }}银币</span>
+                <span v-if="r.rewards.item">📦 {{ r.rewards.item.name }}</span>
+              </div>
+            </div>
+            <button class="cr-btn" :disabled="!r.achieved || r.claimed || claimingTier===r.tier" @click="claimChargeReward(r.tier)">
+              {{ r.claimed ? '✓ 已领' : r.achieved ? (claimingTier===r.tier ? '领取中...' : '领取') : '未达' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 充值历史 -->
+      <div class="history-card" v-if="history.length > 0">
+        <div class="cc-header">
+          <span class="cc-title">📜 充值记录</span>
+          <span class="cc-tip">最近{{ history.length }}笔</span>
+        </div>
+        <div class="hc-list">
+          <div v-for="h in history" :key="h.id" class="hc-item">
+            <div>
+              <div class="hc-amt">¥ {{ h.amount_rmb }}</div>
+              <div class="hc-time">{{ fmtDateTime(h.created_at) }}</div>
+            </div>
+            <div class="hc-gold">+{{ h.gold }} 🪙</div>
           </div>
         </div>
       </div>
@@ -151,10 +211,21 @@ const hasMonthlyCard = ref(false);
 const dailyClaimed = ref(false);
 const vipLevels = ref({});
 const monthlyCardConfig = ref({});
+const chargeTotal = ref(0);
+const chargeTiers = ref([]);
+const chargeRewards = ref([]);
+const history = ref([]);
+const chargingTier = ref(0);
+const claimingTier = ref(0);
 
 function fmtDate(ts) {
   if (!ts || ts <= 0) return '—';
   return new Date(ts * 1000).toLocaleDateString('zh-CN');
+}
+function fmtDateTime(ts) {
+  if (!ts || ts <= 0) return '—';
+  const d = new Date(ts * 1000);
+  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 }
 
 const currentVipColor = computed(() => vipLevels.value[vipLevel.value]?.color || '#888');
@@ -176,8 +247,44 @@ async function loadStatus() {
     dailyClaimed.value = d.dailyClaimed || false;
     vipLevels.value = d.vipLevels || {};
     monthlyCardConfig.value = d.monthlyCardConfig || {};
+    chargeTotal.value = d.chargeTotal || 0;
+    chargeTiers.value = d.chargeTiers || [];
+    chargeRewards.value = d.chargeRewards || [];
   } catch (e) { error.value = e.message || '加载失败'; }
   finally { loading.value = false; }
+}
+
+async function loadHistory() {
+  try {
+    const d = await Api.get('/vip/recharge-history');
+    history.value = d.list || [];
+  } catch (e) { /* ignore */ }
+}
+
+async function doCharge(t) {
+  if (chargingTier.value) return;
+  if (!confirm(`确认充值 ¥${t.rmb} 获得 ${t.gold + t.bonus} 金币？`)) return;
+  chargingTier.value = t.rmb;
+  error.value = ''; success.value = '';
+  try {
+    const d = await Api.post('/vip/charge', { tier: t.rmb });
+    success.value = d.msg;
+    await loadStatus();
+    await loadHistory();
+  } catch (e) { error.value = e.message || '充值失败'; }
+  finally { chargingTier.value = 0; }
+}
+
+async function claimChargeReward(tier) {
+  if (claimingTier.value) return;
+  claimingTier.value = tier;
+  error.value = ''; success.value = '';
+  try {
+    const d = await Api.post('/vip/claim-charge-reward', { tier });
+    success.value = d.msg;
+    await loadStatus();
+} catch (e) { error.value = e.message || '领取失败'; }
+  finally { claimingTier.value = 0; }
 }
 
 async function buyMonthlyCard() {
@@ -203,7 +310,7 @@ async function claimDaily() {
   finally { claiming.value = false; }
 }
 
-onMounted(loadStatus);
+onMounted(() => { loadStatus(); loadHistory(); });
 </script>
 
 <style scoped>
@@ -404,4 +511,72 @@ onMounted(loadStatus);
 .mvs-item:last-child { border-bottom: none; }
 .mvs-label { font-size: 12px; color: #7f8c8d; }
 .mvs-value { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+
+/* 充值档位 */
+.charge-card, .charge-reward-card, .history-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 14px;
+}
+.cc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.cc-title { font-size: 14px; font-weight: 700; color: #f0f0f0; }
+.cc-tip { font-size: 11px; color: #7f8c8d; }
+.charge-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.charge-item {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,165,0,0.04));
+  border: 1px solid rgba(255,215,0,0.2);
+  border-radius: 10px;
+  padding: 10px 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.charge-item:hover { transform: translateY(-2px); border-color: rgba(255,215,0,0.5); }
+.charge-item.charging { opacity: 0.5; pointer-events: none; }
+.ci-rmb { font-size: 14px; font-weight: 700; color: #ffd700; margin-bottom: 4px; }
+.ci-gold { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+.ci-bonus { font-size: 10px; color: #ff6b35; margin-top: 2px; font-weight: 600; }
+.ci-label { font-size: 10px; color: #7f8c8d; margin-top: 4px; }
+
+/* 累充奖励 */
+.cr-list { display: flex; flex-direction: column; gap: 6px; }
+.cr-item {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: all 0.2s;
+}
+.cr-item.active { border-color: rgba(201,168,76,0.5); background: rgba(201,168,76,0.05); }
+.cr-item.done { opacity: 0.55; }
+.cr-need { font-size: 13px; font-weight: 700; color: #ffd700; min-width: 56px; }
+.cr-info { flex: 1; min-width: 0; }
+.cr-label { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+.cr-rewards { font-size: 11px; color: #7f8c8d; margin-top: 2px; display: flex; gap: 8px; }
+.cr-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #c9a84c, #8b6914);
+  color: #fff;
+  cursor: pointer;
+}
+.cr-btn:disabled { background: rgba(255,255,255,0.08); color: #7f8c8d; cursor: not-allowed; }
+
+/* 充值历史 */
+.hc-list { display: flex; flex-direction: column; gap: 4px; }
+.hc-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 12px;
+}
+.hc-item:last-child { border-bottom: none; }
+.hc-amt { font-weight: 700; color: #ffd700; }
+.hc-time { font-size: 10px; color: #7f8c8d; margin-top: 2px; }
+.hc-gold { color: #c0c0c0; font-weight: 600; }
 </style>
