@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../db');
 const config = require('../config');
+const offlineRouter = require('./offline');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -145,6 +146,8 @@ router.post('/login', async (req, res, next) => {
     } catch(e) { console.error('[daily] daily_login progress error:', e.message); }
 
     const token = jwt.sign({ id: user.id, username: user.username }, config.jwtSecret, { expiresIn: config.jwtExpiresIn });
+    // 登录时刷新 offline 基准时间
+    offlineRouter.updateLastOffline(user.id).catch(e => console.error('[offline] updateLastOffline:', e.message));
     res.json({ token, user: { id: user.id, username: user.username, sex: user.sex } });
   } catch (err) { next(err); }
 });

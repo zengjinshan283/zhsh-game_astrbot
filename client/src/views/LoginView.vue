@@ -1,120 +1,236 @@
 <template>
   <div class="login-page">
-    <div class="login-bg"></div>
+    <!-- 装饰光晕层 -->
+    <div class="orb-deco o1" />
+    <div class="orb-deco o2" />
+    <div class="orb-deco o3" />
+    <div class="particle-bg" />
 
-    <div class="login-card">
-      <div class="login-title">⛵ 登录</div>
-      <div class="login-divider"></div>
+    <!-- 顶部主题切换 -->
+    <div class="theme-toggle">
+      <button class="theme-btn" @click="theme.next()" :title="`主题：${theme.current}`">
+        <span class="theme-dot" :class="theme.current"></span>
+      </button>
+    </div>
 
-      <div v-if="error" class="error-card">{{ error }}</div>
+    <!-- Logo 区 -->
+    <div class="logo-section slide-down">
+      <div class="logo-emblem float">
+        <svg viewBox="0 0 100 100" width="100" height="100">
+          <defs>
+            <linearGradient id="logo-g" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#5dade2" />
+              <stop offset="50%" stop-color="#bb8fce" />
+              <stop offset="100%" stop-color="#f1c40f" />
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="45" fill="url(#logo-g)" opacity="0.2" />
+          <path d="M 20 60 Q 35 35 50 45 Q 65 55 80 40 L 75 70 Q 60 75 50 70 Q 40 75 25 70 Z" fill="url(#logo-g)" />
+          <circle cx="50" cy="35" r="8" fill="url(#logo-g)" />
+          <path d="M 30 75 L 25 85 M 50 75 L 50 85 M 70 75 L 75 85" stroke="url(#logo-g)" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </div>
+      <h1 class="logo-title">
+        <span class="text-grad-primary">纵横</span>
+        <span class="text-grad-gold">四海</span>
+      </h1>
+      <p class="logo-subtitle">SAILING THE SEAS OF FORTUNE</p>
+    </div>
 
-      <form @submit.prevent="doLogin" class="login-form">
-        <div class="form-group">
-          <label class="form-label">角色名</label>
-          <input v-model="form.username" class="form-input" placeholder="输入角色名" autocomplete="username">
+    <!-- 登录卡 -->
+    <div class="login-card glass-card elevated zoom-in">
+      <div class="login-tabs gtabs">
+        <button class="gtab" :class="{active: mode === 'login'}" @click="mode = 'login'">登录</button>
+        <button class="gtab" :class="{active: mode === 'register'}" @click="mode = 'register'">注册</button>
+      </div>
+
+      <form @submit.prevent="submit" class="login-form">
+        <div class="form-field">
+          <span class="field-icon">👤</span>
+          <input v-model="username" class="ginput with-icon" placeholder="请输入账号" maxlength="20" autocomplete="username" required />
         </div>
-        <div class="form-group">
-          <label class="form-label">密码</label>
-          <input v-model="form.password" type="password" class="form-input" placeholder="输入密码" autocomplete="current-password">
+        <div v-if="mode === 'register'" class="form-field slide-up">
+          <span class="field-icon">⚧</span>
+          <select v-model="sex" class="ginput with-icon">
+            <option :value="1">♂ 男 · 海上剑客</option>
+            <option :value="2">♀ 女 · 海洋商女</option>
+          </select>
         </div>
-        <button type="submit" class="login-btn" :disabled="loading">
-          {{ loading ? '登录中...' : '⚓ 登录' }}
-        </button>
+        <div v-if="mode === 'register'" class="form-field slide-up">
+          <span class="field-icon">🔒</span>
+          <input v-model="password2" class="ginput with-icon" type="password" placeholder="再次输入密码" maxlength="32" autocomplete="new-password" required />
+        </div>
+        <div class="form-field">
+          <span class="field-icon">🔑</span>
+          <input v-model="password" class="ginput with-icon" type="password" :placeholder="mode === 'register' ? '设置密码 (6-32位)' : '请输入密码'" maxlength="32" autocomplete="current-password" required />
+        </div>
+
+        <GButton type="submit" :loading="loading" size="lg" style="width: 100%; margin-top: 8px;">
+          {{ mode === 'login' ? '⛵ 启航' : '⚓ 加入航路' }}
+        </GButton>
       </form>
 
-      <router-link to="/register" class="register-link">✨ 创建新角色</router-link>
-      <router-link to="/" class="back-link">← 返回首页</router-link>
+      <div class="login-tip text-muted text-xs">
+        {{ mode === 'login' ? '首次登入？' : '已有账号？' }}
+        <a class="link" @click="mode = mode === 'login' ? 'register' : 'login'">
+          {{ mode === 'login' ? '立即注册' : '前往登录' }}
+        </a>
+      </div>
+    </div>
+
+    <!-- 底部水印 -->
+    <div class="watermark text-dim text-xs">
+      v2.0 · 全新 2D 玻璃拟态
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { useUserStore } from '../stores/user';
+import { useToast } from '../composables/useToast';
+import { useTheme } from '../composables/useTheme';
+import GButton from '../components/GButton.vue';
 
-const userStore = useUserStore();
 const router = useRouter();
-const form = ref({ username: '', password: '' });
-const error = ref('');
+const auth = useUserStore();
+const toast = useToast();
+const theme = useTheme();
+
+const mode = ref('login');
+const username = ref('');
+const password = ref('');
+const password2 = ref('');
+const sex = ref(1);
 const loading = ref(false);
 
-async function doLogin() {
-  error.value = '';
+async function submit() {
+  if (loading.value) return;
+  if (!username.value || !password.value) {
+    toast.warn('请填写账号密码');
+    return;
+  }
+  if (mode.value === 'register' && password.value !== password2.value) {
+    toast.error('两次输入的密码不一致');
+    return;
+  }
   loading.value = true;
   try {
-    const data = await Api.post('/auth/login', form.value);
-    userStore.setLogin(data);
-    router.push('/');
+    let res;
+    if (mode.value === 'login') {
+      res = await Api.post('/auth/login', { username: username.value, password: password.value });
+      if (res.token) {
+        auth.setLogin(res);
+        toast.success(`⚓ 欢迎回来，${res.user.username}！`);
+        router.push('/home');
+      }
+    } else {
+      res = await Api.post('/auth/register', {
+        username: username.value,
+        password: password.value,
+        password2: password2.value,
+        sex: sex.value
+      });
+      if (res.token) {
+        auth.setLogin(res);
+        toast.success(`🎉 航海者${res.user.username}启航！获得新手大礼包 ✨`);
+        router.push('/home');
+      }
+    }
   } catch (e) {
-    error.value = e.message;
+    toast.error(e.message || (mode.value === 'login' ? '登录失败' : '注册失败'));
   } finally {
     loading.value = false;
   }
 }
+
+onMounted(() => {
+  // 自动聚焦
+  setTimeout(() => {
+    const el = document.querySelector('.ginput');
+    el && el.focus();
+  }, 300);
+});
 </script>
 
 <style scoped>
 .login-page {
   position: relative;
+  min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  padding: 40px 20px;
   overflow: hidden;
 }
-.login-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%);
-  pointer-events: none;
+.theme-toggle { position: absolute; top: 16px; right: 16px; z-index: 5; }
+.theme-btn {
+  width: 40px; height: 40px;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all var(--anim-base) var(--ease-smooth);
+  backdrop-filter: blur(12px);
 }
+.theme-btn:hover { transform: scale(1.05); border-color: var(--glass-border-hover); }
+.theme-dot { width: 16px; height: 16px; border-radius: 50%; display: block; }
+.theme-dot.dark { background: linear-gradient(135deg, #0a0e1a, #1a1028); }
+.theme-dot.ocean { background: linear-gradient(135deg, #001a2e, #48c9b0); }
+.theme-dot.sunset { background: linear-gradient(135deg, #2c1810, #f5b041); }
+
+.logo-section {
+  position: relative; z-index: 1;
+  text-align: center;
+  margin-bottom: 32px;
+}
+.logo-emblem {
+  width: 110px; height: 110px;
+  margin: 0 auto 16px;
+  filter: drop-shadow(0 8px 24px rgba(93,173,226,0.4));
+}
+.logo-title {
+  font-size: 42px; font-weight: 900;
+  margin: 0 0 4px;
+  letter-spacing: 4px;
+}
+.logo-subtitle {
+  font-size: 10px; color: var(--text-muted);
+  letter-spacing: 4px; margin: 0;
+}
+
 .login-card {
-  position: relative; z-index: 2;
-  background: rgba(13,17,23,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 20px;
-  padding: 32px 28px; width: 320px;
+  position: relative; z-index: 1;
+  width: 100%; max-width: 380px;
+  padding: 24px 22px;
 }
-.login-title {
-  font-size: 24px; font-weight: 700; color: #f0f0f0; text-align: center;
-  margin-bottom: 12px;
+.login-tabs { margin-bottom: 18px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.form-field { position: relative; }
+.field-icon {
+  position: absolute;
+  left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; z-index: 1; pointer-events: none;
 }
-.login-divider {
-  height: 1px; background: linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent);
-  margin-bottom: 20px;
+.ginput.with-icon { padding-left: 40px; }
+
+.login-tip { text-align: center; margin-top: 16px; }
+.link {
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--anim-base);
 }
-.error-card {
-  background: rgba(184,90,58,0.12); border: 1px solid rgba(184,90,58,0.25);
-  border-radius: 10px; padding: 8px 12px; font-size: 12px; color: #e74c3c; margin-bottom: 14px;
+.link:hover { color: var(--accent-secondary); text-decoration: underline; }
+
+.watermark {
+  position: absolute;
+  bottom: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 1;
 }
-.login-form { display: flex; flex-direction: column; gap: 14px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; color: #7f8c8d; font-weight: 600; }
-.form-input {
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px; padding: 12px 14px;
-  font-size: 14px; color: #f0f0f0; outline: none; transition: border-color 0.2s;
-}
-.form-input:focus { border-color: rgba(201,168,76,0.4); }
-.form-input::placeholder { color: #555; }
-.login-btn {
-  margin-top: 4px;
-  background: linear-gradient(135deg, #c9a84c, #8b6914); border: none;
-  border-radius: 10px; color: #fff; font-weight: 700; font-size: 15px;
-  padding: 14px; cursor: pointer; transition: all 0.2s;
-}
-.login-btn:hover:not(:disabled) { transform: scale(1.02); box-shadow: 0 4px 20px rgba(201,168,76,0.4); }
-.login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.register-link {
-  display: block; text-align: center;
-  color: #27ae60; font-size: 13px; font-weight: 600;
-  margin-top: 16px; text-decoration: none; transition: color 0.2s;
-}
-.register-link:hover { color: #2ecc71; }
-.back-link {
-  display: block; text-align: center;
-  color: #555; font-size: 12px;
-  margin-top: 10px; text-decoration: none; transition: color 0.2s;
-}
-.back-link:hover { color: #7f8c8d; }
 </style>

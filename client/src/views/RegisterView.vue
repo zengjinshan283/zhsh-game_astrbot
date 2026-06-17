@@ -1,7 +1,6 @@
 <template>
-  <div class="register-page">
-    <div class="register-bg"></div>
-
+  <div class="page-wrap register-page">
+  <div class="page-hud"><div class="page-hud-title">📝 注册</div></div>
     <div class="register-card">
       <div class="register-title">✨ 创建角色</div>
       <div class="register-divider"></div>
@@ -81,11 +80,6 @@ async function doRegister() {
   justify-content: center;
   min-height: 100vh;
   overflow: hidden;
-}
-.register-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1a28 50%, #0d1117 100%);
-  pointer-events: none;
 }
 .register-card {
   position: relative; z-index: 2;

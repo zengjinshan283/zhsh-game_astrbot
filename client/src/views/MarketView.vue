@@ -1,8 +1,7 @@
 <template>
-<div class="mkt-page">
-  <div class="mkt-bg"></div>
+<div class="page-wrap mkt-page">
 
-  <!-- HUD -->
+  <div class="page-hud"><div class="page-hud-title">🛒 市场</div></div>  <!-- HUD -->
   <div class="mkt-hud">
     <div class="mh-city">🏪 {{ city?.name || '' }} 市场</div>
     <div class="mh-info">
@@ -195,12 +194,6 @@ onMounted(load);
   position: relative; display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
 }
-.mkt-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0d1a1a 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 /* HUD */
 .mkt-hud {
   position: relative; z-index: 2;

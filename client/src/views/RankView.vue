@@ -1,8 +1,7 @@
 <template>
-  <div class="rank-page">
-    <div class="rank-bg"></div>
+  <div class="page-wrap rank-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">📊 排行榜</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">🏆</div>
@@ -212,14 +211,6 @@ onMounted(() => loadTab('level'));
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-
-.rank-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%);
-  pointer-events: none;
 }
 
 .top-hud {

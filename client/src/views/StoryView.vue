@@ -1,6 +1,7 @@
 <template>
-<div class="story-page">
-  <div class="story-bg-layer"></div>
+<div class="page-wrap story-page">
+
+  <div class="page-hud"><div class="page-hud-title">📖 故事</div></div>  <div class="story-bg-layer"></div>
 
   <div class="story-content">
     <!-- Top HUD -->

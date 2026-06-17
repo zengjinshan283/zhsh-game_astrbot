@@ -1,8 +1,7 @@
 <template>
-  <div class="citymap-page">
-    <div class="citymap-bg"></div>
+  <div class="page-wrap citymap-page">
 
-    <!-- 顶部位置信息栏 -->
+  <div class="page-hud"><div class="page-hud-title">🗺️ 城市地图</div></div>    <!-- 顶部位置信息栏 -->
     <div class="top-hud">
       <div class="hud-left">
         <a href="javascript:void(0)" @click.prevent="$router.back()" class="hud-back">←</a>
@@ -183,14 +182,6 @@ onMounted(load);
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-
-.citymap-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%);
-  pointer-events: none;
 }
 
 /* 顶部位置栏 */

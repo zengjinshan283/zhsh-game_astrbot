@@ -1,6 +1,7 @@
 <template>
-<div class="map-page" :class="'scene-type-'+scenePlaceType" v-if="scene">
-  <!-- 动态背景层 -->
+<div class="page-wrap map-page" :class="'scene-type-'+scenePlaceType" v-if="scene">
+
+  <div class="page-hud"><div class="page-hud-title">🗺️ 世界地图</div></div>  <!-- 动态背景层 -->
   <div class="scene-bg-layer"></div>
   <!-- 粒子装饰层 -->
   <div class="particles-layer">

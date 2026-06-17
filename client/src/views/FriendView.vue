@@ -1,9 +1,7 @@
 <template>
-  <div class="friend-page">
-    <div class="friend-bg"></div>
-
+  <div class="page-wrap friend-page">
     <!-- 顶部 HUD -->
-    <div class="top-hud">
+    <div class="page-hud">
       <div class="hud-left">
         <div class="hud-icon">👥</div>
         <div class="hud-title">好友</div>
@@ -145,30 +143,6 @@ onMounted(load);
   overflow-y: auto;
 }
 
-.friend-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
-.top-hud {
-  position: relative;
-  z-index: 2;
-  background: rgba(13, 17, 23, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.hud-left { display: flex; align-items: center; gap: 8px; }
-.hud-icon { font-size: 20px; }
-.hud-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
 .hud-badge { font-size: 11px; color: #7f8c8d; background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 10px; }
 
 .msg-card {

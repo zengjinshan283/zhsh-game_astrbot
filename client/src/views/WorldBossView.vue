@@ -1,8 +1,7 @@
 <template>
-<div class="wb-page">
-  <div class="wb-bg"></div>
+<div class="page-wrap wb-page">
 
-  <div class="wb-header">
+  <div class="page-hud"><div class="page-hud-title">🌊 世界 BOSS</div></div>  <div class="wb-header">
     <div class="wh-title">🌊 世界 BOSS</div>
     <div class="wh-meta">
       <span class="wh-participants">👥 {{ data?.total_participants || 0 }} 人参与</span>
@@ -129,9 +128,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.wb-page { position: relative; display: flex; flex-direction: column; min-height: 100vh; padding: 8px 10px; gap: 10px; }
-.wb-bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(160deg, #0a1929 0%, #0d2a4a 50%, #0a1929 100%); pointer-events: none; }
-
+.boss-page { position: relative; display: flex; flex-direction: column; min-height: 100vh; padding: 8px 10px; gap: 10px; }
 .wb-header { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(0,0,0,0.3); border-radius: 12px; }
 .wh-title { font-size: 16px; font-weight: 700; color: #5dade2; }
 .wh-participants { font-size: 11px; color: rgba(255,255,255,0.6); }

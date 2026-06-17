@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { triggerAchievements } = require('./achievement');
 const router = express.Router();
 
 const MAX_APPRENTICES = 5;
@@ -20,7 +21,12 @@ router.post('/apprentice', authMiddleware, async (req, res, next) => {
 
     await db.query('UPDATE `user` SET mentor_id = ?, mentor_join_time = NOW() WHERE `id` = ?', [mentor_id, req.user.id]);
     await db.query('UPDATE `user` SET apprentice_count = apprentice_count + 1 WHERE `id` = ?', [mentor_id]);
-    res.json({ success: true, msg: `拜 ${mentor.username} 为师成功！` });
+    // 触发师父收徒成就（师父侧）
+    let mentorAchs = [];
+    try {
+      mentorAchs = await triggerAchievements(mentor_id, 'mentor_take', 1);
+    } catch(e) {}
+    res.json({ success: true, msg: `拜 ${mentor.username} 为师成功！`, achievements: mentorAchs });
   } catch(e){next(e);}
 });
 

@@ -1,8 +1,7 @@
 <template>
-  <div class="smith-page">
-    <div class="smith-bg"></div>
+  <div class="page-wrap smith-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">🔨 锻造</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">🔨</div>
@@ -347,7 +346,6 @@ watch(tab, (t) => { msg.value = ''; if (t === 'repair') loadRepairItems(); if (t
 
 <style scoped>
 .smith-page { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; min-height: 100%; overflow-y: auto; }
-.smith-bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(160deg, #0d1117 0%, #1a1410 50%, #0d1117 100%); pointer-events: none; }
 .top-hud { position: relative; z-index: 2; background: rgba(13, 17, 23, 0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
 .hud-left { display: flex; align-items: center; gap: 8px; }
 .hud-icon { font-size: 20px; }

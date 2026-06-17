@@ -203,4 +203,29 @@ router.post('/progress', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// 内部 helper：供其他路由触发活跃度进度
+async function triggerActivity(uid, key, delta = 1) {
+  try {
+    const today = getToday();
+    const activity = await db.getOne('SELECT `key`, target FROM `daily_activity` WHERE `key` = ?', [key]);
+    if (!activity) return;
+    const existing = await db.getOne(
+      'SELECT id, progress FROM `user_daily_activity` WHERE user_id = ? AND `date` = ? AND activity_key = ?',
+      [uid, today, key]
+    );
+    if (existing) {
+      const newProgress = Math.min(existing.progress + delta, activity.target);
+      await db.query('UPDATE `user_daily_activity` SET progress = ?, updated_at = ? WHERE id = ?',
+        [newProgress, Math.floor(Date.now() / 1000), existing.id]);
+    } else {
+      await db.insert('user_daily_activity', {
+        user_id: uid, date: today, activity_key: key,
+        progress: Math.min(delta, activity.target), claimed: 0,
+        updated_at: Math.floor(Date.now() / 1000)
+      });
+    }
+  } catch (e) { console.error('[daily] triggerActivity error:', e.message); }
+}
+
 module.exports = router;
+module.exports.triggerActivity = triggerActivity;

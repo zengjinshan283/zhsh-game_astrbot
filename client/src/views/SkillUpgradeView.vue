@@ -1,8 +1,7 @@
 <template>
-  <div class="skill-page">
-    <div class="skill-bg"></div>
+  <div class="page-wrap skill-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">⚡ 技能升级</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">⚡</div>
@@ -257,11 +256,6 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
 .skill-page {
   position: relative; display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
-}
-.skill-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a1a0d 50%, #0d1117 100%);
-  pointer-events: none;
 }
 .top-hud {
   position: relative; z-index: 2;

@@ -61,6 +61,9 @@ app.use('/api/treasure', require('./routes/treasure'));
 app.use('/api/auction', require('./routes/auction'));
 app.use('/api/quiz', require('./routes/quiz'));
 app.use('/api/worldboss', require('./routes/worldboss'));
+app.use('/api/offline', require('./routes/offline'));
+app.use('/api/fashion', require('./routes/fashion'));
+app.use('/api/guildskill', require('./routes/guildskill'));
 
 // ========== 管理后台API路由 ==========
 app.use('/api/admin/auth', require('./routes/admin/auth'));

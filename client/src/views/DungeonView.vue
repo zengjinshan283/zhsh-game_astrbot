@@ -1,8 +1,7 @@
 <template>
-<div class="dungeon-page" :class="'mode-'+mode">
-  <div class="dungeon-bg"></div>
+<div class="page-wrap dungeon-page" :class="'mode-'+mode">
 
-  <!-- 副本列表模式 -->
+  <div class="page-hud"><div class="page-hud-title">🏰 副本</div></div>  <!-- 副本列表模式 -->
   <template v-if="mode === 'list'">
     <div class="page-header">
       <div class="ph-title">🏰 副本</div>
@@ -301,12 +300,6 @@ onMounted(loadDungeonList);
   min-height: 100%;
   overflow-y: auto;
 }
-.dungeon-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a0d2e 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 /* ===== 通用 ===== */
 .page-header {
   position: relative; z-index: 2;

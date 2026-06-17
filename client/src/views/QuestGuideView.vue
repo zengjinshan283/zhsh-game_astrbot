@@ -4,8 +4,9 @@
   功能：展示当前主线任务目标 + 一键导航 + 进度追踪
 -->
 <template>
-<div class="page">
-  <div class="location-bar">
+<div class="page-wrap qg-page">
+
+  <div class="page-hud"><div class="page-hud-title">📜 任务引导</div></div>  <div class="location-bar">
     <div class="location-name">📜 主线任务</div>
     <div class="location-path" v-if="currentQuest">Lv.{{ currentQuest.level_req }} · {{ questTypes[currentQuest.type] || '任务' }}</div>
   </div>

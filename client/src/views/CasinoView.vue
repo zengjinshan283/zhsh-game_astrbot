@@ -1,12 +1,11 @@
 <template>
-  <div class="casino-page">
-    <!-- 顶部 HUD -->
+  <div class="page-wrap casino-page">
+
+  <div class="page-hud"><div class="page-hud-title">🎰 赌场</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-title">🎰 赌场</div>
       <div class="hud-money">💰 {{ formatMoney(money) }}</div>
     </div>
-    <div class="casino-bg"></div>
-
     <!-- 结果提示 -->
     <div class="result-card" v-if="msg" :class="{ error: msgType === 'error', success: msgType !== 'error' }">
       <span class="result-icon">{{ msgType === 'error' ? '😞' : '🎉' }}</span>
@@ -118,14 +117,6 @@ onMounted(async () => {
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-
-.casino-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a0a0a 50%, #0d1117 100%);
-  pointer-events: none;
 }
 
 .top-hud {

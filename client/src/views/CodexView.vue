@@ -1,8 +1,7 @@
 <template>
-  <div class="codex-page">
-    <div class="codex-bg"></div>
+  <div class="page-wrap codex-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">📖 图鉴</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">{{ activeTab === 'pets' ? '🐾' : '📜' }}</div>
@@ -316,14 +315,6 @@ onMounted(load);
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-
-.codex-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a0a28 50%, #0d1117 100%);
-  pointer-events: none;
 }
 
 .top-hud {

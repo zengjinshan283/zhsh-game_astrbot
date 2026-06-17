@@ -42,6 +42,8 @@
             <router-link to="/invite" class="func-btn" @click="showMore = false"><span class="func-emoji">🎯</span><span class="func-label">推广</span></router-link>
             <router-link to="/treasure" class="func-btn" @click="showMore = false"><span class="func-emoji">🗺️</span><span class="func-label">宝图</span></router-link>
             <router-link to="/worldboss" class="func-btn" @click="showMore = false"><span class="func-emoji">🌊</span><span class="func-label">世界BOSS</span></router-link>
+            <router-link to="/offline" class="func-btn" @click="showMore = false"><span class="func-emoji">🌙</span><span class="func-label">离线</span></router-link>
+            <router-link to="/fashion" class="func-btn" @click="showMore = false"><span class="func-emoji">✨</span><span class="func-label">装扮</span></router-link>
           </div>
           <div v-if="dynamicBtns.length" class="func-grid" style="margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(226,183,20,0.1);">
             <template v-for="(b, idx) in dynamicBtns" :key="idx">

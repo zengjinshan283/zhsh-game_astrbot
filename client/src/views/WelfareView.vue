@@ -1,8 +1,7 @@
 <template>
-  <div class="welfare-page">
-    <div class="welfare-bg"></div>
+  <div class="page-wrap welfare-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">🎁 福利</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">🎁</div>
@@ -240,11 +239,6 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-.welfare-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a1000 50%, #0d1117 100%);
-  pointer-events: none;
 }
 .top-hud {
   position: relative; z-index: 2;

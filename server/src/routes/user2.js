@@ -247,4 +247,14 @@ router.post('/discard', authMiddleware, async (req, res, next) => {
   } catch(e){next(e);}
 });
 
+// 简版用户信息（用于装扮页等需要 mount_id/equipped_outfits/silver 等）
+router.get('/info', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const u = await db.getOne('SELECT id, username, level, silver, money, gold, mount_id, equipped_outfits, vip_level, sweep_mode, last_offline_at FROM `user` WHERE id=?', [uid]);
+    if (!u) return res.status(404).json({ error: '用户不存在' });
+    res.json(u);
+  } catch(e){next(e);}
+});
+
 module.exports = router;

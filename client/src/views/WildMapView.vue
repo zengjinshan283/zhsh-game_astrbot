@@ -1,8 +1,7 @@
 <template>
-  <div class="wild-page">
-    <div class="wild-bg"></div>
+  <div class="page-wrap wild-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">🗺️ 野外地图</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">🌿</div>
@@ -142,14 +141,6 @@ onMounted(load);
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-
-.wild-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1a0a 50%, #0d1117 100%);
-  pointer-events: none;
 }
 
 .top-hud {

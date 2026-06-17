@@ -1,8 +1,7 @@
 <template>
-  <div class="fishing-page">
-    <div class="fishing-bg"></div>
+  <div class="page-wrap fishing-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">🎣 钓鱼</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">🎣</div>
@@ -190,11 +189,6 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); if (countdown
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-.fishing-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%);
-  pointer-events: none;
 }
 .top-hud {
   position: relative; z-index: 2;

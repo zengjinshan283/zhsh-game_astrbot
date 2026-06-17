@@ -1,8 +1,7 @@
 <template>
-<div class="chat-page">
-  <div class="chat-bg"></div>
+<div class="page-wrap chat-page">
 
-  <div class="chat-header">
+  <div class="page-hud"><div class="page-hud-title">💬 聊天</div></div>  <div class="chat-header">
     <div class="ch-title">💬 聊天</div>
     <div class="ch-meta">
       <button class="ch-refresh" @click="load" :disabled="loading">{{ loading ? '加载中...' : '🔄 刷新' }}</button>
@@ -11,9 +10,15 @@
 
   <!-- 频道 Tabs -->
   <div class="chat-tabs">
-    <button :class="{active: channel === 'world'}" @click="switchChannel('world')">🌍 世界</button>
-    <button :class="{active: channel === 'chat'}" @click="switchChannel('chat')">💬 聊天</button>
-    <button :class="{active: channel === 'system'}" @click="switchChannel('system')">📢 系统</button>
+    <button :class="{active: channel === 'world'}" @click="switchChannel('world')">
+      🌍 世界<span v-if="unread.world > 0" class="unread-dot">{{ unread.world > 99 ? '99+' : unread.world }}</span>
+    </button>
+    <button :class="{active: channel === 'chat'}" @click="switchChannel('chat')">
+      💬 聊天<span v-if="unread.chat > 0" class="unread-dot">{{ unread.chat > 99 ? '99+' : unread.chat }}</span>
+    </button>
+    <button :class="{active: channel === 'system'}" @click="switchChannel('system')">
+      📢 系统<span v-if="unread.system > 0" class="unread-dot unread-system">{{ unread.system > 99 ? '99+' : unread.system }}</span>
+    </button>
   </div>
 
   <!-- 频道说明 -->
@@ -66,6 +71,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 
 const messages = ref([]);
 const loading = ref(false);
+const toast = useToast();
 const sending = ref(false);
 const text = ref('');
 const channel = ref('world'); // world / chat / system
@@ -142,7 +148,7 @@ async function send() {
     }
     await load();
   } catch(e) {
-    alert(e.message || '发送失败');
+    toast.error(e.message || '发送失败');
   } finally { sending.value = false; }
 }
 
@@ -160,8 +166,6 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-page { position: relative; display: flex; flex-direction: column; height: 100%; min-height: 100vh; }
-.chat-bg { position: fixed; inset: 0; z-index: 0; background: linear-gradient(160deg, #0d1117 0%, #1a0d1a 50%, #0d1117 100%); pointer-events: none; }
-
 /* Header */
 .chat-header { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: rgba(0,0,0,0.3); }
 .ch-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }

@@ -1,5 +1,10 @@
 <template>
   <div class="app-container">
+    <!-- 装饰光晕层 -->
+    <div class="orb-deco o1" />
+    <div class="orb-deco o2" />
+    <div class="particle-bg" />
+
     <TopBar v-if="userStore.isLoggedIn" />
     <div class="main-content" :class="routeClass">
       <router-view />
@@ -8,6 +13,9 @@
     <BattleOverlay v-if="gameStore.inBattle" />
     <NpcDialogOverlay v-if="gameStore.npcDialog" :npc-id="gameStore.npcDialog.npcId" :place-name="gameStore.npcDialog.placeName" @close="gameStore.closeNpcDialog()" />
     <GuideOverlay v-if="userStore.isLoggedIn" ref="guideRef" />
+
+    <!-- 全局 Toast -->
+    <ToastContainer />
 
     <!-- Global Confirm/Alert Modal -->
     <div class="modal-overlay" :class="{active: visible}" v-if="visible" @click.self="confirmCancel" style="z-index:10001;">
@@ -41,6 +49,7 @@ import TopBar from './components/TopBar.vue';
 import BattleOverlay from './components/BattleOverlay.vue';
 import NpcDialogOverlay from './components/NpcDialogOverlay.vue';
 import GuideOverlay from './components/GuideOverlay.vue';
+import ToastContainer from './components/ToastContainer.vue';
 import { useGameWS } from './composables/useGameWS';
 import { visible, title, message, isConfirm, confirmExtraOpts, confirmOk, confirmCancel } from './composables/useConfirm';
 

@@ -1,8 +1,7 @@
 <template>
-<div class="tr-page">
-  <div class="tr-bg"></div>
+<div class="page-wrap tr-page">
 
-  <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">💎 宝箱</div></div>  <!-- 顶部 HUD -->
   <div class="tr-hud">
     <div class="tr-title">🗺️ 藏宝图</div>
     <div class="tr-balance">
@@ -326,10 +325,6 @@ onMounted(() => {
 
 <style scoped>
 .tr-page { min-height: 100vh; padding-bottom: 80px; position: relative; color: #e8e8e8; }
-.tr-bg {
-  position: fixed; inset: 0; z-index: -1;
-  background: linear-gradient(160deg, #1a1410 0%, #2a1a10 50%, #1a1410 100%);
-}
 .tr-hud {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; background: rgba(0,0,0,0.4);

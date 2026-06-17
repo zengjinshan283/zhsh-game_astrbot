@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { triggerAchievements } = require('./achievement');
 const router = express.Router();
 
 function getSailMinutes(speed){return {1:3,2:2,3:1,5:0}[speed]||3;}
@@ -157,7 +158,7 @@ function getSailDurationSec(speed){const m=getSailMinutes(speed);return (m===0?0
              const dockPlace = await db.getOne("SELECT * FROM `place` WHERE `city_id` = ? AND `type` = 1 LIMIT 1", [user.sail_to]);
              newPlaceId = dockPlace ? dockPlace.id : user.place_id;
            }
-           await db.query('UPDATE `user` SET place_id=?, sail_time=0, sail_from=0, sail_to=0, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0 WHERE `id` = ?', [newPlaceId, req.user.id]);
+           await db.query('UPDATE `user` SET place_id=?, sail_time=0, sail_from=0, sail_to=0, sail_event_checked_at=0, sail_remaining_sec=0, sail_paused=0, sail_finish_count=sail_finish_count+1 WHERE `id` = ?', [newPlaceId, req.user.id]);
            const updatedUser = await db.getOne('SELECT * FROM `user` WHERE `id` = ?', [req.user.id]);
            const updatedPlace = await db.getOne('SELECT city_id FROM `place` WHERE `id` = ?', [updatedUser.place_id]);
            const updatedCity = updatedPlace?.city_id ? await db.getOne("SELECT * FROM `map` WHERE `id` = ?", [updatedPlace.city_id]) : null;
@@ -178,7 +179,13 @@ function getSailDurationSec(speed){const m=getSailMinutes(speed);return (m===0?0
            let cargoUsed = 0, cargoMax = ship ? ship.capacity : 0;
            if (ship) { const cargoRows = await db.getAll("SELECT c.quantity, g.weight FROM `cargo` c JOIN `goods` g ON c.goods_id = g.id WHERE c.user_id = ?", [req.user.id]); cargoRows.forEach(r => cargoUsed += r.quantity * r.weight); }
            const ownedShipsArr = (await db.getAll('SELECT ship_id FROM user_ship WHERE user_id = ?', [req.user.id])).map(r => r.ship_id);
-           return res.json({ arrived: true, event: arr.event, msg, user: updatedUser, ship, shipHp: (await db.getOne('SELECT hp FROM `user_ship` WHERE `user_id`=? AND `ship_id`=?', [req.user.id, user.ship_id]))?.hp || shipHp, shipHpMax, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax, ownedShips: ownedShipsArr });
+           // 触发航海成就
+           let sailAchs = [];
+           try {
+             const row = await db.getOne('SELECT sail_finish_count FROM `user` WHERE `id`=?', [req.user.id]);
+             sailAchs = await triggerAchievements(req.user.id, 'sail', row?.sail_finish_count || 1);
+           } catch(e) {}
+           return res.json({ arrived: true, event: arr.event, msg, user: updatedUser, ship, shipHp: (await db.getOne('SELECT hp FROM `user_ship` WHERE `user_id`=? AND `ship_id`=?', [req.user.id, user.ship_id]))?.hp || shipHp, shipHpMax, allShips, city: updatedCity, isDock: arrIsDock, reachableCities: arrReachable, money: updatedUser.money, cargoUsed, cargoMax, ownedShips: ownedShipsArr, achievements: sailAchs });
          }
 
          isSailing = true;

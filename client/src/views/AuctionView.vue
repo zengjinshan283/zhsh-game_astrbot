@@ -1,8 +1,7 @@
 <template>
-<div class="auction-page">
-  <div class="auction-bg"></div>
+<div class="page-wrap auction-page">
 
-  <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">🏪 拍卖行</div></div>  <!-- 顶部 HUD -->
   <div class="au-hud">
     <div class="au-title">🔨 拍卖行</div>
     <div class="au-balance">
@@ -507,12 +506,6 @@ onUnmounted(() => {
   position: relative; display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
 }
-.auction-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a1208 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 .au-hud { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px; padding: 10px 14px;

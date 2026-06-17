@@ -1,8 +1,7 @@
 <template>
-<div class="bank-page">
-  <div class="bank-bg"></div>
+<div class="page-wrap bank-page">
 
-  <!-- HUD -->
+  <div class="page-hud"><div class="page-hud-title">🏦 钱庄</div></div>  <!-- HUD -->
   <div class="bank-hud">
     <div class="bh-title">🏦 银行</div>
     <div class="bh-sub">最安全的资金保管</div>
@@ -115,12 +114,6 @@ onMounted(loadBank);
   position: relative; display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
 }
-.bank-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0d1a1a 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 /* HUD */
 .bank-hud {
   position: relative; z-index: 2;

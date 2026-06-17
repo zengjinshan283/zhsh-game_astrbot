@@ -1,43 +1,35 @@
 <template>
-<div class="status-page">
-  <div class="status-bg"></div>
+<div class="page-wrap status-page">
 
-  <!-- 角色顶栏 -->
-  <div class="char-hud">
-    <div class="ch-avatar">⚓</div>
+  <div class="page-hud"><div class="page-hud-title">👤 状态</div></div>
+<!-- 角色顶栏 -->
+  <div class="char-card glass-card elevated stagger-item">
+    <SvgAvatar :size="64" :rarity="avatarRarity" :sex="data.user?.sex || 1" :animated="true" />
     <div class="ch-info">
       <div class="ch-name">{{ data.user?.sex === 2 ? '♀' : '♂' }} {{ data.user?.username }}</div>
-      <div class="ch-sub">Lv.{{ data.user?.level }} · {{ data.user?.sex === 2 ? '女' : '男' }}{{ data.pet ? ' · 🐾' + data.pet.nickname : '' }}</div>
-    </div>
-    <div class="ch-stats-mini">
-      <div class="csm-item">
-        <span>⚔️</span><span>{{ data.battleCount }}</span>
-      </div>
-      <div class="csm-item csm-win">
-        <span>🏆</span><span>{{ data.winCount }}</span>
+      <div class="ch-sub text-muted text-xs">Lv.{{ data.user?.level }} · {{ data.user?.sex === 2 ? '女' : '男' }}{{ data.pet ? ' · 🐾' + data.pet.nickname : '' }}</div>
+      <div class="row gap-6" style="margin-top:6px;">
+        <span class="gbadge gbtn-gold">⚔️ {{ data.battleCount }}</span>
+        <span class="gbadge gbtn-green">🏆 {{ data.winCount }}</span>
       </div>
     </div>
   </div>
 
   <!-- HP/EXP 条 -->
-  <div class="bars-card">
+  <div class="bars-card glass-card">
     <div class="bar-row" :class="{'bar-low': hpPct < 30}">
       <div class="br-header">
         <span class="br-label">❤️ HP</span>
         <span class="br-val">{{ data.user?.hp }}/{{ data.user?.hp_max }}</span>
       </div>
-      <div class="br-track">
-        <div class="br-fill hp-fill" :style="{width: hpPct+'%'}"></div>
-      </div>
+      <GProgress :value="data.user?.hp || 0" :max="data.user?.hp_max || 1" color="red" />
     </div>
     <div class="bar-row">
       <div class="br-header">
-        <span class="br-label">✨ EXP</span>
+        <span class="br-label">⚡ EXP</span>
         <span class="br-val">{{ data.user?.exp }}/{{ data.user?.exp_max }}</span>
       </div>
-      <div class="br-track">
-        <div class="br-fill exp-fill" :style="{width: expPct+'%'}"></div>
-      </div>
+      <GProgress :value="data.user?.exp || 0" :max="data.user?.exp_max || 1" color="green" />
     </div>
   </div>
 
@@ -145,8 +137,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Api } from '../composables/useApi';
 import { formatMoney } from '../utils/formatters';
+import SvgAvatar from '../components/SvgAvatar.vue';
+import GProgress from '../components/GProgress.vue';
 
 const data = ref({user:{}, stats:{}, equips:[], battleCount:0, winCount:0, pet:null, invCount:0, shortcuts:[], consumables:[], place:{}, statuses:[]});
+const avatarRarity = computed(() => Math.min(4, Math.floor((data.value.user?.level || 1) / 5) + 1));
 const activeStatuses = computed(() => (data.value.statuses||[]).filter(s => s.type === 1 || s.type === 2));
 const shortcuts = ref([]);
 const consumables = ref([]);
@@ -183,52 +178,13 @@ onUnmounted(() => { if (timer.value) clearInterval(timer.value); });
 </script>
 
 <style scoped>
-.status-page {
-  position: relative; display: flex; flex-direction: column; gap: 10px;
-  padding: 8px 10px; min-height: 100%; overflow-y: auto;
-}
-.status-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0d1a0d 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
+.status-page { padding: 0; }
 /* 角色 HUD */
-.char-hud {
-  position: relative; z-index: 2;
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px; padding: 12px;
-}
-.ch-avatar {
-  width: 46px; height: 46px; border-radius: 14px;
-  background: linear-gradient(135deg, #1a3a2a, #0d2a1a);
-  border: 2px solid rgba(39,174,96,0.3);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px; flex-shrink: 0;
-}
 .ch-info { flex: 1; }
 .ch-name { font-size: 15px; font-weight: 700; color: #f0f0f0; }
 .ch-sub { font-size: 10px; color: #7f8c8d; margin-top: 2px; }
-.ch-stats-mini { display: flex; gap: 8px; }
-.csm-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: #7f8c8d; }
-.csm-win { color: #f1c40f; }
-
 /* HP/EXP 条 */
-.bars-card {
-  position: relative; z-index: 2;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 12px;
-  display: flex; flex-direction: column; gap: 8px;
-}
 .bar-row {}
-.br-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.br-label { font-size: 11px; color: #7f8c8d; }
-.br-val { font-size: 11px; color: #bdc3c7; font-weight: 600; }
-.br-track { height: 5px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
-.br-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
 .hp-fill { background: linear-gradient(90deg, #c0392b, #e74c3c); }
 .exp-fill { background: linear-gradient(90deg, #1a7a3a, #27ae60); }
 .bar-low .hp-fill { animation: pulse-hp 1.5s ease-in-out infinite; }

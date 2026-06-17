@@ -1,8 +1,7 @@
 <template>
-  <div class="cdkey-page">
-    <div class="cdkey-bg"></div>
+  <div class="page-wrap cdkey-page">
 
-    <!-- 顶部 HUD -->
+  <div class="page-hud"><div class="page-hud-title">🎫 兑换码</div></div>    <!-- 顶部 HUD -->
     <div class="top-hud">
       <div class="hud-left">
         <div class="hud-icon">🎁</div>
@@ -125,11 +124,6 @@ async function loadHistory() {}
   padding: 8px 10px;
   min-height: 100%;
   overflow-y: auto;
-}
-.cdkey-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a1000 50%, #0d1117 100%);
-  pointer-events: none;
 }
 .top-hud {
   position: relative; z-index: 2;

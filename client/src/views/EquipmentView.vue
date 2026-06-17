@@ -1,9 +1,7 @@
 <template>
-<div class="equip-page">
-  <div class="equip-bg"></div>
-
+<div class="page-wrap equip-page">
   <!-- 顶部 HUD -->
-  <div class="equip-hud">
+  <div class="page-hud">
     <div class="eh-title">⚔️ 装备管理</div>
     <div class="eh-count">{{ equipped.length }} 件已装备</div>
   </div>
@@ -194,23 +192,7 @@ onMounted(load);
   display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
 }
-.equip-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a0d1a 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 /* HUD */
-.equip-hud {
-  position: relative; z-index: 2;
-  display: flex; justify-content: space-between; align-items: center;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 10px 14px;
-}
-.eh-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
-.eh-count { font-size: 11px; color: #7f8c8d; }
-
 /* 统计卡 */
 .stats-card {
   position: relative; z-index: 2;

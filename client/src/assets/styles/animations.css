@@ -1,0 +1,133 @@
+/* ============================================================
+   纵横四海 · 动画库 v2.0
+   ============================================================ */
+
+/* 淡入 */
+.fade-in { animation: fade-in var(--anim-base) var(--ease-smooth); }
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 上滑进入 */
+.slide-up { animation: slide-up var(--anim-base) var(--ease-smooth); }
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 下滑进入 */
+.slide-down { animation: slide-down var(--anim-base) var(--ease-smooth); }
+@keyframes slide-down {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 缩放进入 */
+.zoom-in { animation: zoom-in var(--anim-base) var(--ease-bounce); }
+@keyframes zoom-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* 弹性出现 */
+.bounce-in { animation: bounce-in 0.5s var(--ease-bounce); }
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* 浮动 */
+.float { animation: float 3s ease-in-out infinite; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* 摇摆 */
+.swing { animation: swing 2s ease-in-out infinite; transform-origin: center bottom; }
+@keyframes swing {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(3deg); }
+  75% { transform: rotate(-3deg); }
+}
+
+/* 发光呼吸 */
+.glow-pulse { animation: glow-pulse 2s ease-in-out infinite; }
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-primary-glow); }
+  50% { box-shadow: 0 0 24px var(--accent-primary-glow), 0 0 48px var(--accent-primary-glow); }
+}
+
+/* 渐变流动 */
+.gradient-flow {
+  background-size: 200% 200%;
+  animation: gradient-flow 3s ease infinite;
+}
+@keyframes gradient-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* 旋转 */
+.spin-slow { animation: spin 8s linear infinite; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+/* 闪烁（通知/警告） */
+.blink { animation: blink 1s steps(2) infinite; }
+@keyframes blink {
+  50% { opacity: 0.4; }
+}
+
+/* 数字滚动 */
+.count-up { display: inline-block; transition: all var(--anim-base) var(--ease-smooth); }
+
+/* 点击波纹 */
+.ripple {
+  position: relative; overflow: hidden;
+}
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  background: rgba(255,255,255,0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s, opacity 0.6s;
+  opacity: 0;
+  pointer-events: none;
+}
+.ripple:active::after {
+  width: 200px; height: 200px;
+  opacity: 0; transition: 0s;
+}
+
+/* 卡片悬停抬起 */
+.hover-lift {
+  transition: transform var(--anim-base) var(--ease-smooth),
+              box-shadow var(--anim-base) var(--ease-smooth);
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--glass-shadow-lg);
+}
+
+/* 列表进入错落 */
+.stagger-item { animation: slide-up var(--anim-base) var(--ease-smooth) both; }
+.stagger-item:nth-child(1) { animation-delay: 0.04s; }
+.stagger-item:nth-child(2) { animation-delay: 0.08s; }
+.stagger-item:nth-child(3) { animation-delay: 0.12s; }
+.stagger-item:nth-child(4) { animation-delay: 0.16s; }
+.stagger-item:nth-child(5) { animation-delay: 0.2s; }
+.stagger-item:nth-child(6) { animation-delay: 0.24s; }
+.stagger-item:nth-child(7) { animation-delay: 0.28s; }
+.stagger-item:nth-child(8) { animation-delay: 0.32s; }
+.stagger-item:nth-child(9) { animation-delay: 0.36s; }
+.stagger-item:nth-child(10) { animation-delay: 0.4s; }
+.stagger-item:nth-child(n+11) { animation-delay: 0.44s; }

@@ -11769,3 +11769,448 @@ CREATE TABLE IF NOT EXISTS `charge_reward_record` (
   `claimed_at` INT NOT NULL,
   UNIQUE KEY `uk_user_tier` (`user_id`, `tier`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='累充奖励领取记录';
+
+-- ============================================================
+-- 成就系统补全（2026-06-11）
+-- ============================================================
+ALTER TABLE `user` ADD COLUMN `sail_finish_count` INT NOT NULL DEFAULT 0 COMMENT '累计完成航海次数' AFTER `sail_paused`;
+
+-- 离线扫荡系统 2026-06-11
+ALTER TABLE `user` ADD COLUMN `last_offline_at` INT NOT NULL DEFAULT 0 COMMENT '最后离线时间戳' AFTER `last_login`;
+ALTER TABLE `user` ADD COLUMN `sweep_mode` VARCHAR(16) NOT NULL DEFAULT 'balanced' COMMENT '扫荡模式' AFTER `last_offline_at`;
+ALTER TABLE `user` ADD COLUMN `sweep_started_at` INT NOT NULL DEFAULT 0 COMMENT '扫荡开始时间' AFTER `sweep_mode`;
+
+CREATE TABLE IF NOT EXISTS `offline_reward_log` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `offline_seconds` INT NOT NULL,
+  `money` INT NOT NULL DEFAULT 0,
+  `exp` INT NOT NULL DEFAULT 0,
+  `silver` INT NOT NULL DEFAULT 0,
+  `claimed_at` INT NOT NULL,
+  KEY `idx_user` (`user_id`, `claimed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='离线收益领取记录';
+
+-- 离线扫荡系统 2026-06-11
+ALTER TABLE `user` ADD COLUMN `last_offline_at` INT NOT NULL DEFAULT 0 COMMENT '最后离线时间戳' AFTER `last_login`;
+ALTER TABLE `user` ADD COLUMN `sweep_mode` VARCHAR(16) NOT NULL DEFAULT 'balanced' COMMENT '扫荡模式' AFTER `last_offline_at`;
+ALTER TABLE `user` ADD COLUMN `sweep_started_at` INT NOT NULL DEFAULT 0 COMMENT '扫荡开始时间' AFTER `sweep_mode`;
+CREATE TABLE IF NOT EXISTS `offline_reward_log` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `offline_seconds` INT NOT NULL,
+  `money` INT NOT NULL DEFAULT 0,
+  `exp` INT NOT NULL DEFAULT 0,
+  `silver` INT NOT NULL DEFAULT 0,
+  `claimed_at` INT NOT NULL,
+  KEY `idx_user` (`user_id`, `claimed_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 坐骑时装系统 2026-06-11
+ALTER TABLE `user` ADD COLUMN `mount_id` INT NOT NULL DEFAULT 0 COMMENT '装备中的坐骑' AFTER `sweep_started_at`;
+ALTER TABLE `user` ADD COLUMN `equipped_outfits` VARCHAR(255) NOT NULL DEFAULT '' COMMENT '已装备的时装槽位' AFTER `mount_id`;
+
+CREATE TABLE IF NOT EXISTS `mount` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(32) NOT NULL,
+  `icon` VARCHAR(255) DEFAULT NULL,
+  `rarity` VARCHAR(16) NOT NULL DEFAULT 'common',
+  `atk_bonus` INT NOT NULL DEFAULT 0,
+  `def_bonus` INT NOT NULL DEFAULT 0,
+  `hp_bonus` INT NOT NULL DEFAULT 0,
+  `speed_bonus` INT NOT NULL DEFAULT 0,
+  `desc` VARCHAR(255) DEFAULT NULL,
+  `price_silver` INT NOT NULL DEFAULT 0,
+  `price_money` INT NOT NULL DEFAULT 0,
+  `level_req` INT NOT NULL DEFAULT 1,
+  `is_default` TINYINT NOT NULL DEFAULT 0,
+  KEY `idx_rarity` (`rarity`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_mount` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `mount_id` INT NOT NULL,
+  `obtained_at` INT NOT NULL,
+  `level` INT NOT NULL DEFAULT 1,
+  `exp` INT NOT NULL DEFAULT 0,
+  UNIQUE KEY `uk_user_mount` (`user_id`, `mount_id`),
+  KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `outfit` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `name` VARCHAR(32) NOT NULL,
+  `icon` VARCHAR(255) DEFAULT NULL,
+  `slot` VARCHAR(16) NOT NULL DEFAULT 'body',
+  `rarity` VARCHAR(16) NOT NULL DEFAULT 'common',
+  `atk_bonus` INT NOT NULL DEFAULT 0,
+  `def_bonus` INT NOT NULL DEFAULT 0,
+  `hp_bonus` INT NOT NULL DEFAULT 0,
+  `desc` VARCHAR(255) DEFAULT NULL,
+  `price_silver` INT NOT NULL DEFAULT 0,
+  `price_money` INT NOT NULL DEFAULT 0,
+  `level_req` INT NOT NULL DEFAULT 1,
+  `is_default` TINYINT NOT NULL DEFAULT 0,
+  KEY `idx_slot` (`slot`),
+  KEY `idx_rarity` (`rarity`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `user_outfit` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT NOT NULL,
+  `outfit_id` INT NOT NULL,
+  `obtained_at` INT NOT NULL,
+  UNIQUE KEY `uk_user_outfit` (`user_id`, `outfit_id`),
+  KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ============================================================
+-- 后续 Phase 补充表 (27 tables: achievement/arena/cdkey/chat_read/guild_skill/guild_war/pet_skill/talent/wild_map 等)
+-- 同步补丁: 让 init-db.sql 与实际 DB 一致
+-- ============================================================
+
+CREATE TABLE `achievement` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `key` varchar(64) NOT NULL,
+  `name` varchar(64) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `trigger_type` varchar(32) NOT NULL,
+  `target_value` int NOT NULL DEFAULT '1',
+  `reward_type` varchar(16) NOT NULL DEFAULT 'money',
+  `reward_value` int NOT NULL DEFAULT '0',
+  `title` varchar(32) NOT NULL DEFAULT '',
+  `sort_order` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `key` (`key`),
+  KEY `idx_trigger` (`trigger_type`),
+  KEY `idx_key` (`key`)
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `arena` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) NOT NULL COMMENT '竞技场名称',
+  `description` text COMMENT '描述',
+  `level_req` int DEFAULT '1' COMMENT '最低等级要求',
+  `entry_fee` int DEFAULT '100' COMMENT '门票费（铜币）',
+  `rewards` text COMMENT '奖励配置JSON',
+  `created_at` int DEFAULT '0',
+  `updated_at` int DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `cdkey` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) NOT NULL,
+  `type` tinyint NOT NULL DEFAULT '1' COMMENT '1新手礼包 2升级礼包 3节日礼包 4公会礼包 5兑换码',
+  `reward_type` varchar(32) NOT NULL DEFAULT 'items' COMMENT 'items/money/coupon',
+  `reward_desc` varchar(255) NOT NULL DEFAULT '',
+  `used_count` int unsigned NOT NULL DEFAULT '0',
+  `max_count` int unsigned NOT NULL DEFAULT '1',
+  `start_time` int unsigned NOT NULL DEFAULT '0',
+  `end_time` int unsigned NOT NULL DEFAULT '0',
+  `created_at` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `code` (`code`),
+  KEY `idx_code` (`code`),
+  KEY `idx_type` (`type`)
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `cdkey_log` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `cdkey_id` int unsigned NOT NULL,
+  `user_id` int unsigned NOT NULL,
+  `code` varchar(32) NOT NULL,
+  `reward_desc` varchar(255) NOT NULL,
+  `created_at` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_cdkey` (`cdkey_id`),
+  KEY `idx_cdkey_id` (`cdkey_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `cdkey_reward` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `cdkey_id` int unsigned NOT NULL,
+  `item_id` int unsigned NOT NULL DEFAULT '0',
+  `item_name` varchar(64) NOT NULL DEFAULT '',
+  `quantity` int unsigned NOT NULL DEFAULT '1',
+  `money` int unsigned NOT NULL DEFAULT '0',
+  `coupon` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_cdkey` (`cdkey_id`),
+  CONSTRAINT `cdkey_reward_ibfk_1` FOREIGN KEY (`cdkey_id`) REFERENCES `cdkey` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `chat_read` (
+  `user_id` int NOT NULL,
+  `scope` varchar(16) NOT NULL,
+  `last_read_id` int NOT NULL DEFAULT '0',
+  `last_read_at` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`user_id`,`scope`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='chat last read';
+
+CREATE TABLE `codex_reward` (
+  `id` int NOT NULL,
+  `require_count` int NOT NULL,
+  `reward_money` int DEFAULT '0',
+  `reward_exp` int DEFAULT '0',
+  `reward_item_id` int DEFAULT '0',
+  `reward_item_qty` int DEFAULT '0',
+  `title` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `fishing_log` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `goods_id` int NOT NULL,
+  `quantity` int NOT NULL DEFAULT '1',
+  `fish_type` int NOT NULL DEFAULT '1',
+  `value` int NOT NULL DEFAULT '0',
+  `created_at` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `guild_skill` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `guild_id` int NOT NULL,
+  `skill_key` varchar(32) NOT NULL,
+  `level` int NOT NULL DEFAULT '1',
+  `exp` int NOT NULL DEFAULT '0',
+  `updated_at` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_guild_skill` (`guild_id`,`skill_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='guild skill';
+
+CREATE TABLE `guild_territory` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `territory_key` varchar(32) NOT NULL COMMENT '领地标识',
+  `name` varchar(64) NOT NULL COMMENT '领地名称',
+  `guild_id` int DEFAULT '0' COMMENT '占领帮会ID',
+  `guild_name` varchar(64) DEFAULT '' COMMENT '占领帮会名',
+  `weekly_gold` int DEFAULT '500' COMMENT '每周产出铜币',
+  `weekly_silver` int DEFAULT '1' COMMENT '每周产出银币',
+  `level_req` int DEFAULT '5' COMMENT '要求帮会等级',
+  `captured_at` int DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `territory_key` (`territory_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `guild_territory_claim` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `territory_key` varchar(32) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `guild_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `claim_date` date NOT NULL,
+  `created_at` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_claim` (`territory_key`,`guild_id`,`claim_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `guild_war` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `attacker_id` int NOT NULL COMMENT '攻击方帮会ID',
+  `defender_id` int NOT NULL COMMENT '防守方帮会ID',
+  `war_time` int NOT NULL COMMENT '战争开始时间戳',
+  `duration` int NOT NULL DEFAULT '7200' COMMENT '持续2小时',
+  `status` tinyint NOT NULL DEFAULT '0' COMMENT '0=宣战中,1=进行中,2=已结束',
+  `winner_id` int DEFAULT '0' COMMENT '胜利帮会ID',
+  `attacker_score` int DEFAULT '0' COMMENT '攻击方得分',
+  `defender_score` int DEFAULT '0' COMMENT '防守方得分',
+  `created_at` int NOT NULL,
+  `ended_at` int DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `guild_war_member` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `war_id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `guild_id` int NOT NULL,
+  `kill_count` int DEFAULT '0' COMMENT '击杀数',
+  `contribution` int DEFAULT '0' COMMENT '个人贡献分',
+  `is_active` tinyint DEFAULT '1' COMMENT '是否参战',
+  `joined_at` int DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `invite_reward` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `inviter_id` int NOT NULL,
+  `invited_id` int NOT NULL,
+  `reward_claimed` int NOT NULL DEFAULT '0',
+  `created_at` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `item_set` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `set_name` varchar(64) NOT NULL,
+  `piece_count` int NOT NULL DEFAULT '0' COMMENT '套装需要件数',
+  `bonus_atk` int NOT NULL DEFAULT '0',
+  `bonus_def` int NOT NULL DEFAULT '0',
+  `bonus_hp` int NOT NULL DEFAULT '0',
+  `description` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `set_name` (`set_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=904 DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE `mall_item_pool` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `item_id` int unsigned NOT NULL COMMENT 'item表ID',
+  `category` varchar(20) NOT NULL DEFAULT '' COMMENT '分类：weapon/armor/accessory/consumable/material',
+  `weight` int unsigned NOT NULL DEFAULT '10' COMMENT '抽中权重(越高越容易抽到)',
+  `min_level` int unsigned NOT NULL DEFAULT '1' COMMENT '最低出现等级',
+  `max_level` int unsigned NOT NULL DEFAULT '99' COMMENT '最高出现等级',
+  `is_special` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否限时特惠(不受刷新影响)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_item` (`item_id`),
+  KEY `idx_category_level` (`category`,`min_level`,`max_level`)
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `pet_skill` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `skill_key` varchar(32) NOT NULL COMMENT '技能标识',
+  `name` varchar(32) NOT NULL COMMENT '技能名称',
+  `desc` varchar(128) NOT NULL COMMENT '技能描述',
+  `stat_key` varchar(16) NOT NULL COMMENT '影响的属性：hp/atk/def/crit/dodge/money_exp',
+  `stat_value` int NOT NULL DEFAULT '0' COMMENT '属性加成值',
+  `rarity` tinyint DEFAULT '0' COMMENT '0=普通,1=稀有,2=传说',
+  `book_item_id` int DEFAULT '0' COMMENT '对应的技能书道具ID',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `skill_key` (`skill_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `place_content` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `place_id` int NOT NULL DEFAULT '0' COMMENT '地点ID',
+  `content_type` enum('npc','monster','boss') NOT NULL DEFAULT 'monster' COMMENT '内容类型',
+  `content_id` int NOT NULL DEFAULT '0' COMMENT 'monster.id 或 npc.id',
+  `display_mode` enum('fixed','random') NOT NULL DEFAULT 'fixed' COMMENT '显示模式',
+  `weight` int NOT NULL DEFAULT '1' COMMENT '随机权重',
+  `min_level` int NOT NULL DEFAULT '0' COMMENT '最低玩家等级',
+  `max_level` int NOT NULL DEFAULT '999' COMMENT '最高玩家等级',
+  `sort_order` int NOT NULL DEFAULT '0' COMMENT '显示顺序',
+  `enabled` tinyint NOT NULL DEFAULT '1' COMMENT '是否启用',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_place_content` (`place_id`,`content_type`,`content_id`),
+  KEY `idx_place_type` (`place_id`,`content_type`),
+  KEY `idx_enabled` (`enabled`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='地点内容配置表';
+
+CREATE TABLE `talent` (
+  `id` int NOT NULL,
+  `name` varchar(64) NOT NULL,
+  `description` varchar(255) NOT NULL,
+  `category` tinyint NOT NULL COMMENT '0=战斗 1=航海 2=贸易',
+  `max_level` int NOT NULL DEFAULT '5',
+  `effect_type` varchar(32) NOT NULL COMMENT 'effect key: atk_pct/def_pct/agi_pct/sail_speed/treasure_rate/pirate_avoid/tax_reduce/trade_profit',
+  `effect_value` int NOT NULL DEFAULT '1' COMMENT '每级增加量',
+  `cost_points` int NOT NULL DEFAULT '1' COMMENT '每级消耗点数',
+  `icon` varchar(32) NOT NULL DEFAULT 'talent',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_achievement` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `achievement_id` int NOT NULL,
+  `achievement_key` varchar(64) NOT NULL,
+  `achieved_at` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_achievement` (`user_id`,`achievement_id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_key` (`achievement_key`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_arena` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL COMMENT '用户ID',
+  `rank` int DEFAULT '0' COMMENT '排名',
+  `score` int DEFAULT '1000' COMMENT '积分',
+  `win_count` int DEFAULT '0' COMMENT '胜利次数',
+  `lose_count` int DEFAULT '0' COMMENT '失败次数',
+  `daily_challenge_count` int DEFAULT '0' COMMENT '今日挑战次数',
+  `last_challenge_at` int DEFAULT '0' COMMENT '上次挑战时间戳',
+  `created_at` int DEFAULT '0',
+  `updated_at` int DEFAULT '0',
+  `season_id` int NOT NULL DEFAULT '0',
+  `tier` varchar(16) NOT NULL DEFAULT 'bronze',
+  `season_win_count` int NOT NULL DEFAULT '0',
+  `last_season_rank` int NOT NULL DEFAULT '0',
+  `season_rewarded` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_codex_reward` (
+  `user_id` int NOT NULL,
+  `reward_id` int NOT NULL,
+  `claimed_at` int NOT NULL,
+  PRIMARY KEY (`user_id`,`reward_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `user_dungeon_count` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `dungeon_name` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `daily_date` date NOT NULL,
+  `weekly_date` date NOT NULL,
+  `daily_count` int DEFAULT '0',
+  `weekly_count` int DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_dungeon_daily` (`user_id`,`dungeon_name`,`daily_date`),
+  UNIQUE KEY `uk_user_dungeon_weekly` (`user_id`,`dungeon_name`,`weekly_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `user_mall` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `item_id` int unsigned NOT NULL COMMENT 'item表ID',
+  `price` int unsigned NOT NULL COMMENT '当日售价(可动态浮动)',
+  `refresh_cnt` int unsigned NOT NULL DEFAULT '0' COMMENT '今日已刷新次数',
+  `mall_date` date NOT NULL COMMENT '商城日期(CST零点)',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_item` (`user_id`,`item_id`,`mall_date`),
+  KEY `idx_user_date` (`user_id`,`mall_date`)
+) ENGINE=InnoDB AUTO_INCREMENT=217 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `user_pet_codex` (
+  `user_id` int NOT NULL,
+  `pet_id` int NOT NULL,
+  `unlocked_at` int NOT NULL,
+  PRIMARY KEY (`user_id`,`pet_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `wild_map` (
+  `id` int NOT NULL,
+  `city_id` int NOT NULL COMMENT '所属城市id',
+  `direction` enum('n','s','e','w') NOT NULL COMMENT '方向',
+  `level` int NOT NULL COMMENT '区域等级',
+  `name` varchar(64) NOT NULL COMMENT '区域名称',
+  `description` varchar(255) DEFAULT '' COMMENT '描述',
+  `monster_ids` varchar(128) NOT NULL COMMENT '逗号分隔的monster_id列表',
+  `level_req` int DEFAULT '1' COMMENT '等级要求',
+  `place_id` int DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `idx_city_dir` (`city_id`,`direction`),
+  KEY `idx_level` (`level`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `wild_map_node` (
+  `id` int NOT NULL,
+  `wild_map_id` int NOT NULL COMMENT '所属野外区域id',
+  `city_id` int NOT NULL COMMENT '所属城市id',
+  `direction` enum('n','s','e','w') NOT NULL COMMENT '方向',
+  `name` varchar(64) NOT NULL COMMENT '节点名称',
+  `type` enum('wild','monster','treasure','boss') DEFAULT 'wild' COMMENT '节点类型',
+  `monster_id` int DEFAULT '0' COMMENT '怪物id(0则用区域的默认怪物)',
+  `reward_item_id` int DEFAULT '0' COMMENT '宝箱奖励item_id',
+  `reward_money` int DEFAULT '0' COMMENT '击杀奖励铜币',
+  PRIMARY KEY (`id`),
+  KEY `idx_wild` (`wild_map_id`),
+  KEY `idx_city_dir` (`city_id`,`direction`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

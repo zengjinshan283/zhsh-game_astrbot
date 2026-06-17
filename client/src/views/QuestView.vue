@@ -1,7 +1,5 @@
 <template>
-<div class="quest-page">
-  <div class="quest-bg"></div>
-
+<div class="page-wrap quest-page">
   <!-- 引导提示 -->
   <div v-if="guideStep !== 99 && guideStep !== 0" class="guide-block">
     <div class="gb-emoji">🗺️</div>
@@ -11,7 +9,7 @@
   </div>
 
   <!-- 顶部 HUD -->
-  <div class="quest-hud" v-if="guideStep === 99">
+  <div class="page-hud" v-if="guideStep === 99">
     <div class="qh-title">📋 任务面板</div>
     <div class="qh-count">
       <span class="qc-badge" :class="{active: active.length > 0}">{{ active.length }}</span>
@@ -208,12 +206,6 @@ onMounted(async () => { await loadGuideStep(); await load(); });
   min-height: 100%;
   overflow-y: auto;
 }
-.quest-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0d1a0d 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 /* 引导提示 */
 .guide-block {
   position: relative; z-index: 2;
@@ -234,16 +226,6 @@ onMounted(async () => { await loadGuideStep(); await load(); });
 }
 
 /* HUD */
-.quest-hud {
-  position: relative; z-index: 2;
-  display: flex; justify-content: space-between; align-items: center;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-.qh-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
-.qh-count { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #7f8c8d; }
 .qc-badge {
   background: rgba(255,255,255,0.08); border-radius: 10px; padding: 1px 6px;
   font-size: 10px; transition: all 0.2s;

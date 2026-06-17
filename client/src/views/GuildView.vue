@@ -1,10 +1,8 @@
 <template>
-<div class="guild-page">
-  <div class="guild-bg"></div>
-
+<div class="page-wrap guild-page">
   <template v-if="myGuild">
     <!-- 帮会信息 HUD -->
-    <div class="guild-hud">
+    <div class="page-hud">
       <div class="gh-emblem">🏰</div>
       <div class="gh-info">
         <div class="gh-name">{{ myGuild.guild_name }}</div>
@@ -34,6 +32,7 @@
       <button class="gt-btn" :class="{active: tab === 'territory'}" @click="tab = 'territory'; loadTerritory()">🗺️ 领地</button>
       <button class="gt-btn" :class="{active: tab === 'war'}" @click="tab = 'war'; loadWars()">⚔️ 战争</button>
       <button class="gt-btn" :class="{active: tab === 'boss'}" @click="tab = 'boss'; loadBoss()">🐲 帮派BOSS</button>
+      <button class="gt-btn" :class="{active: tab === 'buff'}" @click="tab = 'buff'; loadBuff()">📜 帮会BUFF</button>
     </div>
 
     <!-- 成员列表 -->
@@ -84,12 +83,12 @@
     <!-- 帮派 BOSS -->
     <template v-if="tab === 'boss'">
       <div v-if="!boss" class="boss-loading">🐲 BOSS 正在刷新...</div>
-      <div v-else class="boss-panel">
+      <div v-else class="boss-panel glass-card elevated">
         <div class="boss-banner">
-          <div class="bb-icon">🐲</div>
+          <div class="bb-icon float">🐲</div>
           <div class="bb-info">
             <div class="bb-name">深海龙龟</div>
-            <div class="bb-meta">每日重置 · 今日已打 {{ boss.my.attack_count }} / {{ boss.config.attack_limit }} 次</div>
+            <div class="bb-meta text-muted">每日重置 · 今日已打 {{ boss.my.attack_count }} / {{ boss.config.attack_limit }} 次</div>
           </div>
         </div>
 
@@ -98,7 +97,7 @@
             <span>❤️ BOSS 血量</span>
             <span class="bh-pct">{{ boss.boss.hp_pct }}%</span>
           </div>
-          <div class="bh-bar"><div class="bh-fill" :style="{width: boss.boss.hp_pct + '%'}"></div></div>
+          <GProgress :value="boss.boss.hp" :max="boss.boss.hp_max" color="red" thickness="lg" />
           <div class="bh-num">{{ boss.boss.hp.toLocaleString() }} / 1,000,000</div>
         </div>
 
@@ -159,6 +158,45 @@
       </div>
     </template>
 
+    <!-- 帮会BUFF/技能 -->
+    <template v-if="tab === 'buff'">
+      <div class="buff-hud">
+        <div class="bh-title">📜 帮会技能 / 全体加成</div>
+        <div class="bh-tip">每级帮会技能为<strong>全帮成员</strong>提供战斗加成，消耗帮会 exp 升级</div>
+        <div class="bh-bonus" v-if="myBonus && (myBonus.atk||myBonus.def||myBonus.hp||myBonus.speed)">
+          <span class="bbb-item">⚔️ +{{ myBonus.atk || 0 }} 攻</span>
+          <span class="bbb-item">🛡️ +{{ myBonus.def || 0 }} 防</span>
+          <span class="bbb-item">❤️ +{{ myBonus.hp || 0 }} 血</span>
+          <span class="bbb-item">💨 +{{ myBonus.speed || 0 }} 速</span>
+        </div>
+      </div>
+
+      <div class="skill-list">
+        <div v-for="sk in skillList" :key="sk.key" class="skill-card" :class="`rarity-${sk.rarity || 'rare'}`">
+          <div class="sk-icon">{{ sk.icon }}</div>
+          <div class="sk-info">
+            <div class="sk-name">
+              {{ sk.name }} <span class="sk-lv">Lv.{{ sk.level }}/{{ sk.maxLevel }}</span>
+            </div>
+            <div class="sk-desc">{{ sk.desc }}</div>
+            <div class="sk-effect">当前效果: <strong>{{ formatBonus(sk.bonus) }}</strong></div>
+            <div class="sk-cost">下级消耗: <span class="cost-num">{{ sk.expToNext }}</span> 帮会exp</div>
+          </div>
+          <div class="sk-action">
+            <button v-if="canUpgrade(sk)" class="sk-up-btn" @click="upgradeSkill(sk.key)">升级</button>
+            <span v-else-if="sk.level >= sk.maxLevel" class="sk-max">已满级</span>
+            <span v-else class="sk-noauth">
+              {{ !isLeader ? '需会长' : 'exp不足' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="buff-tip-card">
+        💡 提示：捐献金钱/银币/元宝可获得帮会 exp，作为升级帮会技能的燃料！
+      </div>
+    </template>
+
     <!-- 帮会战争 -->
     <template v-if="tab === 'war'">
       <!-- 宣战入口（仅会长） -->
@@ -198,6 +236,58 @@
             <div v-if="w.status === 1" class="wc-time">⏰ {{ formatWarTime(w.warTime, w.duration) }}</div>
             <button v-if="w.status === 1 && canJoin(w)" class="wc-join" @click="joinWar(w.id)">加入战斗</button>
             <button v-if="w.status === 1" class="wc-detail" @click="viewWarDetail(w.id)">战况</button>
+            <button v-if="w.status === 0 && isLeader" class="wc-force" @click="forceStartWar(w.id)">⚡立即开始</button>
+            <button v-if="w.status === 1" class="wc-end" @click="endWar(w.id)">🏁 结算</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 战况弹窗 -->
+      <div v-if="warDetailOpen && warDetail" class="war-modal" @click.self="warDetailOpen = false">
+        <div class="war-modal-card">
+          <div class="wm-header">
+            <div class="wm-title">⚔️ 战况 - {{ warDetail.war.attacker_name }} VS {{ warDetail.war.defender_name }}</div>
+            <button class="wm-close" @click="warDetailOpen = false">✕</button>
+          </div>
+          <div class="wm-scores">
+            <div class="wms-side wms-att">
+              <div class="wms-name">⚔️ {{ warDetail.war.attacker_name }}</div>
+              <div class="wms-score">{{ warDetail.war.attacker_score || 0 }}</div>
+            </div>
+            <div class="wms-vs">VS</div>
+            <div class="wms-side wms-def">
+              <div class="wms-name">🛡️ {{ warDetail.war.defender_name }}</div>
+              <div class="wms-score">{{ warDetail.war.defender_score || 0 }}</div>
+            </div>
+          </div>
+          <div class="wm-status">{{ warStatusName(warDetail.war.status).label }}</div>
+
+          <!-- 攻击敌人 -->
+          <div v-if="warDetail.war.status === 1 && warEnemies.length" class="wm-section">
+            <div class="wms-h">🎯 选择攻击目标</div>
+            <div class="wm-enemy-list">
+              <div v-for="e in warEnemies" :key="e.id" class="wm-enemy">
+                <div class="wme-info">
+                  <div class="wme-name">{{ e.username }} Lv.{{ e.level }}</div>
+                  <div class="wme-hp">❤️ {{ e.hp }} / {{ e.hp_max }}</div>
+                </div>
+                <button class="wme-attack" @click="attackEnemy(e.id)">⚔️ 攻击</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 排行榜 -->
+          <div v-if="warRank.length" class="wm-section">
+            <div class="wms-h">🏅 贡献排行榜</div>
+            <div class="wm-rank">
+              <div v-for="(r, idx) in warRank.slice(0, 10)" :key="r.id" class="wmr-row">
+                <span class="wmr-idx">{{ idx + 1 }}</span>
+                <span class="wmr-name">{{ r.username }}</span>
+                <span class="wmr-guild" :class="{'wmr-my': r.guild_id === myGuild?.guild_id}">{{ r.guild_name }}</span>
+                <span class="wmr-ct">{{ r.contribution }} 伤害</span>
+                <span class="wmr-kc">🎯{{ r.kill_count }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -206,7 +296,7 @@
 
   <!-- 未加入帮会 -->
   <template v-else>
-    <div class="guild-hud">
+    <div class="page-hud">
       <div class="gh-emblem">🏰</div>
       <div class="gh-info"><div class="gh-name">未加入帮会</div></div>
     </div>
@@ -244,6 +334,7 @@ import { globalConfirm } from '../composables/useConfirm';
 import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import GProgress from '../components/GProgress.vue';
 
 const userStore = useUserStore();
 const myGuild = ref(null);
@@ -388,11 +479,100 @@ async function joinWar(warId) {
 }
 
 async function viewWarDetail(warId) {
+  currentWar.value = warId;
+  await Promise.all([loadWarDetail(warId), loadWarEnemies(warId), loadWarRank(warId)]);
+  warDetailOpen.value = true;
+}
+
+const warDetailOpen = ref(false);
+const currentWar = ref(null);
+const warDetail = ref(null);
+const warEnemies = ref([]);
+const warRank = ref([]);
+async function loadWarDetail(warId) {
+  try { const d = await Api.get(`/guild/war-status/${warId}`); warDetail.value = d; }
+  catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+async function loadWarEnemies(warId) {
+  try { const d = await Api.get(`/guild/war-enemies/${warId}`); warEnemies.value = d.enemies || []; }
+  catch(e) { warEnemies.value = []; }
+}
+async function loadWarRank(warId) {
+  try { const d = await Api.get(`/guild/war-rank/${warId}`); warRank.value = d.rank || []; }
+  catch(e) { warRank.value = []; }
+}
+
+async function attackEnemy(targetId) {
+  if (!currentWar.value) return;
   try {
-    const d = await Api.get(`/guild/war-status/${warId}`);
-    const myCount = (d.participants || []).length;
-    msg.value = `战况：双方共 ${myCount} 人参战`;
+    const d = await Api.post(`/guild/war-attack/${currentWar.value}`, { target_user_id: targetId });
+    msg.value = d.msg;
+    msgType.value = d.success ? 'success' : 'error';
+    await loadWarDetail(currentWar.value);
+    await loadWarEnemies(currentWar.value);
+    await loadWarRank(currentWar.value);
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
+async function forceStartWar(warId) {
+  try {
+    const d = await Api.post(`/guild/war-force-start/${warId}`);
+    msg.value = d.msg;
+    msgType.value = d.success ? 'success' : 'error';
+    await loadWars();
+    if (warDetailOpen.value) await viewWarDetail(warId);
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
+async function endWar(warId) {
+  if (!await globalConfirm('确认结束战争并结算？')) return;
+  try {
+    const d = await Api.post(`/guild/war-end/${warId}`);
+    msg.value = d.msg;
     msgType.value = 'success';
+    warDetailOpen.value = false;
+    await loadWars();
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
+// === 帮会BUFF/技能 ===
+const skillList = ref([]);
+const myBonus = ref({ atk: 0, def: 0, hp: 0, speed: 0 });
+const guildExp = ref(0);
+async function loadBuff() {
+  try {
+    const d = await Api.get('/guildskill/list');
+    skillList.value = d.skills || [];
+    guildExp.value = d.guild_exp || 0;
+  } catch(e) { msg.value = e.message; msgType.value = 'error'; }
+  try {
+    myBonus.value = await Api.get('/guildskill/bonus');
+  } catch(e) {}
+}
+function calcEffect(sk) {
+  return (sk.level || 0) * sk.per_level;
+}
+function formatBonus(b) {
+  if (!b) return '未激活';
+  const parts = [];
+  if (b.atk) parts.push(`+${b.atk}攻`);
+  if (b.def) parts.push(`+${b.def}防`);
+  if (b.hp) parts.push(`+${b.hp}血`);
+  if (b.speed) parts.push(`+${b.speed}速`);
+  return parts.length ? parts.join(' ') : '未激活';
+}
+function canUpgrade(sk) {
+  if (!isLeader.value) return false;
+  if (sk.level >= sk.maxLevel) return false;
+  if (guildExp.value < sk.expToNext) return false;
+  return true;
+}
+async function upgradeSkill(key) {
+  try {
+    const d = await Api.post('/guildskill/upgrade', { skill_key: key });
+    msg.value = d.msg || '升级成功';
+    msgType.value = 'success';
+    await loadBuff();
   } catch(e) { msg.value = e.message; msgType.value = 'error'; }
 }
 </script>
@@ -437,20 +617,7 @@ async function viewWarDetail(warId) {
   position: relative; display: flex; flex-direction: column; gap: 10px;
   padding: 8px 10px; min-height: 100%; overflow-y: auto;
 }
-.guild-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a0d0d 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
 /* HUD */
-.guild-hud {
-  position: relative; z-index: 2;
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px; padding: 12px;
-}
 .gh-emblem { font-size: 28px; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border-radius: 12px; flex-shrink: 0; }
 .gh-info { flex: 1; }
 .gh-name { font-size: 15px; font-weight: 700; color: #f0f0f0; }
@@ -584,4 +751,67 @@ async function viewWarDetail(warId) {
 .wc-join, .wc-detail { padding: 4px 10px; font-size: 10px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; }
 .wc-join { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
 .wc-detail { background: rgba(255,255,255,0.08); color: #f0f0f0; border: 1px solid rgba(255,255,255,0.15); }
+.wc-force { background: linear-gradient(135deg, #d68910, #f39c12); color: #fff; padding: 4px 10px; font-size: 10px; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.wc-end { background: rgba(127,140,141,0.3); color: #bdc3c7; border: 1px solid rgba(127,140,141,0.4); padding: 4px 10px; font-size: 10px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+
+/* 战况弹窗 */
+.war-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.war-modal-card { background: linear-gradient(160deg, #1a2530 0%, #0d1117 100%); border: 1px solid rgba(231,76,60,0.3); border-radius: 14px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+.wm-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(231,76,60,0.2); }
+.wm-title { font-size: 15px; font-weight: 700; color: #fff; }
+.wm-close { background: none; border: 0; color: #95a5a6; font-size: 20px; cursor: pointer; padding: 0 4px; }
+.wm-close:hover { color: #e74c3c; }
+.wm-scores { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: rgba(0,0,0,0.3); }
+.wms-side { text-align: center; flex: 1; }
+.wms-name { font-size: 12px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+.wms-score { font-size: 28px; font-weight: 800; }
+.wms-att .wms-score { color: #e74c3c; }
+.wms-def .wms-score { color: #3498db; }
+.wms-vs { font-size: 16px; font-weight: 700; color: #95a5a6; padding: 0 12px; }
+.wm-status { text-align: center; padding: 8px; font-size: 13px; font-weight: 600; color: #f39c12; background: rgba(243,156,18,0.1); border-bottom: 1px solid rgba(243,156,18,0.2); }
+.wm-section { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.06); }
+.wms-h { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 10px; }
+.wm-enemy-list { display: flex; flex-direction: column; gap: 6px; }
+.wm-enemy { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(231,76,60,0.08); border: 1px solid rgba(231,76,60,0.2); border-radius: 8px; }
+.wme-info { flex: 1; }
+.wme-name { font-size: 12px; font-weight: 600; color: #fff; }
+.wme-hp { font-size: 10px; color: #e74c3c; margin-top: 2px; }
+.wme-attack { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; border: 0; padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; }
+.wme-attack:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(231,76,60,0.4); }
+.wm-rank { display: flex; flex-direction: column; gap: 4px; }
+.wmr-row { display: grid; grid-template-columns: 20px 1fr auto auto auto; gap: 8px; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.03); border-radius: 6px; font-size: 11px; }
+.wmr-idx { font-weight: 700; color: #f39c12; }
+.wmr-name { color: #fff; font-weight: 600; }
+.wmr-guild { color: rgba(255,255,255,0.5); font-size: 10px; }
+.wmr-guild.wmr-my { color: #f39c12; font-weight: 700; }
+.wmr-ct { color: #c0392b; font-weight: 600; }
+.wmr-kc { color: rgba(255,255,255,0.5); }
+
+/* === 帮会BUFF === */
+.buff-hud { position: relative; z-index: 2; padding: 12px 14px; background: linear-gradient(135deg, rgba(155,89,182,0.15), rgba(142,68,173,0.06)); border: 1px solid rgba(155,89,182,0.3); border-radius: 12px; margin-bottom: 10px; }
+.bh-title { font-size: 14px; font-weight: 700; color: #bb8fce; margin-bottom: 4px; }
+.bh-tip { font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
+.bh-tip strong { color: #f1c40f; }
+.bh-bonus { display: flex; gap: 12px; flex-wrap: wrap; padding: 8px 10px; background: rgba(0,0,0,0.25); border-radius: 8px; }
+.bbb-item { font-size: 12px; color: #f1c40f; font-weight: 700; }
+
+.skill-list { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 8px; }
+.skill-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+.skill-card.rarity-epic { border-color: rgba(155,89,182,0.4); background: linear-gradient(135deg, rgba(155,89,182,0.08), rgba(255,255,255,0.04)); }
+.skill-card.rarity-legend { border-color: rgba(241,196,15,0.4); background: linear-gradient(135deg, rgba(241,196,15,0.08), rgba(255,255,255,0.04)); }
+.sk-icon { font-size: 28px; flex-shrink: 0; width: 40px; text-align: center; }
+.sk-info { flex: 1; min-width: 0; }
+.sk-name { font-size: 13px; font-weight: 700; color: #f0f0f0; }
+.sk-lv { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 400; margin-left: 4px; }
+.sk-desc { font-size: 11px; color: rgba(255,255,255,0.6); margin: 2px 0; }
+.sk-effect { font-size: 11px; color: #f1c40f; }
+.sk-cost { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+.cost-num { color: #bb8fce; font-weight: 700; }
+.sk-action { flex-shrink: 0; }
+.sk-up-btn { padding: 6px 12px; background: linear-gradient(135deg, #8e44ad, #bb8fce); color: #fff; border: 0; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.sk-up-btn:active { transform: scale(0.96); }
+.sk-max { font-size: 11px; color: #f1c40f; font-weight: 700; }
+.sk-noauth { font-size: 10px; color: rgba(255,255,255,0.4); }
+
+.buff-tip-card { position: relative; z-index: 2; margin-top: 10px; padding: 10px 12px; background: rgba(241,196,15,0.06); border: 1px solid rgba(241,196,15,0.2); border-radius: 10px; font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; }
 </style>

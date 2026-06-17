@@ -1,8 +1,7 @@
 <template>
-<div class="mentor-page">
-  <div class="mentor-bg"></div>
+<div class="page-wrap mentor-page">
 
-  <!-- 消息 -->
+  <div class="page-hud"><div class="page-hud-title">🎓 师徒</div></div>  <!-- 消息 -->
   <div v-if="msg" class="mentor-toast" :class="msgType === 'error' ? 'toast-err' : 'toast-ok'">
     {{ msgType === 'error' ? '❌' : '✅' }} {{ msg }}
   </div>
@@ -302,10 +301,6 @@ onMounted(async () => {
 
 <style scoped>
 .mentor-page { position: relative; min-height: 100vh; padding: 16px; padding-bottom: 80px; }
-.mentor-bg {
-  position: fixed; inset: 0; z-index: -1;
-  background: linear-gradient(160deg, #0a1628 0%, #1a0a2e 50%, #0d1f3c 100%);
-}
 .mentor-toast {
   position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
   padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 999;

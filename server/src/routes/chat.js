@@ -75,5 +75,46 @@ async function systemBroadcast(text) {
   } catch(e) { console.error('[chat] systemBroadcast error:', e.message); }
 }
 
+// GET /api/chat/unread - 各频道未读数（基于 chat_read 表）
+router.get('/unread', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const scopes = {
+      world:    'c.type IN (1,3)',  // 世界+宝图
+      system:   'c.type = 2',        // 系统
+      chat:     'c.type = 0',        // 普通聊天
+    };
+    const reads = await db.getAll('SELECT scope, last_read_id FROM chat_read WHERE user_id=?', [uid]);
+    const readMap = {};
+    for (const r of reads) readMap[r.scope] = r.last_read_id;
+    const result = {};
+    for (const [k, cond] of Object.entries(scopes)) {
+      const lastId = readMap[k] || 0;
+      const row = await db.getOne(`SELECT COUNT(*) as cnt, MAX(c.id) as max_id FROM chat c WHERE ${cond} AND c.id > ?`, [lastId]);
+      result[k] = { count: row.cnt, maxId: row.max_id || lastId };
+    }
+    // 总未读
+    result.total = result.world.count + result.system.count + result.chat.count;
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// POST /api/chat/mark-read { scope }
+router.post('/mark-read', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const { scope } = req.body;
+    const scopes = { world: 1, system: 1, chat: 1 };
+    if (!scopes[scope]) return res.status(400).json({ error: 'scope 必须 world/system/chat' });
+    // 取该 scope 最新 id
+    const cond = scope === 'world' ? 'type IN (1,3)' : (scope === 'system' ? 'type = 2' : 'type = 0');
+    const last = await db.getOne(`SELECT MAX(id) as max_id FROM chat WHERE ${cond}`);
+    const now = Math.floor(Date.now() / 1000);
+    await db.query('INSERT INTO chat_read (user_id, scope, last_read_id, last_read_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE last_read_id=VALUES(last_read_id), last_read_at=VALUES(last_read_at)',
+      [uid, scope, last.max_id || 0, now]);
+    res.json({ success: true, scope, lastReadId: last.max_id || 0 });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
 module.exports.systemBroadcast = systemBroadcast;

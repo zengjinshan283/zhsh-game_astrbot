@@ -1,47 +1,28 @@
 <template>
-  <div class="home-page" v-if="userStore.isLoggedIn">
-    <div class="home-bg"></div>
+  <div class="page-wrap home-page" v-if="userStore.isLoggedIn">
 
     <!-- ===== 顶部：城市名 + 在线奖励/快捷操作 ===== -->
-    <div class="top-hud">
-      <div class="hud-left">
-        <div class="hud-icon">🏛️</div>
-        <div class="hud-info">
-          <div class="hud-city">{{ cityName }}</div>
-          <div class="hud-place">{{ placeName }}</div>
-        </div>
-      </div>
-      <div class="hud-right">
+    <div class="page-hud">
+      <div class="page-hud-title">🏛️ {{ cityName }}</div>
+      <div class="page-hud-sub">{{ placeName }}</div>
+      <div class="row gap-6" style="margin-left:auto;">
       </div>
     </div>
 
     <!-- ===== 状态条 ===== -->
-    <div class="status-bar">
-      <div class="sb-user">
-        <span class="sb-name">{{ userStore.user?.username }}</span>
-        <span class="sb-lv">Lv.{{ userStore.user?.level }}</span>
-      </div>
-      <div class="sb-bars">
-        <div class="sb-item">
-          <span class="sb-icon">❤️</span>
-          <div class="sb-bar-wrap"><div class="sb-bar sb-hp" :style="{width: hpPct+'%'}"></div></div>
-          <span class="sb-val">{{ userStore.user?.hp }}/{{ userStore.user?.hp_max }}</span>
-        </div>
-        <div class="sb-item">
-          <span class="sb-icon">⭐</span>
-          <div class="sb-bar-wrap"><div class="sb-bar sb-exp" :style="{width: expPct+'%'}"></div></div>
-          <span class="sb-val">{{ userStore.user?.exp }}/{{ userStore.user?.exp_max }}</span>
+    <div class="status-bar glass-card">
+      <SvgAvatar :size="44" :rarity="Math.min(4, Math.floor((userStore.user?.level||1)/5)+1)" :sex="userStore.user?.sex||1" />
+      <div class="sb-info">
+        <div class="sb-name">{{ userStore.user?.username }} <span class="gbadge">Lv.{{ userStore.user?.level }}</span></div>
+        <div class="row gap-4" style="margin-top:4px;">
+          <span class="chip chip-red">❤️ {{ userStore.user?.hp }}/{{ userStore.user?.hp_max }}</span>
+          <span class="chip chip-green">⭐ {{ userStore.user?.exp }}/{{ userStore.user?.exp_max }}</span>
         </div>
       </div>
-      <div class="sb-money">
-        <span class="sb-icon">💰</span>
-        <span class="sb-money-val">{{ formatMoney(userStore.user?.money) }}</span>
-        <span class="sb-divider">|</span>
-        <span class="sb-icon"><img src="/icons/silver_coin.png" style="width:14px;height:14px;vertical-align:middle;" /></span>
-        <span class="sb-money-val silver">{{ formatMoney(userStore.user?.silver) }}</span>
-        <span class="sb-divider">|</span>
-        <span class="sb-icon"><img src="/icons/gold_coin.png" style="width:14px;height:14px;vertical-align:middle;" /></span>
-        <span class="sb-money-val gold">{{ formatMoney(userStore.user?.gold) }}</span>
+      <div class="row gap-6" style="margin-left:auto;">
+        <ResourceChip icon="💰" :value="formatMoney(userStore.user?.money)" variant="bronze" />
+        <ResourceChip icon="🥈" :value="formatMoney(userStore.user?.silver)" variant="silver" />
+        <ResourceChip icon="🥇" :value="formatMoney(userStore.user?.gold)" variant="gold" />
       </div>
     </div>
 
@@ -191,6 +172,8 @@ import { useUserStore } from '../stores/user';
 import { useGameStore } from '../stores/game';
 import { Api } from '../composables/useApi';
 import { formatMoney } from '../utils/formatters';
+import SvgAvatar from '../components/SvgAvatar.vue';
+import ResourceChip from '../components/ResourceChip.vue';
 import { globalAlert } from '../composables/useConfirm';
 
 const userStore = useUserStore();
@@ -302,37 +285,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.home-page {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.home-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #0a1628 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
+.home-page { padding: 0; max-width: 720px; }
 /* ===== 顶部 HUD（固定不滚动） ===== */
-.top-hud {
-  position: relative; z-index: 2; flex-shrink: 0;
-  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px; padding: 10px 14px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.hud-left { display: flex; align-items: center; gap: 8px; }
-.hud-icon { font-size: 18px; }
-.hud-info { display: flex; flex-direction: column; gap: 1px; }
-.hud-city { font-size: 14px; font-weight: 700; color: #f0f0f0; }
-.hud-place { font-size: 10px; color: #7f8c8d; }
-.hud-right { display: flex; align-items: center; }
 .hud-act {
   font-size: 13px; font-weight: 600; color: #bdc3c7;
   text-decoration: none; padding: 4px 8px;
@@ -341,30 +295,8 @@ onMounted(async () => {
 .hud-act:hover { background: rgba(255,255,255,0.08); color: #f0f0f0; }
 
 /* ===== 状态条（固定不滚动） ===== */
-.status-bar {
-  position: relative; z-index: 2; flex-shrink: 0;
-  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px; padding: 10px 14px;
-  display: flex; align-items: center; gap: 10px;
-}
-.sb-user { display: flex; flex-direction: column; gap: 2px; min-width: 60px; }
-.sb-name { font-size: 12px; font-weight: 700; color: #f0f0f0; }
-.sb-lv { font-size: 10px; color: #c9a758; font-weight: 600; }
-.sb-bars { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-.sb-item { display: flex; align-items: center; gap: 5px; }
-.sb-icon { font-size: 11px; width: 14px; text-align: center; }
-.sb-bar-wrap { flex: 1; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
-.sb-bar { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
 .sb-hp { background: linear-gradient(90deg, #c0392b, #e74c3c); }
 .sb-exp { background: linear-gradient(90deg, #1a7a3a, #27ae60); }
-.sb-val { font-size: 9px; color: #95a5a6; width: 48px; text-align: right; white-space: nowrap; }
-.sb-money { display: flex; align-items: center; gap: 3px; }
-.sb-money-val { font-size: 13px; font-weight: 700; color: #f1c40f; }
-.sb-money-val.silver { color: #bdc3c7; }
-.sb-money-val.gold { color: #f39c12; }
-.sb-divider { color: rgba(255,255,255,0.15); font-size: 10px; }
-
 /* ===== 主体（可滚动） ===== */
 .home-body {
   flex: 1; overflow-y: auto; overflow-x: hidden;

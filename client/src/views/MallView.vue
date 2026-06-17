@@ -1,18 +1,16 @@
 <template>
-<div class="mall-page">
-  <div class="mall-bg"></div>
+<div class="page-wrap mall-page">
 
   <!-- 顶部 HUD -->
-  <div class="mall-hud">
-    <div class="mh-title">🏪 商城</div>
+  <div class="page-hud">
+    <div class="page-hud-title">🛒 商城</div>
     <div class="mh-balance">
-      <span class="mh-icon">💰</span>
+      <span>💰</span>
       <span class="mh-val">{{ formatMoney(userStore.money) }} 铜</span>
     </div>
   </div>
 
-  <div v-if="error" class="mall-msg mall-err">❌ {{ error }}</div>
-  <div v-if="success" class="mall-msg mall-ok">✅ {{ success }}</div>
+  
 
   <!-- 刷新提示 & 按钮 -->
   <div class="refresh-bar">
@@ -42,8 +40,8 @@
   <!-- 商品列表 -->
   <div v-if="loading" class="mall-loading">加载中...</div>
   <div v-else-if="!filteredItems.length" class="mall-empty">该分类暂无商品</div>
-  <div v-else class="item-list">
-    <div v-for="item in filteredItems" :key="item.item_id" class="item-card">
+  <div v-else class="item-list grid grid-3">
+    <div v-for="item in filteredItems" :key="item.item_id" class="item-card glass-card hover-lift stagger-item">
       <div class="ic-left">
         <div class="ic-icon">{{ getItemIcon(item) }}</div>
       </div>
@@ -98,6 +96,7 @@ const activeTab = ref('weapon');
 const qtyMap = reactive({});
 const purchasing = ref(0);
 const refreshing = ref(false);
+const toast = useToast();
 const refreshUsed = ref(false);
 const refreshCost = ref(0);
 
@@ -141,21 +140,20 @@ async function loadItems() {
     refreshCost.value = data.refreshCost || 0;
     // 更新用户铜币
     if (data.userMoney !== undefined) userStore.money = data.userMoney;
-  } catch (e) { error.value = e.message; }
+  } catch (e) { toast.error(e.message); }
   finally { loading.value = false; }
 }
 
 async function refreshMall() {
-  refreshing.value = true; error.value = ''; success.value = '';
-  try {
+  refreshing.value = true; error.value = '';   try {
     const data = await Api.post('/mall/refresh', {});
     allItems.value = data.items || [];
     refreshUsed.value = true;
     if (data.cost > 0) {
       userStore.money = (userStore.money || 0) - data.cost;
-      success.value = `商品已刷新，花费${data.cost}铜币`;
+      toast.success(`商品已刷新，花费${data.cost}铜币`);
     } else {
-      success.value = '商品已刷新（今日免费次数已用完）';
+      toast.success('商品已刷新（今日免费次数已用完）');
     }
     setTimeout(() => { success.value = ''; }, 2500);
   } catch (e) { error.value = e.message; }
@@ -165,11 +163,10 @@ async function refreshMall() {
 async function buyItem(item) {
   const qty = qtyMap[item.item_id] || 1;
   purchasing.value = item.item_id;
-  error.value = ''; success.value = '';
-  try {
+  error.value = '';   try {
     const data = await Api.post('/mall/buy', { item_id: item.item_id, quantity: qty });
     if (data.remainingMoney !== undefined) userStore.money = data.remainingMoney;
-    success.value = `${item.name} x${qty} 购买成功`;
+    toast.success(`${item.name} x${qty} 购买成功`);
     setTimeout(() => { success.value = ''; }, 2500);
   } catch (e) { error.value = e.message; }
   finally { purchasing.value = 0; }
@@ -179,40 +176,11 @@ onMounted(loadItems);
 </script>
 
 <style scoped>
-.mall-page {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 8px 10px;
-  min-height: 100%;
-  overflow-y: auto;
-}
-.mall-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a0d0d 50%, #0d1117 100%);
-  pointer-events: none;
-}
-
+.mall-page { padding: 0; }
 /* ===== HUD ===== */
-.mall-hud {
-  position: relative; z-index: 2;
-  display: flex; justify-content: space-between; align-items: center;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-.mh-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
-.mh-balance { display: flex; align-items: center; gap: 5px; }
-.mh-icon { font-size: 14px; }
-.mh-val { font-size: 13px; font-weight: 600; color: #f1c40f; }
-
+.mh-balance { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.mh-val { font-weight: 700; color: var(--accent-gold); font-family: var(--font-mono); }
 /* 消息提示 */
-.mall-msg { position: relative; z-index: 2; border-radius: 8px; padding: 7px 10px; font-size: 11px; }
-.mall-err { background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
-.mall-ok { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); color: #2ecc71; }
-
 /* 刷新栏 */
 .refresh-bar {
   position: relative; z-index: 2;

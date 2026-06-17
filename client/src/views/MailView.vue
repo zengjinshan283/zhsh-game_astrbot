@@ -1,7 +1,7 @@
 <template>
-<div class="mail-page">
-  <div class="mail-bg"></div>
-  <div class="mail-header">
+<div class="page-wrap mail-page">
+
+  <div class="page-hud"><div class="page-hud-title">📬 邮件</div></div>  <div class="mail-header">
     <div class="mh-title">📬 邮件</div>
     <div class="mh-meta">
       <span v-if="unreadCount > 0" class="mh-badge">{{ unreadCount }} 未读</span>
@@ -82,10 +82,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Api } from '../composables/useApi';
+import { useToast } from '../composables/useToast';
 import { useUserStore } from '../stores/user';
 
 const userStore = useUserStore();
 const list = ref([]);
+const toast = useToast();
 const unreadCount = ref(0);
 const filter = ref('all');
 const loading = ref(false);
@@ -128,7 +130,7 @@ async function claimOne(id) {
       const me = await Api.get('/auth/me');
       userStore.updateUser(me.user);
     }
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast.info(e.message); }
 }
 
 async function claimAll() {
@@ -140,7 +142,7 @@ async function claimAll() {
       userStore.updateUser(me.user);
       if (current.value) current.value.claimed = 1;
     }
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast.info(e.message); }
 }
 
 async function delOne(id) {
@@ -148,7 +150,7 @@ async function delOne(id) {
     await Api.post(`/mail/delete/${id}`);
     current.value = null;
     await loadList();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast.info(e.message); }
 }
 
 function formatTime(ts) {
@@ -192,8 +194,6 @@ onUnmounted(() => {
 
 <style scoped>
 .mail-page { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 8px 10px; min-height: 100%; overflow-y: auto; }
-.mail-bg { position: absolute; inset: 0; background: linear-gradient(180deg, #0a0e1a 0%, #1a0a1a 100%); z-index: 0; }
-
 .mail-header { position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; }
 .mh-title { font-size: 20px; font-weight: 700; color: #fff; }
 .mh-meta { font-size: 12px; }

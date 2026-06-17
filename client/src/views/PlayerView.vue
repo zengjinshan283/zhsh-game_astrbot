@@ -1,6 +1,7 @@
 <template>
-<div class="page">
-  <div class="top-hud">
+<div class="page-wrap player-page">
+
+  <div class="page-hud"><div class="page-hud-title">👤 玩家</div></div>  <div class="top-hud">
     <div class="hud-title">{{ target.sex===2?'♀':'♂' }} {{ target.username }}</div>
     <div class="hud-badge">
       <span class="badge-level">Lv.{{ target.level }}</span>
@@ -102,7 +103,7 @@ onMounted(load);
 </script>
 
 <style scoped>
-.page {
+.player-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
   padding: 16px;

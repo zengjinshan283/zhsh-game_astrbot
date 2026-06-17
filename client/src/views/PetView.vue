@@ -1,9 +1,7 @@
 <template>
-  <div class="pet-page">
-    <div class="pet-bg"></div>
-
+  <div class="page-wrap pet-page">
     <!-- 顶部 HUD -->
-    <div class="top-hud">
+    <div class="page-hud">
       <div class="hud-left">
         <div class="hud-icon">🐕</div>
         <div class="hud-title">宠物</div>
@@ -96,13 +94,19 @@
           <div class="pi-left">
             <span class="pi-emoji">{{ petEmojis[p.pet_id] || '🐕' }}</span>
             <div class="pi-info">
-              <span class="pi-name" :style="{ color: petColors[p.type] }">{{ p.nickname }}</span>
+              <span class="pi-name" :style="{ color: petColors[p.type] }">
+                {{ p.nickname }}
+                <span class="pi-stars" :style="{ color: starColor(p.star || 1) }">★x{{ p.star || 1 }}</span>
+              </span>
               <span class="pi-lv">Lv.{{ p.level }}</span>
               <span v-if="p.is_active" class="pi-active">⭐出战</span>
             </div>
           </div>
-          <button v-if="!p.is_active" class="pi-set-btn" @click="setActive(p)">出战</button>
-          <span v-else class="pi-set-done">已出战</span>
+          <div class="pi-actions">
+            <button class="pi-upgrade-btn" @click="upgrade(p)" :disabled="!canUpgrade(p)">⭐进阶</button>
+            <button v-if="!p.is_active" class="pi-set-btn" @click="setActive(p)">出战</button>
+            <span v-else class="pi-set-done">已出战</span>
+          </div>
         </div>
       </div>
     </div>
@@ -198,6 +202,16 @@ async function releasePet(p) {
 
 function startRename(p) { renameTarget.value = p; newName.value = p.nickname; }
 
+const STAR_COLORS = { 1: '#9ca3af', 2: '#22c55e', 3: '#3b82f6', 4: '#a855f7', 5: '#f59e0b' };
+function starColor(s) { return STAR_COLORS[s] || STAR_COLORS[1]; }
+function canUpgrade(p) { const s = p.star || 1; return s < 5; }
+
+async function upgrade(p) {
+  if (!canUpgrade(p)) { msg.value = '⭐⭐⭐⭐⭐ 已满星'; msgType.value = 'error'; return; }
+  try { const d = await Api.post('/pet/upgrade', { user_pet_id: p.id }); msg.value = d.msg || (d.success ? '✅ 进阶成功' : d.error); msgType.value = d.success ? 'success' : 'error'; if (d.success) await load(); }
+  catch (e) { msg.value = e.message; msgType.value = 'error'; }
+}
+
 async function doRename() {
   if (!newName.value || !renameTarget.value) return;
   try { const d = await Api.post('/pet/rename', { user_pet_id: renameTarget.value.id, name: newName.value }); msg.value = d.msg || '✅ 宠物改名成功'; msgType.value = 'success'; newName.value = ''; renameTarget.value = null; await load(); }
@@ -222,15 +236,6 @@ onMounted(load);
   background: linear-gradient(160deg, #0d1117 0%, #0a1a28 50%, #0d1117 100%);
   pointer-events: none;
 }
-.top-hud {
-  position: relative; z-index: 2;
-  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
-  padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
-}
-.hud-left { display: flex; align-items: center; gap: 8px; }
-.hud-icon { font-size: 20px; }
-.hud-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
 .hud-count { font-size: 12px; color: #7f8c8d; background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 10px; }
 .msg-card {
   position: relative; z-index: 2;
@@ -323,6 +328,25 @@ onMounted(load);
   font-size: 11px; padding: 5px 12px; cursor: pointer; transition: all 0.2s;
 }
 .pi-set-done { font-size: 11px; color: #555; padding: 5px 12px; }
+.pi-stars { font-size: 11px; margin-left: 6px; font-weight: 700; letter-spacing: 0.5px; }
+.pi-actions { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.pi-upgrade-btn {
+  background: linear-gradient(135deg, rgba(245,158,11,0.3), rgba(168,85,247,0.3));
+  border: 1px solid #f59e0b;
+  color: #fbbf24;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.pi-upgrade-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(245,158,11,0.55), rgba(168,85,247,0.55));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(245,158,11,0.3);
+}
+.pi-upgrade-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .rename-card {
   position: relative; z-index: 2;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);

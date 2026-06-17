@@ -8,6 +8,8 @@ const config = require('../config').game;
 const statusUtil = require('../utils/status');
 const { triggerAchievements } = require('./achievement');
 const { calcTalentBonuses } = require('./talent');
+const { calcUserBonus: calcFashionBonus } = require('./fashion');
+const { SKILLS: GUILD_SKILLS } = require('./guildskill');
 
 const router = express.Router();
 function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
@@ -211,9 +213,26 @@ router.post('/start-pirate', authMiddleware, async (req, res, next) => {
     // Compute equip bonus (强化 + 鉴定词缀 + 套装)
     const { bonusAtk, bonusDef, bonusHp } = await computeEquipBonus(req.user.id);
     const { bonusAtk: codexAtk, bonusDef: codexDef, bonusHp: codexHp } = await computeCodexBonus(req.user.id);
-    const totalBonusAtk = bonusAtk + codexAtk;
-    const totalBonusDef = bonusDef + codexDef;
-    const totalBonusHp = bonusHp + codexHp;
+    const fashBonus = await calcFashionBonus(req.user.id);
+    const fashAtk = fashBonus.atk || 0;
+    const fashDef = fashBonus.def || 0;
+    const fashHp = fashBonus.hp || 0;
+    // 帮会技能加成
+    let guildAtk = 0, guildDef = 0, guildHp = 0, guildSpeed = 0;
+    try {
+      const guildRows = await db.query('SELECT skill_key, level FROM guild_skill gs JOIN guild_member gm ON gm.guild_id = gs.guild_id WHERE gm.user_id=?', [req.user.id]);
+      for (const r of guildRows) {
+        const cfg = GUILD_SKILLS[r.skill_key];
+        if (!cfg) continue;
+        guildAtk += (cfg.perLvl.atk || 0) * r.level;
+        guildDef += (cfg.perLvl.def || 0) * r.level;
+        guildHp += (cfg.perLvl.hp || 0) * r.level;
+        guildSpeed += (cfg.perLvl.speed || 0) * r.level;
+      }
+    } catch(e) {}
+    const totalBonusAtk = bonusAtk + codexAtk + fashAtk + guildAtk;
+    const totalBonusDef = bonusDef + codexDef + fashDef + guildDef;
+    const totalBonusHp = bonusHp + codexHp + fashHp + guildHp;
     const eAtkMin = Math.max(1, Number(user.atk_min) + totalBonusAtk);
     const eAtkMax = Math.max(1, Number(user.atk_max) + totalBonusAtk);
 
@@ -279,9 +298,26 @@ router.post('/start', authMiddleware, async (req, res, next) => {
     // Compute equip bonus (强化 + 鉴定词缀 + 套装)
     const { bonusAtk, bonusDef, bonusHp } = await computeEquipBonus(req.user.id);
     const { bonusAtk: codexAtk, bonusDef: codexDef, bonusHp: codexHp } = await computeCodexBonus(req.user.id);
-    const totalBonusAtk = bonusAtk + codexAtk;
-    const totalBonusDef = bonusDef + codexDef;
-    const totalBonusHp = bonusHp + codexHp;
+    const fashBonus = await calcFashionBonus(req.user.id);
+    const fashAtk = fashBonus.atk || 0;
+    const fashDef = fashBonus.def || 0;
+    const fashHp = fashBonus.hp || 0;
+    // 帮会技能加成
+    let guildAtk = 0, guildDef = 0, guildHp = 0, guildSpeed = 0;
+    try {
+      const guildRows = await db.query('SELECT skill_key, level FROM guild_skill gs JOIN guild_member gm ON gm.guild_id = gs.guild_id WHERE gm.user_id=?', [req.user.id]);
+      for (const r of guildRows) {
+        const cfg = GUILD_SKILLS[r.skill_key];
+        if (!cfg) continue;
+        guildAtk += (cfg.perLvl.atk || 0) * r.level;
+        guildDef += (cfg.perLvl.def || 0) * r.level;
+        guildHp += (cfg.perLvl.hp || 0) * r.level;
+        guildSpeed += (cfg.perLvl.speed || 0) * r.level;
+      }
+    } catch(e) {}
+    const totalBonusAtk = bonusAtk + codexAtk + fashAtk + guildAtk;
+    const totalBonusDef = bonusDef + codexDef + fashDef + guildDef;
+    const totalBonusHp = bonusHp + codexHp + fashHp + guildHp;
     const eAtkMin = Math.max(1, Number(user.atk_min) + totalBonusAtk);
     const eAtkMax = Math.max(1, Number(user.atk_max) + totalBonusAtk);
 

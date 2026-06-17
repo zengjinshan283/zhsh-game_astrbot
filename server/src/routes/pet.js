@@ -243,9 +243,9 @@ module.exports = router;
 module.exports.getPetBonus = async function(userId) {
   const bonus = { atk: 0, def: 0, hp: 0, crit: 0, dodge: 0, money_exp: 0 };
   try {
-    const pet = await db.getOne('SELECT skill_1, skill_2, skill_3 FROM user_pet WHERE user_id=? AND is_active=1', [userId]);
+    const pet = await db.getOne('SELECT skill_1, skill_2 FROM user_pet WHERE user_id=? AND is_active=1', [userId]);
     if (!pet) return bonus;
-    const skills = [pet.skill_1, pet.skill_2, pet.skill_3].filter(s => s);
+    const skills = [pet.skill_1, pet.skill_2].filter(s => s);
     for (const sk of skills) {
       const s = await db.getOne('SELECT stat_key, stat_value FROM pet_skill WHERE skill_key=?', [sk]);
       if (s && bonus.hasOwnProperty(s.stat_key)) bonus[s.stat_key] += s.stat_value;
@@ -253,3 +253,90 @@ module.exports.getPetBonus = async function(userId) {
   } catch(e) {}
   return bonus;
 };
+
+// ============================================================
+// 宠物进阶 — 喂食 + 金币 + 等级/星级提升
+// ============================================================
+
+// 星级配置表 (内存) - 3星要玄铁石 id=50, 4星要翡翠石 id=51
+const PET_STAR_CONFIG = {
+  1: { next: 2, needLevel: 10, needMoney: 5000,  needItem: 0,  atkBonus: 5,  defBonus: 3,  hpBonus: 20,  rarity: 'common',    color: '#9ca3af' },
+  2: { next: 3, needLevel: 25, needMoney: 30000, needItem: 0,  atkBonus: 15, defBonus: 10, hpBonus: 60,  rarity: 'uncommon',  color: '#22c55e' },
+  3: { next: 4, needLevel: 50, needMoney: 120000, needItem: 50, atkBonus: 40, defBonus: 25, hpBonus: 180, rarity: 'rare',      color: '#3b82f6' },
+  4: { next: 5, needLevel: 80, needMoney: 500000, needItem: 51, atkBonus: 100, defBonus: 60, hpBonus: 500, rarity: 'epic',     color: '#a855f7' },
+  // 5 满星不再升级
+};
+
+// POST /api/pet/upgrade — 宠物进阶（升星）
+router.post('/upgrade', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const { user_pet_id } = req.body;
+    if (!user_pet_id) return res.status(400).json({ error: '缺少 user_pet_id' });
+
+    // 读用户宠物
+    const pet = await db.getOne('SELECT * FROM user_pet WHERE id=? AND user_id=?', [user_pet_id, uid]);
+    if (!pet) return res.status(404).json({ error: '宠物不存在' });
+
+    // 读用户金币
+    const u = await db.getOne('SELECT money FROM `user` WHERE id=?', [uid]);
+    if (!u) return res.status(404).json({ error: '用户不存在' });
+
+    const currentStar = pet.star || 1;
+    const cfg = PET_STAR_CONFIG[currentStar];
+    if (!cfg) return res.status(400).json({ error: '宠物已是最高星级 ⭐⭐⭐⭐⭐' });
+    if (pet.level < cfg.needLevel) return res.status(400).json({ error: `需要宠物等级 ${cfg.needLevel}，当前 ${pet.level}` });
+    if (u.money < cfg.needMoney) return res.status(400).json({ error: `需要 ${cfg.needMoney} 铜币，当前 ${u.money}` });
+
+    // 检查升星材料（cfg.needItem 是 item.id：玄铁石/翡翠石）
+    let needItem = null;
+    if (cfg.needItem > 0) {
+      const itemId = cfg.needItem;
+      const itemDef = await db.getOne('SELECT id, name FROM item WHERE id=?', [itemId]);
+      if (!itemDef) return res.status(400).json({ error: '升星材料未配置' });
+      const inv = await db.getOne('SELECT quantity FROM inventory WHERE user_id=? AND item_id=?', [uid, itemId]);
+      const have = inv ? inv.quantity : 0;
+      if (have < 1) return res.status(400).json({ error: `需要 ${itemDef.name} x1` });
+      needItem = { id: itemId, name: itemDef.name, have };
+    }
+
+    // 扣钱
+    await db.query('UPDATE `user` SET money=money-? WHERE id=?', [cfg.needMoney, uid]);
+    // 扣材料
+    if (needItem) {
+      await db.query('UPDATE inventory SET quantity=quantity-1 WHERE user_id=? AND item_id=?', [uid, needItem.id]);
+      // 防负数清理
+      await db.query('DELETE FROM inventory WHERE user_id=? AND item_id=? AND quantity<=0', [uid, needItem.id]);
+    }
+
+    // 升星 + 加属性
+    const newStar = cfg.next;
+    await db.query(
+      'UPDATE user_pet SET star=?, atk=atk+?, def_val=def_val+?, hp_max=hp_max+?, hp=LEAST(hp+?, hp_max+?) WHERE id=?',
+      [newStar, cfg.atkBonus, cfg.defBonus, cfg.hpBonus, cfg.hpBonus, cfg.hpBonus, user_pet_id]
+    );
+
+    // 触发成就 + 每日活跃
+    try {
+      const { triggerAchievements } = require('./achievement');
+      await triggerAchievements(uid, 'pet_upgrade', newStar);
+      const dailyMod = require('./daily');
+      if (dailyMod.triggerActivity) await dailyMod.triggerActivity(uid, 'daily_pet_upgrade', 1);
+    } catch(e) {}
+
+    res.json({
+      success: true,
+      msg: `🎉 进阶成功！${pet.nickname} → ⭐x${newStar}`,
+      pet: { id: user_pet_id, star: newStar, atk: pet.atk + cfg.atkBonus, def_val: pet.def_val + cfg.defBonus, hp_max: pet.hp_max + cfg.hpBonus },
+      cost: { money: cfg.needMoney, item: needItem?.name || null },
+      rarity: cfg.rarity
+    });
+  } catch(e) { next(e); }
+});
+
+// GET /api/pet/star-config — 获取升星配置
+router.get('/star-config', authMiddleware, async (req, res, next) => {
+  try {
+    res.json({ stars: PET_STAR_CONFIG });
+  } catch(e) { next(e); }
+});

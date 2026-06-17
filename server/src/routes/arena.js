@@ -5,6 +5,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { triggerAchievements } = require('./achievement');
 
 const router = express.Router();
 function randInt(min, max) { return Math.floor(Math.random() * (Number(max) - Number(min) + 1)) + Number(min); }
@@ -305,6 +306,12 @@ router.post('/challenge/:opponentId', authMiddleware, async (req, res, next) => 
         'UPDATE `user_arena` SET `win_count` = `win_count` + 1, `score` = `score` + ?, `season_win_count` = `season_win_count` + 1 WHERE `user_id` = ?',
         [scoreGain, req.user.id]
       );
+      // 触发竞技场成就
+      let arenaAchs = [];
+      try {
+        const newWin = await db.getVar('SELECT win_count FROM `user_arena` WHERE `user_id`=?', [req.user.id]);
+        arenaAchs = await triggerAchievements(req.user.id, 'arena_win', newWin || 1);
+      } catch(e) {}
       // 更新赛季段位
       const newUa = await db.getOne('SELECT score, season_win_count FROM user_arena WHERE user_id = ?', [req.user.id]);
       const total = await getTotalPlayers();
@@ -337,7 +344,8 @@ router.post('/challenge/:opponentId', authMiddleware, async (req, res, next) => 
       ...battle,
       reward,
       entry_fee: ARENA_CONFIG.entry_fee,
-      player_money_after: user.money - ARENA_CONFIG.entry_fee + copperReward
+      player_money_after: user.money - ARENA_CONFIG.entry_fee + copperReward,
+      achievements: arenaAchs
     });
   } catch (err) { next(err); }
 });

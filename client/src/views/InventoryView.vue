@@ -1,31 +1,28 @@
 <template>
-<div class="inv-page">
-  <div class="inv-bg"></div>
+<div class="page-wrap inv-page">
 
   <!-- HUD -->
-  <div class="inv-hud">
-    <div class="ih-title">🎒 背包</div>
-    <div class="ih-count">{{ items.length }} 种物品</div>
-  </div>
-
-  <!-- 使用成功提示 -->
-  <div v-if="useMsg" class="inv-toast toast-ok">
-    ✅ {{ useMsg }}
+  <div class="page-hud">
+    <div class="page-hud-title">🎒 背包</div>
+    <div class="gbadge">{{ items.length }} 种</div>
   </div>
 
   <!-- 空背包 -->
-  <div v-if="!items.length" class="inv-empty">🎒 背包空空如也</div>
+  <div v-if="!items.length" class="empty-state">
+    <div class="empty-state-icon">🎒</div>
+    <div class="empty-state-text">背包空空如也</div>
+  </div>
 
   <!-- 分类列表 -->
   <template v-for="cat in categories" :key="cat.key">
     <template v-if="filterItems(cat.key).length">
-      <div class="inv-cat-header">
+      <div class="section-title">
         <span class="ich-icon">{{ cat.icon }}</span>
         <span class="ich-name">{{ cat.name }}</span>
         <span class="ich-count">{{ filterItems(cat.key).length }}</span>
       </div>
       <div class="inv-grid">
-        <div v-for="item in filterItems(cat.key)" :key="item.inv_id" class="inv-card">
+        <div v-for="item in filterItems(cat.key)" :key="item.inv_id" class="list-item hover-lift">
           <div class="inc-icon">{{ cat.icon }}</div>
           <div class="inc-body">
             <div class="inc-name">{{ getItemName(item) }}<span v-if="item.enhance_level > 0" class="inc-enh">+{{ item.enhance_level }}</span></div>
@@ -65,10 +62,11 @@ import { globalConfirm } from '../composables/useConfirm';
 import { ref, onMounted } from 'vue';
 import { useUserStore } from '../stores/user';
 import { Api } from '../composables/useApi';
+import { useToast } from '../composables/useToast';
 
 const userStore = useUserStore();
 const items = ref([]);
-const useMsg = ref('');
+const toast = useToast();
 const categories = [
   {key:'weapon', name:'武器', icon:'🗡️', color:'#e74c3c'},
   {key:'armor', name:'防具', icon:'🛡️', color:'#3498db'},
@@ -94,9 +92,9 @@ function calcStat(base, level) { return base ? Math.round(base * (1 + (level || 
 async function load() { try { const d = await Api.get('/user/inventory'); items.value = (d.items || []).filter(i => !i.equipped); } catch (e) {} }
 async function equip(invId) { try { await Api.post('/user/equip', {inventory_id: invId}); const me = await Api.get('/auth/me'); userStore.updateUser(me.user); await load(); } catch (e) {} }
 async function useItem(invId) {
-  try { const d = await Api.post('/user/use', {inventory_id: invId}); useMsg.value = `恢复 ${d.heal} HP`;
+  try { const d = await Api.post('/user/use', {inventory_id: invId}); toast.success(`恢复 ${d.heal} HP`);
     const me = await Api.get('/auth/me'); userStore.updateUser(me.user);
-    setTimeout(() => useMsg.value = '', 2000); await load();
+    await load();
   } catch (e) {}
 }
 async function discard(invId) { if (!(await globalConfirm('确定丢弃？'))) return; try { await Api.post('/user/discard', {inventory_id: invId}); await load(); } catch (e) {} }
@@ -116,29 +114,13 @@ onMounted(load);
 }
 
 /* HUD */
-.inv-hud {
-  position: relative; z-index: 2;
-  display: flex; justify-content: space-between; align-items: center;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 10px 14px;
-}
 .ih-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
 .ih-count { font-size: 11px; color: #7f8c8d; }
 
 /* Toast */
-.inv-toast {
-  position: relative; z-index: 2; border-radius: 8px; padding: 7px 12px; font-size: 11px;
-}
 .toast-ok { background: rgba(39,174,96,0.1); border: 1px solid rgba(39,174,96,0.3); color: #2ecc71; }
 
 /* 空状态 */
-.inv-empty {
-  position: relative; z-index: 2;
-  text-align: center; font-size: 12px; color: #555; padding: 40px 20px;
-  background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.08);
-}
-
 /* 分类头 */
 .inv-cat-header {
   position: relative; z-index: 2;
@@ -150,18 +132,9 @@ onMounted(load);
 .ich-count { font-size: 10px; color: #555; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 10px; }
 
 /* 物品网格 */
-.inv-grid { display: flex; flex-direction: column; gap: 6px; }
-.inv-card {
-  position: relative; z-index: 2;
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px; padding: 10px;
-  transition: all 0.2s;
-}
-.inv-card:hover { background: rgba(255,255,255,0.06); }
+.inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .inc-icon {
-  font-size: 24px; width: 44px; height: 44px;
+  font-size: 22px; width: 36px; height: 36px;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,0.06); border-radius: 10px; flex-shrink: 0;
 }

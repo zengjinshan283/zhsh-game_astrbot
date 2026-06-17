@@ -1,9 +1,7 @@
 <template>
-  <div class="daily-page">
-    <div class="daily-bg"></div>
-
+  <div class="page-wrap daily-page">
     <!-- 顶部 HUD -->
-    <div class="top-hud">
+    <div class="page-hud">
       <div class="hud-left">
         <div class="hud-icon">📅</div>
         <div class="hud-title">每日活跃</div>
@@ -132,20 +130,6 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
   min-height: 100%;
   overflow-y: auto;
 }
-.daily-bg {
-  position: fixed; inset: 0; z-index: 0;
-  background: linear-gradient(160deg, #0d1117 0%, #1a1a00 50%, #0d1117 100%);
-  pointer-events: none;
-}
-.top-hud {
-  position: relative; z-index: 2;
-  background: rgba(13,17,23,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
-  padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
-}
-.hud-left { display: flex; align-items: center; gap: 8px; }
-.hud-icon { font-size: 20px; }
-.hud-title { font-size: 16px; font-weight: 700; color: #f0f0f0; }
 .hud-active { font-size: 20px; font-weight: 700; color: #e2b70a; }
 .hud-unit { font-size: 12px; color: #7f8c8d; margin-left: 2px; }
 .loading-card {

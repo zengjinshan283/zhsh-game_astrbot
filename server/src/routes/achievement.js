@@ -86,10 +86,16 @@ router.get('/list', authMiddleware, async (req, res, next) => {
       progress: 0
     }));
 
-    // 一次性查用户的统计源
+    // 一次性查用户的统计源（覆盖所有 trigger_type）
     const userStats = await db.getOne(
-      'SELECT level, treasure_dig_count, money, silver FROM `user` WHERE id=?', [userId]
+      'SELECT level, treasure_dig_count, money, silver, sail_finish_count FROM `user` WHERE id=?', [userId]
     );
+
+    // 一次性查各 trigger_type 的实际进度值
+    const arenaWin = await db.getVar('SELECT win_count FROM `user_arena` WHERE user_id=?', [userId]).catch(()=>0) || 0;
+    const questDone = await db.getVar('SELECT COUNT(*) FROM user_quest WHERE user_id=? AND status=2', [userId]).catch(()=>0) || 0;
+    // 装备稀有：is_identified + quality>=3 的 item 数量
+    const equipRare = await db.getVar('SELECT COUNT(*) FROM inventory WHERE user_id=? AND quality>=3 AND is_identified=1', [userId]).catch(()=>0) || 0;
 
     // 按 trigger_type 分组查 user_achievement 计数（仅 target=1 的成就用同 trigger_type 计数有 bug，改用 N+1 单独查 trigger_count，量小可接受）
     const triggerCountCache = {};
@@ -122,17 +128,30 @@ router.get('/list', authMiddleware, async (req, res, next) => {
         case 'treasure_dig':
           a.progress = Math.min(userStats?.treasure_dig_count || 0, a.target);
           break;
+        case 'arena_win':
+          a.progress = Math.min(arenaWin, a.target);
+          break;
+        case 'quest_complete':
+          a.progress = Math.min(questDone, a.target);
+          break;
+        case 'item_get':
+          // item_get 成就 key=equip_rare 用实际稀有装备数
+          if (a.key === 'equip_rare') {
+            a.progress = Math.min(equipRare > 0 ? 1 : 0, a.target);
+          } else {
+            a.progress = Math.min(await getTriggerCount(tt), a.target);
+          }
+          break;
         case 'sail':
+          a.progress = Math.min(userStats?.sail_finish_count || 0, a.target);
+          break;
         case 'dungeon':
         case 'battle_win':
         case 'enhance':
         case 'identify':
-        case 'quest_complete':
-        case 'item_get':
-        case 'arena_win':
         case 'mentor_take':
         case 'mentor_graduate':
-          // target=1 的一次性成就（如 equip_rare/arena_win_1）= 0；阶梯式成就用同 trigger_type 计数
+          // target=1 的一次性成就 = 0；阶梯式成就用同 trigger_type 计数
           a.progress = Math.min(await getTriggerCount(tt), a.target);
           break;
         default:

@@ -219,6 +219,8 @@ router.post('/use', authMiddleware, async (req, res, next) => {
       const newHp = Math.min(user.hp_max, user.hp + healAmount);
       await consumeOne(inventory_id, inv, req.user.id);
       await db.query('UPDATE `user` SET `hp` = ? WHERE `id` = ?', [newHp, req.user.id]);
+      // 触发每日活跃（每次使用消耗品）
+      try { const { triggerActivity } = require('./daily'); await triggerActivity(req.user.id, 'daily_use_item', 1); } catch(e) {}
       return res.json({ success: true, heal: newHp - user.hp, hp: newHp, hp_max: user.hp_max, msg: msg || `恢复${healAmount}点HP` });
     }
 

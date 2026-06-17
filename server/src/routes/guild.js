@@ -186,6 +186,158 @@ router.get('/war-status/:warId', authMiddleware, async (req, res, next) => {
   } catch(e) { next(e); }
 });
 
+// 帮会战攻击 — 参战成员互相攻击，增加己方分数
+router.post('/war-attack/:warId', authMiddleware, async (req, res, next) => {
+  try {
+    const { warId } = req.params;
+    const { target_user_id } = req.body;
+    const my = await db.getOne('SELECT guild_id FROM `guild_member` WHERE `user_id`=?', [req.user.id]);
+    if (!my) return res.status(400).json({ error: '未加入帮会' });
+
+    const war = await db.getOne('SELECT * FROM `guild_war` WHERE `id`=?', [warId]);
+    if (!war) return res.status(404).json({ error: '战争不存在' });
+    if (war.status !== 1) return res.status(400).json({ error: '战争未进行中' });
+
+    const now = Math.floor(Date.now()/1000);
+    if (now < war.war_time || now > war.war_time + war.duration) return res.status(400).json({ error: '战争未开始或已结束' });
+
+    // 我必须参战了
+    const myEntry = await db.getOne('SELECT * FROM `guild_war_member` WHERE war_id=? AND user_id=?', [warId, req.user.id]);
+    if (!myEntry) return res.status(400).json({ error: '你还未参战！请先加入战争' });
+
+    // 目标必须是对方帮会成员
+    const targetMember = await db.getOne('SELECT gm.guild_id, u.id, u.username, u.level, u.atk_min, u.atk_max, u.def, u.hp, u.hp_max FROM `guild_member` gm JOIN `user` u ON gm.user_id=u.id WHERE gm.user_id=?', [target_user_id]);
+    if (!targetMember) return res.status(400).json({ error: '目标不存在' });
+
+    // 判断敌我
+    const mySide = (war.attacker_id === my.guild_id) ? 'attacker' : (war.defender_id === my.guild_id ? 'defender' : null);
+    if (!mySide) return res.status(400).json({ error: '这不是你的帮会的战争' });
+    const enemyGuildId = (mySide === 'attacker') ? war.defender_id : war.attacker_id;
+    if (targetMember.guild_id !== enemyGuildId) return res.status(400).json({ error: '不能攻击同帮会成员' });
+
+    // 战斗公式（己方 atk vs 对方 def + 等级差浮动）
+    const meUser = await db.getOne('SELECT atk_min, atk_max, def, level FROM `user` WHERE id=?', [req.user.id]);
+    const myAtk = meUser.atk_min + Math.random() * (meUser.atk_max - meUser.atk_min);
+    const dmg = Math.max(1, Math.floor(myAtk - targetMember.def * 0.6 + (meUser.level - targetMember.level) * 3));
+    const isCrit = Math.random() < 0.2;
+    const finalDmg = isCrit ? Math.floor(dmg * 1.8) : dmg;
+
+    // 加己方分数 + 己方成员 contribution
+    const scoreCol = mySide === 'attacker' ? 'attacker_score' : 'defender_score';
+    await db.query(`UPDATE \`guild_war\` SET \`${scoreCol}\`=\`${scoreCol}\`+? WHERE id=?`, [finalDmg, warId]);
+    await db.query('UPDATE `guild_war_member` SET kill_count=kill_count+?, contribution=contribution+? WHERE war_id=? AND user_id=?', [isCrit?1:0, finalDmg, warId, req.user.id]);
+
+    // 检查目标是否被打死(HP≤0)，回城并扣参与感
+    const newHp = targetMember.hp - finalDmg;
+    let targetDied = false;
+    if (newHp <= 0) {
+      targetDied = true;
+      await db.query('UPDATE `user` SET hp=hp_max WHERE id=?', [target_user_id]);
+    } else {
+      await db.query('UPDATE `user` SET hp=? WHERE id=?', [newHp, target_user_id]);
+    }
+
+    res.json({
+      success: true,
+      msg: isCrit ? `💥 暴击！对 ${targetMember.username} 造成 ${finalDmg} 伤害！` : `⚔️ 对 ${targetMember.username} 造成 ${finalDmg} 伤害`,
+      dmg: finalDmg,
+      isCrit,
+      targetDied,
+      scoreGained: finalDmg,
+      myScore: (mySide === 'attacker' ? war.attacker_score : war.defender_score) + finalDmg,
+      enemyScore: (mySide === 'attacker' ? war.defender_score : war.attacker_score)
+    });
+  } catch(e) { next(e); }
+});
+
+// 强制开始战争（开发测试用，让战争立即进入 status=1）
+router.post('/war-force-start/:warId', authMiddleware, async (req, res, next) => {
+  try {
+    const { warId } = req.params;
+    const my = await db.getOne('SELECT guild_id, role FROM `guild_member` WHERE `user_id`=?', [req.user.id]);
+    if (!my || my.role !== 3) return res.status(400).json({ error: '只有会长可以操作' });
+    const war = await db.getOne('SELECT * FROM `guild_war` WHERE `id`=?', [warId]);
+    if (!war) return res.status(404).json({ error: '战争不存在' });
+    if (war.status !== 0) return res.status(400).json({ error: '战争已开始或已结束' });
+    const now = Math.floor(Date.now()/1000);
+    await db.query('UPDATE `guild_war` SET status=1, war_time=? WHERE id=?', [now, warId]);
+    res.json({ success: true, msg: '⚔️ 战争立即开始！' });
+  } catch(e) { next(e); }
+});
+
+// 帮会战结算（开发测试用 + 自动定时）
+router.post('/war-end/:warId', authMiddleware, async (req, res, next) => {
+  try {
+    const { warId } = req.params;
+    const war = await db.getOne('SELECT * FROM `guild_war` WHERE `id`=?', [warId]);
+    if (!war) return res.status(404).json({ error: '战争不存在' });
+    if (war.status === 2) return res.json({ error: '战争已结束', war });
+
+    const now = Math.floor(Date.now()/1000);
+    const winnerId = war.attacker_score >= war.defender_score ? war.attacker_id : war.defender_id;
+    const loserId = war.attacker_score >= war.defender_score ? war.defender_id : war.attacker_id;
+    const winGold = parseInt(await db.getVar("SELECT config_value FROM `game_config` WHERE config_key='guild_war_win_gold'")) || 5000;
+    const loseGold = parseInt(await db.getVar("SELECT config_value FROM `game_config` WHERE config_key='guild_war_lose_gold'")) || 2000;
+
+    // 更新状态
+    await db.query('UPDATE `guild_war` SET status=2, winner_id=?, ended_at=? WHERE id=?', [winnerId, now, warId]);
+
+    // 胜利帮会奖励
+    const winners = await db.getAll('SELECT * FROM `guild_war_member` WHERE war_id=? AND guild_id=?', [warId, winnerId]);
+    for (const w of winners) {
+      const bonus = Math.floor(winGold * (1 + w.contribution / 1000));
+      await db.query('UPDATE `user` SET money=money+? WHERE id=?', [bonus, w.user_id]);
+    }
+    // 失败帮会安慰奖
+    const losers = await db.getAll('SELECT * FROM `guild_war_member` WHERE war_id=? AND guild_id=?', [warId, loserId]);
+    for (const l of losers) {
+      const bonus = Math.floor(loseGold * (1 + l.contribution / 1500));
+      await db.query('UPDATE `user` SET money=money+? WHERE id=?', [bonus, l.user_id]);
+    }
+
+    // 占领一个随机未被占的领地
+    const freeTerritory = await db.getOne('SELECT * FROM `guild_territory` WHERE guild_id=0 LIMIT 1');
+    if (freeTerritory) {
+      await db.query('UPDATE `guild_territory` SET guild_id=?, captured_at=? WHERE id=?', [winnerId, now, freeTerritory.id]);
+    }
+
+    res.json({
+      success: true,
+      msg: `🏆 帮会战结束！${winnerId === war.attacker_id ? '攻方' : '守方'}胜利！`,
+      winnerId, attackerScore: war.attacker_score, defenderScore: war.defender_score,
+      rewards: { winners: winners.length, losers: losers.length, winGold, loseGold, territoryCaptured: freeTerritory?.name }
+    });
+  } catch(e) { next(e); }
+});
+
+// 战争排行榜（双方按贡献）
+router.get('/war-rank/:warId', authMiddleware, async (req, res, next) => {
+  try {
+    const { warId } = req.params;
+    const rank = await db.getAll(
+      "SELECT gwm.*, u.username, g.name as guild_name FROM `guild_war_member` gwm JOIN `user` u ON gwm.user_id=u.id JOIN `guild` g ON gwm.guild_id=g.id WHERE gwm.war_id=? ORDER BY gwm.contribution DESC",
+      [warId]);
+    res.json({ rank });
+  } catch(e) { next(e); }
+});
+
+// 帮会战可攻击的敌方成员
+router.get('/war-enemies/:warId', authMiddleware, async (req, res, next) => {
+  try {
+    const { warId } = req.params;
+    const my = await db.getOne('SELECT guild_id FROM `guild_member` WHERE user_id=?', [req.user.id]);
+    if (!my) return res.status(400).json({ error: '未加入帮会' });
+    const war = await db.getOne('SELECT * FROM `guild_war` WHERE id=?', [warId]);
+    if (!war) return res.status(404).json({ error: '战争不存在' });
+    const enemyGuildId = (war.attacker_id === my.guild_id) ? war.defender_id : (war.defender_id === my.guild_id ? war.attacker_id : null);
+    if (!enemyGuildId) return res.status(400).json({ error: '这不是你的帮会的战争' });
+    const enemies = await db.getAll(
+      "SELECT u.id, u.username, u.level, u.hp, u.hp_max, u.atk_min, u.atk_max, u.def FROM `guild_member` gm JOIN `user` u ON gm.user_id=u.id WHERE gm.guild_id=?",
+      [enemyGuildId]);
+    res.json({ enemies, enemyGuildId });
+  } catch(e) { next(e); }
+});
+
 // 参加帮会战（成员点击参战）
 router.post('/join-war/:warId', authMiddleware, async (req, res, next) => {
   try {
@@ -235,8 +387,6 @@ router.post('/claim-territory', authMiddleware, async (req, res, next) => {
     res.json({ success: true, msg: `领取成功！帮会获得${territory.weekly_gold}铜币，你获得${territory.weekly_silver}银币` });
   } catch(e) { next(e); }
 });
-
-module.exports = router;
 
 // 领地占领记录表初始化（模块加载时自动创建）
 (async () => {
@@ -453,3 +603,38 @@ router.post('/boss/claim', authMiddleware, async (req, res, next) => {
     res.json({ success: true, msg: `🎁 ${label}奖励已领取：+${totalMoney}铜币 +${totalSilver}银币`, label, money: totalMoney, silver: totalSilver });
   } catch(e) { next(e); }
 });
+
+// 帮会捐献
+router.post('/donate', authMiddleware, async (req, res, next) => {
+  try {
+    const uid = req.user.id;
+    const { type = 'money', amount = 1000 } = req.body;
+    if (!['money', 'silver', 'gold'].includes(type)) return res.status(400).json({ error: 'type 必须 money/silver/gold' });
+    const amt = parseInt(amount);
+    if (!amt || amt <= 0 || amt > 1000000) return res.status(400).json({ error: '金额非法' });
+
+    const my = await db.getOne('SELECT gm.guild_id, u.money, u.silver, u.gold FROM `user` u JOIN guild_member gm ON gm.user_id=u.id WHERE u.id=?', [uid]);
+    if (!my || !my.guild_id) return res.status(400).json({ error: '请先加入帮会' });
+    if (my[type] < amt) return res.status(400).json({ error: `${type} 不足` });
+
+    // 帮会获得贡献
+    const col = type === 'money' ? 'money' : (type === 'silver' ? 'silver' : 'gold');
+    await db.query(`UPDATE user SET ${col} = ${col} - ? WHERE id=?`, [amt, uid]);
+    // 帮会 exp + 个人贡献（guild 表无 money 列）
+    await db.query('UPDATE `guild` SET exp=IFNULL(exp,0)+? WHERE id=?',
+      [Math.floor(amt * 0.5), my.guild_id]);
+    // 个人贡献记录
+    await db.query('UPDATE `user` SET guild_contribute=IFNULL(guild_contribute,0)+? WHERE id=?', [Math.floor(amt * 0.5), uid]);
+    // 触发 daily + 成就
+    try {
+      const { triggerAchievements } = require('./achievement');
+      await triggerAchievements(uid, 'guild_donate', 1);
+      const dailyMod = require('./daily');
+      await dailyMod.triggerActivity && dailyMod.triggerActivity(uid, 'daily_guild_donate', 1);
+    } catch(e) {}
+
+    res.json({ success: true, msg: `💰 捐献成功！贡献 +${Math.floor(amt * 0.5)}` });
+  } catch(e) { next(e); }
+});
+
+module.exports = router;

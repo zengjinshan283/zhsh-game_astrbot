@@ -46,6 +46,8 @@ const routes = [
   { path: '/treasure', name: 'treasure', component: () => import('../views/TreasureView.vue'), meta: { auth: true } },
   { path: '/mail', name: 'mail', component: () => import('../views/MailView.vue'), meta: { auth: true } },
   { path: '/worldboss', name: 'worldboss', component: () => import('../views/WorldBossView.vue'), meta: { auth: true } },
+  { path: '/offline', name: 'offline', component: () => import('../views/OfflineView.vue'), meta: { auth: true } },
+  { path: '/fashion', name: 'fashion', component: () => import('../views/FashionView.vue'), meta: { auth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ];
 
