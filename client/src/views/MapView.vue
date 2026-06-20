@@ -129,50 +129,53 @@
     </div>
   </div>
 
-  <!-- 合并罗盘导航（方向 + 当前位置） -->
-  <div class="compass-wrap">
-    <div class="compass-rose">
-      <div class="cr-center">
-        <div class="cr-pin">📍</div>
-        <div class="cr-loc" v-if="scene.place">{{ scene.place.name.substring(0,4) }}</div>
-        <router-link v-if="scene.city" :to="'/citymap/' + scene.city.id" class="cr-city-btn">🏛️ {{ scene.city.name }}</router-link>
-      </div>
-      <!-- 北 -->
-      <div class="cr-dir cr-n">
-        <a v-if="scene.exits.n" href="javascript:void(0)" class="cr-btn" @click.prevent="move('n')">
-          <div class="cr-arrow">⬆️</div>
-          <div class="cr-name">{{ scene.exits.n.name }}</div>
-        </a>
-        <div v-else class="cr-btn cr-empty">—</div>
-      </div>
-      <!-- 东 -->
-      <div class="cr-dir cr-e">
-        <a v-if="scene.exits.e" href="javascript:void(0)" class="cr-btn" @click.prevent="move('e')">
-          <div class="cr-arrow">➡️</div>
-          <div class="cr-name">{{ scene.exits.e.name }}</div>
-        </a>
-        <div v-else class="cr-btn cr-empty">—</div>
-      </div>
-      <!-- 南 -->
-      <div class="cr-dir cr-s">
-        <a v-if="scene.exits.s" href="javascript:void(0)" class="cr-btn" @click.prevent="move('s')">
-          <div class="cr-arrow">⬇️</div>
-          <div class="cr-name">{{ scene.exits.s.name }}</div>
-        </a>
-        <div v-else class="cr-btn cr-empty">—</div>
-      </div>
-      <!-- 西 -->
-      <div class="cr-dir cr-w">
-        <a v-if="scene.exits.w" href="javascript:void(0)" class="cr-btn" @click.prevent="move('w')">
-          <div class="cr-arrow">⬅️</div>
-          <div class="cr-name">{{ scene.exits.w.name }}</div>
-        </a>
-        <div v-else class="cr-btn cr-empty">—</div>
-      </div>
-      <!-- 中心刷新 -->
-      <div class="cr-refresh" @click="loadScene">🔄</div>
+  <!-- 2D 网格地图 -->
+  <div class="map2d-wrap" v-if="grid && grid.places.length">
+    <div class="map2d-hud">
+      <div class="m2d-title">🗺️ {{ grid.places.length }} 地点 · {{ grid.rows }}×{{ grid.cols }} 网格</div>
+      <button class="m2d-refresh" @click="loadGrid">🔄</button>
     </div>
-    <div class="move-error-msg" v-if="moveError">⚠️ {{ moveError }}</div>
+    <div class="map2d-canvas">
+      <div class="map2d-grid" :style="{gridTemplateColumns: `repeat(${grid.cols}, 1fr)`, gridTemplateRows: `repeat(${grid.rows}, 1fr)`}">
+        <div
+          v-for="cell in gridCells"
+          :key="cell.key"
+          class="m2d-cell"
+          :class="{
+            'm2d-current': cell.place && cell.place.id === currentPlaceId,
+            'm2d-npc': cell.place && cell.place.npcs && cell.place.npcs.length,
+            'm2d-market': cell.place && cell.place.is_market,
+            'm2d-empty': !cell.place,
+            'm2d-gate': cell.place && cell.place.type === 5,
+            'm2d-temple': cell.place && cell.place.type === 4,
+            'm2d-shop': cell.place && cell.place.type === 2,
+            'm2d-animating': animating && cell.place && cell.place.id === currentPlaceId
+          }"
+          @click="onCellClick(cell)"
+        >
+          <template v-if="cell.place">
+            <div class="m2d-icon">{{ placeEmoji(cell.place) }}</div>
+            <div class="m2d-name">{{ cell.place.name }}</div>
+            <div v-if="cell.place.npcs && cell.place.npcs.length" class="m2d-npc-badge">👤{{ cell.place.npcs.length }}</div>
+            <div v-if="cell.place.id === currentPlaceId" class="m2d-player">🚶</div>
+          </template>
+          <template v-else>
+            <div class="m2d-grass">🌿</div>
+          </template>
+        </div>
+      </div>
+    </div>
+    <div class="map2d-controls">
+      <button class="m2d-arrow m2d-up" @click="move('n')" :disabled="!canMove('n') || animating">⬆️</button>
+      <button class="m2d-arrow m2d-left" @click="move('w')" :disabled="!canMove('w') || animating">⬅️</button>
+      <button class="m2d-arrow m2d-right" @click="move('e')" :disabled="!canMove('e') || animating">➡️</button>
+      <button class="m2d-arrow m2d-down" @click="move('s')" :disabled="!canMove('s') || animating">⬇️</button>
+    </div>
+  </div>
+
+  <div v-else class="map2d-loading">
+    <div class="loading-spinner"></div>
+    <div>加载 2D 地图中...</div>
   </div>
 
   <!-- 城门出城面板 -->
@@ -482,6 +485,66 @@ const error = ref('')
 const moveError = ref('')
 const claimableQuests = ref(0)
 
+// ================== 2D 网格地图 ==================
+const grid = ref(null)
+const animating = ref(false)
+const currentPlaceId = computed(() => scene.value?.place?.id || 0)
+
+// 2D 网格 cells（包含空地）
+const gridCells = computed(() => {
+  if (!grid.value) return []
+  const cells = []
+  for (let r = 0; r < grid.value.rows; r++) {
+    for (let c = 0; c < grid.value.cols; c++) {
+      const place = grid.value.places.find(p => p.pos_row === r && p.pos_col === c)
+      cells.push({ key: `${r}-${c}`, row: r, col: c, place })
+    }
+  }
+  return cells
+})
+
+// place 类型 → emoji
+const PLACE_EMOJI = { 0: '🏛️', 1: '⚓', 2: '🏪', 3: '⚒️', 4: '🏨', 5: '🚪', 6: '🏝️' }
+function placeEmoji(p) {
+  if (p.is_market) return '🛒'
+  return PLACE_EMOJI[p.type] || '📍'
+}
+
+// 邻接判断 + 移动
+function canMove(dir) {
+  if (!scene.value?.place) return false
+  return scene.value.place[dir] > 0
+}
+
+function onCellClick(cell) {
+  if (!cell.place || animating.value) return
+  if (cell.place.id === currentPlaceId.value) return
+  // 找方向（从当前 place 到 cell.place）
+  const cur = scene.value.place
+  if (cur.n === cell.place.id) return move('n')
+  if (cur.s === cell.place.id) return move('s')
+  if (cur.e === cell.place.id) return move('e')
+  if (cur.w === cell.place.id) return move('w')
+  // 不直接相邻，跳到第一段路径
+  showMsg('💡', '#8b784e', '只能移动到相邻地点')
+}
+
+async function loadGrid() {
+  if (!scene.value?.city) return
+  try {
+    const res = await Api.get(`/api/map/grid?city_id=${scene.value.city.id}`)
+    if (res.data) {
+      grid.value = res.data
+      // 同步 currentPlaceId（首次或刷新后）
+      if (scene.value?.place) {
+        grid.value.currentPlaceId = scene.value.place.id
+      }
+    }
+  } catch (e) {
+    console.error('loadGrid failed:', e)
+  }
+}
+
 // Modal
 const modal = ref(false)
 const modalType = ref('')
@@ -634,6 +697,8 @@ async function loadScene() {
     if (data.sailing) { error.value = '正在航海中...'; return }
     scene.value = data
     gameStore.setScene(data)
+    // 城市内 → 加载 2D 网格
+    if (data.city) loadGrid()
     const me = await Api.get('/auth/me')
     userStore.updateUser(me.user)
     try {
@@ -645,12 +710,21 @@ async function loadScene() {
 }
 
 async function move(dir) {
+  if (animating.value) return
   moveError.value = ''
+  animating.value = true
   try {
     const data = await Api.post('/map/move', { dir })
     scene.value = data
     gameStore.setScene(data)
-  } catch (e) { moveError.value = e.message }
+    // 同步 grid currentPlaceId
+    if (grid.value) grid.value.currentPlaceId = data.place?.id || 0
+    // 移动动画延迟
+    setTimeout(() => { animating.value = false }, 350)
+  } catch (e) {
+    moveError.value = e.message
+    animating.value = false
+  }
 }
 
 const DIR_LABEL = { n: '北境', s: '南疆', e: '东洲', w: '西域' };
@@ -1268,6 +1342,135 @@ watch(() => gameStore.inBattle, (val, oldVal) => {
 }
 .cr-refresh:hover { opacity: 0.8; transform: translate(-50%, -50%) rotate(180deg); }
 .move-error-msg { font-size: 10px; color: #e74c3c; text-align: center; }
+
+/* ===== 2D 网格地图 ===== */
+.map2d-wrap {
+  position: relative; z-index: 2;
+  background: linear-gradient(135deg, rgba(63,106,74,0.08), rgba(46,90,59,0.05));
+  border: 1px solid rgba(201,167,88,0.2);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 8px 0;
+}
+.map2d-hud {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; padding: 0 4px;
+}
+.m2d-title { font-size: 11px; color: #c9a758; font-weight: 600; }
+.m2d-refresh {
+  background: rgba(201,167,88,0.1); border: 1px solid rgba(201,167,88,0.3);
+  border-radius: 6px; padding: 4px 8px; color: #c9a758; font-size: 12px;
+  cursor: pointer; transition: all 0.2s;
+}
+.m2d-refresh:hover { background: rgba(201,167,88,0.2); transform: rotate(180deg); }
+.map2d-canvas {
+  display: flex; justify-content: center;
+  background: linear-gradient(180deg, #2a3a2a 0%, #1a2a1a 100%);
+  border-radius: 8px; padding: 6px;
+  overflow-x: auto;
+}
+.map2d-grid {
+  display: grid; gap: 3px;
+  width: 100%; max-width: 420px;
+  aspect-ratio: 1 / 1;
+}
+.m2d-cell {
+  position: relative;
+  background: rgba(63,106,74,0.15);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 5px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 36px; min-width: 36px;
+  padding: 2px;
+  overflow: hidden;
+}
+.m2d-cell:hover { background: rgba(201,167,88,0.2); transform: scale(1.05); z-index: 1; }
+.m2d-empty { background: rgba(63,106,74,0.04); border-style: dashed; cursor: default; }
+.m2d-empty:hover { background: rgba(63,106,74,0.04); transform: none; }
+.m2d-current {
+  background: linear-gradient(135deg, #c9a758, #8b784e) !important;
+  border-color: #fff !important;
+  box-shadow: 0 0 12px rgba(201,167,88,0.6);
+  animation: m2d-pulse 1.5s infinite;
+}
+.m2d-current .m2d-name { color: #fff; font-weight: 700; }
+@keyframes m2d-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(201,167,88,0.6); }
+  50% { transform: scale(1.04); box-shadow: 0 0 18px rgba(201,167,88,0.9); }
+}
+.m2d-npc { background: rgba(169,119,78,0.15); border-color: rgba(169,119,78,0.4); }
+.m2d-market { background: rgba(192,80,77,0.15); border-color: rgba(192,80,77,0.4); }
+.m2d-gate { background: rgba(46,90,59,0.2); border-color: rgba(46,90,59,0.5); }
+.m2d-temple { background: rgba(155,89,182,0.15); border-color: rgba(155,89,182,0.4); }
+.m2d-shop { background: rgba(169,119,78,0.18); border-color: rgba(169,119,78,0.45); }
+.m2d-icon { font-size: 18px; line-height: 1; }
+.m2d-name {
+  font-size: 9px; color: #cfc19e; text-align: center;
+  margin-top: 1px; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.m2d-npc-badge {
+  position: absolute; top: 1px; right: 1px;
+  background: #2e5a3b; color: #fff;
+  font-size: 8px; padding: 1px 3px; border-radius: 3px;
+}
+.m2d-player {
+  position: absolute; bottom: -2px; right: -2px;
+  font-size: 12px;
+  animation: m2d-walk 0.4s ease-out;
+}
+@keyframes m2d-walk {
+  0% { transform: scale(0.5) translateY(-8px); opacity: 0; }
+  50% { transform: scale(1.2) translateY(-2px); }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.m2d-animating { animation: m2d-bounce 0.35s ease-out !important; }
+@keyframes m2d-bounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.15); }
+  60% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.m2d-grass { font-size: 14px; opacity: 0.3; }
+.map2d-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 36px);
+  grid-template-rows: repeat(3, 36px);
+  gap: 4px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.m2d-arrow {
+  background: rgba(63,106,74,0.3);
+  border: 1px solid rgba(201,167,88,0.4);
+  border-radius: 6px;
+  color: #c9a758;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.m2d-arrow:hover:not(:disabled) {
+  background: rgba(201,167,88,0.3);
+  transform: scale(1.1);
+}
+.m2d-arrow:disabled { opacity: 0.25; cursor: not-allowed; }
+.m2d-up { grid-column: 2; grid-row: 1; }
+.m2d-left { grid-column: 1; grid-row: 2; }
+.m2d-right { grid-column: 3; grid-row: 2; }
+.m2d-down { grid-column: 2; grid-row: 3; }
+.map2d-loading {
+  text-align: center; padding: 30px; color: #8b784e; font-size: 12px;
+  background: rgba(255,255,255,0.03); border-radius: 8px;
+}
+.loading-spinner {
+  width: 24px; height: 24px; border: 2px solid rgba(201,167,88,0.2);
+  border-top-color: #c9a758; border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== 城门出城面板 ===== */
 .gate-panel {

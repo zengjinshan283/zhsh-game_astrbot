@@ -8,6 +8,53 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
+// ============================================================
+// 2D 网格地图 — 一次性返回整个城市所有 place 的 2D 坐标
+// ============================================================
+router.get('/grid', authMiddleware, async (req, res, next) => {
+  try {
+    const { city_id } = req.query;
+    if (!city_id) return res.status(400).json({ error: '缺少 city_id' });
+
+    // 拿全部 place
+    const places = await db.getAll(
+      'SELECT id, name, type, is_market, pos_row, pos_col, n, s, e, w, description FROM `place` WHERE city_id=? AND pos_row IS NOT NULL AND pos_col IS NOT NULL',
+      [city_id]
+    );
+
+    // 拿该城市的所有 NPC（按 place_id 分组）
+    const npcs = await db.getAll(
+      'SELECT id, name, place_id, type, dialog, level FROM `npc` WHERE place_id IN (SELECT id FROM `place` WHERE city_id=?)',
+      [city_id]
+    );
+    const npcMap = {};
+    npcs.forEach(n => { if (!npcMap[n.place_id]) npcMap[n.place_id] = []; npcMap[n.place_id].push(n); });
+
+    // 拿当前用户所在位置
+    const user = await db.getOne('SELECT place_id FROM `user` WHERE `id`=?', [req.user.id]);
+    const currentPlaceId = user?.place_id || 0;
+
+    // 计算网格边界
+    let maxRow = 0, maxCol = 0;
+    places.forEach(p => { if (p.pos_row > maxRow) maxRow = p.pos_row; if (p.pos_col > maxCol) maxCol = p.pos_col; });
+    const rows = maxRow + 1;
+    const cols = maxCol + 1;
+
+    // 组装 places 列表（注入 npcs + 邻接 id）
+    const placeList = places.map(p => ({
+      ...p,
+      npcs: npcMap[p.id] || []
+    }));
+
+    res.json({
+      city_id: Number(city_id),
+      rows, cols,
+      places: placeList,
+      currentPlaceId
+    });
+  } catch (err) { next(err); }
+});
+
 // 获取当前场景信息
 router.get('/scene', authMiddleware, async (req, res, next) => {
   try {
